@@ -2,6 +2,8 @@
 // (formát na disku i DTO pro frontend).
 package model
 
+import "github.com/oklog/ulid/v2"
+
 // FormatVersion je nejvyšší verze formátu projektu, kterou aplikace zná.
 const FormatVersion = 1
 
@@ -256,3 +258,32 @@ type Environment struct {
 	Name string `json:"name" yaml:"name"`
 	Vars []Var  `json:"vars,omitempty" yaml:"vars,omitempty"`
 }
+
+// Druhy uzlů stromu.
+const (
+	KindFolder  = "folder"
+	KindRequest = "request"
+)
+
+// TreeNode je uzel stromu projektu. Kořen má Kind folder a Rel "".
+type TreeNode struct {
+	Kind     string     `json:"kind" yaml:"kind"`
+	Rel      string     `json:"rel" yaml:"rel"`
+	Name     string     `json:"name" yaml:"name"`
+	Seq      int        `json:"seq" yaml:"seq"`
+	ID       string     `json:"id,omitempty" yaml:"id,omitempty"`
+	Method   string     `json:"method,omitempty" yaml:"method,omitempty"`
+	Error    string     `json:"error,omitempty" yaml:"error,omitempty"` // soubor nejde načíst (kód chyby)
+	Children []TreeNode `json:"children,omitempty" yaml:"children,omitempty"`
+}
+
+// ProjectInfo je základní informace o otevřeném projektu.
+type ProjectInfo struct {
+	ID       string `json:"id" yaml:"id"`
+	Name     string `json:"name" yaml:"name"`
+	Path     string `json:"path" yaml:"path"`
+	ReadOnly bool   `json:"readOnly" yaml:"readOnly"`
+}
+
+// NewID vrátí nové ULID.
+func NewID() string { return ulid.Make().String() }
