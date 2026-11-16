@@ -1,8 +1,8 @@
 # Stav projektu
 
 ## Aktuálně
-- **Fáze:** F1, krok 1 hotový.
-- **Další krok:** F1, krok 2 – `internal/storage` (CreateProject, OpenProject, LoadTree, CreateFolder/Request, Load/SaveRequest, Rename, Move, Duplicate, Delete do Koše, atomický zápis, přečíslování `seq`); viz `docs/PLAN.md` → `### F1`, kap. 2.2–2.4. Přidat `github.com/oklog/ulid/v2` pro ID.
+- **Fáze:** F1, krok 2 hotový.
+- **Další krok:** F1, krok 3 – `internal/vars` (kap. 3): `Resolve`, `Explain`, priorita scope, dynamické proměnné, rekurze/`VAR_CYCLE`, neznámé → `unresolved`; `encodeQuery` (zachovat `%XX`) a sestavení URL (path params, doplnění `http://`, `URL_INVALID`). Testy dle `### F1` bod 3.
 - **Prostředí:** Go 1.27.4 darwin/arm64, Node 26, Wails CLI v2.17.1 (`~/go/bin/wails`), gh CLI. Příkazy přes `make dev|build|test|check`.
 
 ## Co existuje (F0)
@@ -15,6 +15,8 @@
 - `internal/model`: typy `Request`, `FolderConfig`, `ProjectConfig`, `Environment`, `KV`, `PathParam`, `Var`, `Auth` (+bloky), `Body`, `MultipartPart`, `Extract`, `HTTPSettings` (ukazatele = dědičnost), konstanty metod/typů těla/auth/názvů souborů, `NewRequest`.
 - `MarshalYAML` (odsazení 2, víceřádkové řetězce jako `|`), `UnmarshalYAML` (+ NFC normalizace, chyba `YAML_INVALID`), `NormalizeNFC` (reflexe).
 - `Slugify`, `UniqueSlug(slug, taken func(lower string) bool)` – volající předává lowercase sadu existujících jmen.
+- `model.TreeNode` (+ pole `Error` = kód chyby nečitelného souboru), `model.ProjectInfo`, `model.NewID()` (ULID).
+- `internal/storage`: `CreateProject(parentDir, name)`, `OpenProject(root)` → `*Project` (`Info`, `Config`, `SaveConfig` + správa `.gitignore`), `LoadTree`, `CreateFolder/CreateRequest(parentRel, name)`, `LoadRequest/SaveRequest`, `LoadFolderConfig/SaveFolderConfig`, `Rename`, `Move(rel, target, index)` (index mezi sourozenci stejného druhu), `Duplicate`, `Delete` (Koš přes cgo `trash_darwin.go`, i `.responses/<id>`). Atomický zápis, přečíslování `seq` 1..n, ochrana proti `..`, read-only při vyšší formatVersion. Chyby: `NOT_FOUND`, `PATH_INVALID`, `NAME_EMPTY`, `PROJECT_READONLY`, `PROJECT_INVALID`, `MOVE_INTO_SELF`, `FS_ERROR`, `TRASH_FAILED`.
 
 ## Log
 | Datum | Fáze | Commit | Poznámka |
@@ -24,6 +26,7 @@
 | 2026-11-16 | plán | ee7e752, 8c3ec77 | veřejné repo, Menlo, jen cURL |
 | 2026-11-16 | F0 | e30f399 | bootstrap Wails + Svelte 5, menu, layout, CI |
 | 2026-11-16 | F1/1 | a5e44f8 | model, slugify, YAML roundtrip |
+| 2026-11-17 | F1/2 | 2420b89 | storage: strom, CRUD, přesun, duplikace, koš |
 
 ## Rozhodnutí uživatele
 - Wails v2 + Svelte 5, YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
@@ -33,6 +36,8 @@
 
 ## Otevřené body / známé problémy
 - YAML: chybějící `enabled` u KV/Var/multipart/extract = zapnuto (vlastní `UnmarshalYAML`). Řádky se zapisují blokovým stylem, ne flow `{…}` jako v ukázkách plánu.
+- Storage: složky a requesty sdílí jmenný prostor slugů (kolize case-insensitive); v kořeni je `environments` rezervované. Nečitelné soubory jsou ve stromu na konci s `Error`. Přípona duplikátu „ kopie“ je natvrdo česky (data, ne UI) – případně v F11 brát z jazyka.
+- Testy storage nahrazují `trashItem` přesunem do TempDir; skutečný Koš ověřen jednorázově ručně.
 - Nil slice → v JSON `null`; frontend s tím musí počítat (případně normalizovat v bindingu F3).
 - Retina větev fontů ověřena jen syntakticky (media query platná), vizuálně ne – ověřit na retina displeji.
 - Rozměry panelů se zatím neukládají (přijde s workspace v F2).
