@@ -118,16 +118,16 @@ func TestRenameMoveDuplicateDelete(t *testing.T) {
 	}
 
 	// duplikace složky – hned za originál, nová ID
-	d := must(p.Duplicate(a.Rel))
+	d := must(p.Duplicate(a.Rel, ""))
 	if d.Name != "A kopie" || d.Rel != "a-kopie" {
 		t.Errorf("duplikát: %+v", d)
 	}
-	dup := must(p.Duplicate("becko/dva.req.yaml"))
+	dup := must(p.Duplicate("becko/dva.req.yaml", " copy"))
 	tree := must(p.LoadTree())
 	if got := names(tree.Children); got != "A,A kopie,Béčko" {
 		t.Errorf("po duplikaci: %s", got)
 	}
-	if got := names(tree.Children[2].Children); got != "Dva,Dva kopie,Tři,Příliš žluťoučký kůň" {
+	if got := names(tree.Children[2].Children); got != "Dva,Dva copy,Tři,Příliš žluťoučký kůň" {
 		t.Errorf("duplikát requestu: %s", got)
 	}
 	orig := must(p.LoadRequest("becko/dva.req.yaml"))
@@ -135,8 +135,21 @@ func TestRenameMoveDuplicateDelete(t *testing.T) {
 		t.Errorf("ID duplikátu: %s vs %s", dup.ID, orig.ID)
 	}
 
-	// smazání včetně uložených odpovědí
+	// smazání nesmí vzít odpovědi requestu se stejným ID jinde (kopie z Finderu)
+	finderCopy := must(p.CreateRequest(a.Rel, "Kopie z Finderu"))
+	fc := must(p.LoadRequest(finderCopy.Rel))
+	fc.ID = orig.ID
+	must(0, p.SaveRequest(finderCopy.Rel, fc))
 	resp := filepath.Join(p.Root, model.ResponsesDir, orig.ID)
+	os.MkdirAll(resp, 0o755)
+	if err := p.Delete("becko/dva.req.yaml"); err != nil || !exists(resp) {
+		t.Errorf("sdílené ID: %v, odpovědi existují=%v", err, exists(resp))
+	}
+	must(0, p.Delete(finderCopy.Rel))
+
+	// smazání včetně uložených odpovědí
+	tri := must(p.LoadRequest("becko/tri.req.yaml"))
+	resp = filepath.Join(p.Root, model.ResponsesDir, tri.ID)
 	os.MkdirAll(resp, 0o755)
 	if err := p.Delete("becko"); err != nil {
 		t.Fatal(err)

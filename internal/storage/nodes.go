@@ -9,8 +9,8 @@ import (
 	"github.com/novami/minor-rest/internal/model"
 )
 
-// CopySuffix se připojí k názvu duplikované položky.
-const CopySuffix = " kopie"
+// DefaultCopySuffix se použije, když volající nepředá příponu v jazyce UI.
+const DefaultCopySuffix = " kopie"
 
 // CreateFolder vytvoří složku na konci sourozenců.
 func (p *Project) CreateFolder(parent, name string) (model.TreeNode, error) {
@@ -190,8 +190,9 @@ func (p *Project) Move(rel, target string, index int) (model.TreeNode, error) {
 	return p.node(newRel, true)
 }
 
-// Duplicate vytvoří kopii hned za originálem (název „… kopie“, nová ID všech requestů).
-func (p *Project) Duplicate(rel string) (model.TreeNode, error) {
+// Duplicate vytvoří kopii hned za originálem (název + copySuffix, např. „ kopie“ / „ copy“;
+// prázdná = DefaultCopySuffix) s novými ID všech requestů.
+func (p *Project) Duplicate(rel, copySuffix string) (model.TreeNode, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if err := p.writable(); err != nil {
@@ -205,7 +206,10 @@ func (p *Project) Duplicate(rel string) (model.TreeNode, error) {
 	if err != nil {
 		return model.TreeNode{}, err
 	}
-	name := orig.Name + CopySuffix
+	if copySuffix == "" {
+		copySuffix = DefaultCopySuffix
+	}
+	name := orig.Name + copySuffix
 	newRel, err := p.freeRel(parent, model.Slugify(name), kind, "")
 	if err != nil {
 		return model.TreeNode{}, err
@@ -284,7 +288,17 @@ func (p *Project) Delete(rel string) error {
 	if err := trashItem(abs); err != nil {
 		return errf(ErrTrash, err)
 	}
+	// ID může sdílet i jiný request (soubor zkopírovaný ve Finderu) – jeho odpovědi nemazat
+	inUse := map[string]bool{}
+	if len(ids) > 0 {
+		for _, id := range requestIDs(p.Root) {
+			inUse[id] = true
+		}
+	}
 	for _, id := range ids {
+		if inUse[id] {
+			continue
+		}
 		dir := filepath.Join(p.Root, model.ResponsesDir, id)
 		if exists(dir) {
 			if err := trashItem(dir); err != nil {
