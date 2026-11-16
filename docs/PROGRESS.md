@@ -14,9 +14,9 @@
 
 ## Rozhodnutí uživatele
 - Wails v2 + Svelte 5, YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
+- Repozitář i releasy jsou veřejné (updater bez tokenu).
+- Ne-retina displej: Menlo 13 (UI i kód). Retina: SF Pro (UI) + SF Mono (kód).
 
 ## Otevřené body / známé problémy
-- Výklad fontu na retina (SF Pro UI + SF Mono pro kód) – potvrdit s uživatelem při F0.
-- Auto-update předpokládá veřejný repozitář a releasy.
 - Výklad „bash“ formátu kopírování = skript s proměnnými nahoře (PLAN kap. 6) – potvrdit při F9.
 - F12 vyžaduje od uživatele ed25519 klíč v GitHub Secrets (`UPDATE_SIGNING_KEY`).

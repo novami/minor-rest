@@ -435,7 +435,7 @@ Změny se projeví ihned bez restartu. Priorita HTTP nastavení: request → pro
 
 ## 10. Automatické aktualizace a release
 
-**Předpoklad: repozitář a releasy jsou veřejné** (jinak by updater potřeboval token).
+Repozitář a releasy jsou veřejné (potvrzeno uživatelem) → updater nepotřebuje token.
 
 - Verze: `-ldflags "-X main.version=v1.2.3"`, vývojový build `dev` (kontrola aktualizací vypnutá). Porovnání `golang.org/x/mod/semver`; nikdy neinstalovat nižší ani stejnou verzi; prerelease přeskočit.
 - Kontrola: 10 s po startu a pak každých 24 h → `GET https://api.github.com/repos/novami/minor-rest/releases/latest` (`User-Agent: MinorREST/<verze>`, `If-None-Match` s uloženým ETag). Chyby sítě tiše logovat.
@@ -647,7 +647,7 @@ Command palette (Cmd+K: requesty napříč projekty + akce), prázdné stavy, uk
 - [ ] Změna souborů přes `git pull`/Finder se projeví.
 
 ## 14. Rizika a otevřené body
-- **Fonty:** „na retina klasický macOS font“ = SF Pro pro UI, SF Mono pro kód. Pokud má být i kód proporcionálně, změnit `--font-code`.
+- **Fonty:** ne-retina = Menlo 13 všude (potvrzeno). Retina = SF Pro pro UI, SF Mono pro kód; pokud má být i kód proporcionálně, změnit `--font-code`.
 - **Bez notarizace:** první spuštění vyžaduje ruční povolení (kap. 10). Lze doplnit později (Developer ID + `notarytool`).
 - **Keychain přes `security`:** tajemství může bez dotazu přečíst jakýkoli proces uživatele spuštěním `security`; přijatelné pro dev nástroj, lepší izolace až s Developer ID.
 - **Literály v auth polích** končí v YAML (a tedy v gitu) – řeší jen varování a převod na secret proměnnou.
