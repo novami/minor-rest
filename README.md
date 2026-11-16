@@ -8,7 +8,7 @@ Jednoduchý a přehledný REST klient pro macOS (Apple Silicon), napsaný v Go (
 - Autorizace: Basic, Bearer, API Key, OAuth2
 - HTTP/1.1 / HTTP/2, redirecty, detailní časování, IP adresy, velikosti hlaviček a těla
 - Ukládání odpovědí s automatickým verzováním a porovnáním verzí
-- Import OpenAPI 3.x / Swagger 2.0, kopírování requestu jako cURL / bash jedním klikem
+- Import OpenAPI 3.x / Swagger 2.0, kopírování requestu jako cURL jedním klikem
 - Automatické aktualizace z GitHub Releases
 
 Stav: ve vývoji – viz [docs/PLAN.md](docs/PLAN.md) a [docs/PROGRESS.md](docs/PROGRESS.md).

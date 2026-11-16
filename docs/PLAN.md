@@ -34,7 +34,7 @@ minor-rest/
 │   ├── prepare/            # Request + dědičnost + proměnné + auth → httpclient.PreparedRequest
 │   ├── auth/               # basic, bearer, apikey, oauth2 (golang.org/x/oauth2)
 │   ├── responses/          # uložené odpovědi (verze), historie
-│   ├── export/             # cURL / bash generátor
+│   ├── export/             # cURL generátor
 │   ├── importer/{openapi,postman,curl}/
 │   ├── settings/           # globální nastavení + workspace
 │   └── updater/
@@ -291,10 +291,9 @@ Vstup `PreparedRequest{Method, URL, Headers []KV (pořadí zachovat), Body io.Re
 
 ## 6. Export – kopírování jedním klikem (`internal/export`)
 
-Ikona ⧉ vedle „Odeslat“: klik = zkopíruje v naposledy zvoleném formátu + toast; šipka = výběr:
+Ikona ⧉ vedle „Odeslat“: klik = zkopíruje v naposledy zvoleném formátu + toast; šipka = výběr (jen cURL, potvrzeno uživatelem):
 1. **cURL – víceřádkový** (výchozí; ` \` + odsazení 2 mezery, jeden flag na řádek)
 2. **cURL – jeden řádek**
-3. **Bash skript**
 
 Vstup je stejný `PreparedRequest` jako pro odeslání (tj. vyhodnocené proměnné, auth, path params, query), takže export = přesně to, co by se odeslalo. OAuth2: použít token z cache, bez tokenu → chyba `OAUTH_LOGIN_REQUIRED`.
 
@@ -305,20 +304,6 @@ Pravidla cURL:
 - Tělo: raw → `--data-raw '…'` (newlines ponechat uvnitř quotes); form → `--data-urlencode 'name=value'` za každé pole; multipart → `-F 'name=value'` / `-F 'name=@/abs/cesta;type=…'`; binary → `--data-binary '@/abs/cesta'`.
 - Volby: `--http1.1` / `--http2` (https) / `--http2-prior-knowledge` (http) – jen pokud není `auto`; `-L --max-redirs N` pokud follow; `-k` pokud verifyTls=false; `--max-time <s>`.
 - Přepínač „Maskovat tajné hodnoty“ (výchozí vypnuto) – pravidla 2.8.
-
-Bash skript:
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-BASE_URL='https://api.example.com'
-TOKEN='abc'
-
-curl -X POST "${BASE_URL}/users?page=2" \
-  -H "Authorization: Bearer ${TOKEN}" \
-  --data-raw '{"jméno":"Žluťoučký kůň"}'
-```
-- Do hlavičky skriptu jdou proměnné **přímo použité** v URL, hlavičkách a auth (název → `UPPER_SNAKE`, hodnota plně vyhodnocená, single-quoted). Argumenty, které je obsahují, jsou v double quotes s escapováním `\`, `"`, `$`, `` ` `` v literální části; ostatní argumenty single-quoted jako u cURL. Tělo je vždy plně vyhodnocené v single quotes.
 
 Testy: tabulkové („golden“) – diakritika (`Příliš žluťoučký kůň úpěl ďábelské ódy`), apostrof, `$HOME`, `!`, zpětné lomítko, víceřádkové JSON, multipart se souborem, HEAD, všechny volby.
 
@@ -507,7 +492,7 @@ GetSavedBody(projectID, requestID string, version int, pretty bool) (BodyView, e
 SetSavedLabel / DeleteSaved
 
 // Export / import (F9, F10)
-ExportSnippet(in RunInput, format string, mask bool) (string, error)   // "curl" | "curl-oneline" | "bash"
+ExportSnippet(in RunInput, format string, mask bool) (string, error)   // "curl" | "curl-oneline"
 ParseCurl(text string) (CurlImport, error)         // {Request, Warnings}
 PreviewOpenAPI(source string) (ImportPreview, error)
 ImportOpenAPI(source string, opts ImportOptions) (ProjectInfo, error)
@@ -608,7 +593,7 @@ Testy: hlavní cesta + nejdůležitější edge case. Texty UI rovnou přes `t()
 4. Záložka Historie v sidebaru.
 **Hotovo:** tři uložení = `v0001`–`v0003` s úplnými metadaty; diff ukáže změny; login → token → další request funguje přes `extract`.
 
-### F9 – Kopírování jako cURL / bash, import cURL
+### F9 – Kopírování jako cURL, import cURL
 1. `internal/export` + golden testy; tlačítko ⧉ s výběrem formátu, kontextové menu stromu, uložené verze.
 2. `internal/importer/curl` + nabídka v URL baru.
 **Hotovo:** zkopírovaný příkaz spuštěný v zsh i bash proti testovacímu serveru doručí bajtově stejné tělo a hlavičky jako aplikace (včetně diakritiky).
@@ -639,7 +624,7 @@ Command palette (Cmd+K: requesty napříč projekty + akce), prázdné stavy, uk
 - [ ] Proměnné ve všech polích, priorita, secret v Keychain, runtime z `extract`.
 - [ ] Auth: basic, bearer, apikey (header/query), OAuth2 tři granty + refresh.
 - [ ] Uložení odpovědi, verze, diff, historie.
-- [ ] Kopírování cURL (oba) a bash → Terminál → stejný výsledek.
+- [ ] Kopírování cURL (víceřádkový i jednořádkový) → Terminál (zsh i bash) → stejný výsledek.
 - [ ] Import Petstore 2.0 / 3.0 / 3.1, import cURL.
 - [ ] Ne-retina: Menlo 13; retina: systémový font; přesun okna mezi monitory.
 - [ ] Světlý/tmavý režim, cs/en včetně menu.

@@ -58,7 +58,7 @@ Neděláme „druhý Postman“ — bereme jen to, co se osvědčilo, a vynechá
 | Organizace | Libovolný počet projektů → složky (i vnořené) → requesty, řazení drag & drop |
 | Odpovědi | Uložení jedním kliknutím, **automatické verzování** (v1, v2, …), **diff mezi verzemi**, metadata (čas, IP, velikosti, protokol) |
 | Metriky | Rozpad času (DNS/TCP/TLS/TTFB/download), vzdálená IP:port, protokol, TLS verze, velikost headers vs body (přenesená i dekomprimovaná) |
-| Export | Jedna ikona → kopírování jako cURL (1 řádek / víceřádkový) nebo bash skript, plně vyhodnocené proměnné, správné escapování UTF-8 |
+| Export | Jedna ikona → kopírování jako cURL (1 řádek / víceřádkový), plně vyhodnocené proměnné, správné escapování UTF-8 |
 | Tajemství | tajné proměnné v macOS Keychain (v YAML jen název); literál v auth poli → varování a převod na tajnou proměnnou |
 | Updaty | Automaticky z GitHub Releases, ověření podpisu ed25519 |
 | Fonty | Ne-retina: Menlo 13; retina: systémový font macOS (SF Pro / SF Mono) |
