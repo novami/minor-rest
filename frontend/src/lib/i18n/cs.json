@@ -1,0 +1,13 @@
+{
+  "app.name": "MinorREST",
+  "sidebar.title": "Projekty",
+  "sidebar.empty": "Zatím žádný projekt",
+  "request.empty": "Otevřete nebo vytvořte request",
+  "request.emptyHint": "Cmd+N vytvoří nový request",
+  "response.empty": "Odpověď se zobrazí zde",
+  "response.emptyHint": "Odešlete request klávesami Cmd+Enter",
+  "common.ok": "OK",
+  "common.cancel": "Zrušit",
+  "common.close": "Zavřít",
+  "toast.notImplemented": "Zatím není implementováno: {action}"
+}

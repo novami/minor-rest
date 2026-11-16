@@ -1,0 +1,16 @@
+/* Non-retina: Menlo 13 everywhere. Retina: system font for UI, SF Mono for code.
+   The media query re-evaluates when the window moves between displays.
+   Settings (F11) may override these variables inline on :root. */
+:root {
+  --font-ui: Menlo, monospace;
+  --font-code: Menlo, monospace;
+  --font-size: 13px;
+  --font-size-code: 13px;
+}
+
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx) {
+  :root {
+    --font-ui: -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-code: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+}

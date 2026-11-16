@@ -70,6 +70,8 @@ minor-rest/
 11. Okno: 1280×800, min 900×600, `mac.TitleBarHiddenInset()`; tažitelná oblast CSS `--wails-draggable: drag` (interaktivní prvky uvnitř `no-drag`); horní lišta má vlevo 80 px odsazení kvůli „semaforu“.
 12. Schránka `runtime.ClipboardSetText`, prohlížeč `runtime.BrowserOpenURL`, dialogy `runtime.OpenFileDialog/SaveFileDialog/OpenDirectoryDialog/MessageDialog`.
 13. **Ověřování UI:** `wails dev` vystaví aplikaci i na `http://localhost:34115` s funkčními bindingy → spustit na pozadí a ověřovat v prohlížeči (čtení stránky / screenshot), ne slepě.
+14. Vygenerovaný `EventsOn` v `wailsjs/runtime/runtime.js` nevrací odhlašovací funkci → používat helper `onEvent`/`onMenu` z `frontend/src/lib/util/events.ts` (volá `EventsOnMultiple`).
+15. Wails CLI je v `~/go/bin` (není v PATH) → používat `make dev|build|test|check`; Makefile nastavuje i `CGO_*FLAGS=-mmacosx-version-min=13.0` (jinak varování linkeru).
 
 ## 2. Datový model a formát na disku
 
