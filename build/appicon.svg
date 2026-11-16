@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#4ADE80"/><stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.15" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.6"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0.08"/><stop offset="1" stop-color="#000000" stop-opacity="0.25"/>
+    </linearGradient>
+    <radialGradient id="shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0.75" stop-color="#000" stop-opacity="0.35"/><stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="clip"><rect x="100" y="100" width="824" height="824" rx="186"/></clipPath>
+    
+  </defs>
+  <ellipse cx="512" cy="540" rx="440" ry="440" fill="url(#shadow)"/>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#body)"/>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#glow)"/>
+  <g clip-path="url(#clip)">
+  <g fill="none" stroke="#04402c" stroke-opacity="0.25" stroke-width="64" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 14)">
+    <path d="M372 290 C312 290 300 320 300 370 V460 C300 495 285 512 250 512 C285 512 300 529 300 564 V654 C300 704 312 734 372 734"/>
+    <path d="M652 290 C712 290 724 320 724 370 V460 C724 495 739 512 774 512 C739 512 724 529 724 564 V654 C724 704 712 734 652 734"/>
+  </g>
+  <g fill="none" stroke="#ffffff" stroke-width="64" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M372 290 C312 290 300 320 300 370 V460 C300 495 285 512 250 512 C285 512 300 529 300 564 V654 C300 704 312 734 372 734"/>
+    <path d="M652 290 C712 290 724 320 724 370 V460 C724 495 739 512 774 512 C739 512 724 529 724 564 V654 C724 704 712 734 652 734"/>
+  </g>
+  <path d="M452 418 L598 512 L452 606 Z" fill="#ffffff" stroke="#ffffff" stroke-width="28" stroke-linejoin="round"/></g>
+  <path clip-path="url(#clip)" d="M100 100 H924 V430 C760 520 300 520 100 470 Z" fill="url(#gloss)" opacity="0.55"/>
+  <rect x="104" y="104" width="816" height="816" rx="182" fill="none" stroke="url(#rim)" stroke-width="6"/>
+</svg>
