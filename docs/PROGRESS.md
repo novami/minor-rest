@@ -1,8 +1,8 @@
 # Stav projektu
 
 ## Aktuálně
-- **Fáze:** F2, krok 2 hotový.
-- **Další krok:** F2, krok 3 – drag & drop ve stromu (HTML5 DnD, kdyby ve WKWebView zlobil → pointer events): přesun mezi složkami + pořadí, indikátor místa vložení, složku nelze do sebe; volá `moveNode(rel, targetParent, index)` z `stores/tree.svelte.ts` (index = pozice mezi sourozenci stejného druhu). Pak hledání (filtr podle názvu, URL a metody bez diakritiky; URL vyžaduje doplnit do `TreeNode` nebo samostatný binding). Kap. 8.2.
+- **Fáze:** F2, krok 3 hotový.
+- **Další krok:** F2, krok 4 – watcher (`fsnotify`, každý adresář projektu kromě `.git`, `.responses`, debounce 300 ms) → emit `tree:changed {projectID}`; potlačit vlastní zápisy (mapa `cesta → čas zápisu`, ignorovat 1 s – napojit na `WriteFileAtomic`/rename/mazání ve storage). Frontend na `tree:changed` zavolá `reloadTree`. Zvážit detekci duplicitních ID (viz otevřené body). Kap. 8.2. Tím je F2 hotová – ověřit kritérium „Hotovo“ z PLAN.md.
 - **Prostředí:** Go 1.27.4 darwin/arm64, Node 26, Wails CLI v2.17.1 (`~/go/bin/wails`), gh CLI. Příkazy přes `make dev|build|test|check`.
 
 ## Co existuje (F0)
@@ -27,6 +27,8 @@
 - `app_projects.go`: všechny bindingy F2 z kap. 11.1; při startu `loadWorkspace` znovu otevře projekty (nečitelné vynechá + log). Seznam projektů ve workspace spravuje backend.
 - `storage.InitProject(root, name)` + `IsProjectDir`; „Otevřít adresář…“ na adresáři bez projektu nabídne nativním dialogem založení (název = název adresáře). Bindingy `PickDirectory`, `DefaultProjectsDir`; modál nového projektu má volbu umístění.
 - Strom (`Tree.svelte` plochý seznam viditelných řádků + `stores/tree.svelte.ts`): rozbalení ve `ws.expanded`, výběr, klávesy (šipky, Enter = rozbalit, F2 přejmenovat, Cmd+Backspace/Delete smazat), kontextové menu (`ContextMenu.svelte`) na uzlu i prázdné ploše, inline přejmenování, nový request/složka rovnou v editaci názvu, duplikace s příponou dle jazyka, mazání s potvrzením, Zobrazit ve Finderu. Menu `new-request`/`new-folder`/`duplicate` napojeno (cíl = vybraná složka / složka vybraného requestu / kořen).
+- Drag & drop ve stromu (HTML5 DnD): složka – horní/dolní čtvrtina = před/za, střed = dovnitř (rozbalená jen před/dovnitř); request nad složkou = dovnitř, nad requestem = před/za; složka nad requestem = do jeho složky; prázdná plocha = kořen. Indikátor čárou / rámečkem, podržení nad sbalenou složkou 700 ms ji rozbalí, složku nelze do sebe. Index se počítá mezi sourozenci stejného druhu bez přetahovaného uzlu; přesun na stejné místo se nevolá.
+- Hledání: pole nad stromem, filtr bez diakritiky a velikosti písmen (`util/text.ts` `fold`) podle názvu, URL a metody; zobrazí shody s nadřazenými složkami (rozbalené), u shody složky celý podstrom. Esc vymaže / vrátí fokus, Enter/↓ přejde do stromu. Během filtru je DnD vypnutý. `TreeNode` má nově `URL`.
 - Frontend: `stores/workspace.svelte.ts` (`ws`, init, debounced `saveWorkspace`, create/open/close/select), `ProjectSwitcher` v titlebaru (+ modál nového projektu), `Tree` (zatím jen zobrazení), `util/errors.ts` (`errorText` → `errors.<CODE>`), i18n sekce `errors`. Rozměry/viditelnost panelů se ukládají.
 
 ## Log
@@ -45,6 +47,7 @@
 | 2026-11-17 | F2/1 | 3a5a628 | workspace, registr projektů, bindingy, přepínač projektů |
 | 2026-11-17 | F2/1 | 7440a15 | modál uprostřed, volba umístění, založení projektu v adresáři |
 | 2026-11-17 | F2/2 | 056c3d6 | interaktivní strom |
+| 2026-11-17 | F2/3 | 521ce8f | drag & drop, hledání ve stromu |
 
 ## Rozhodnutí uživatele
 - Wails v2 + Svelte 5, YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
@@ -61,6 +64,8 @@
 - i18n `errors.*` pokrývá kódy z `internal/*`; nové kódy (HTTP, auth…) přidávat průběžně.
 - `wails dev` v prohlížeči: chyba z `wails/ipc.js` („reading 'nodes'“) je v overlayi Wails „odpojeno“ (Svelte v ipc.js), jen dev, aplikaci neovlivňuje.
 - Strom: Enter na requestu zatím nic neotevře (taby v F3). Kontextové menu bez „Kopírovat jako cURL“ (F9) a „Nastavení složky“ (F3). Zobrazit ve Finderu neověřeno v UI (jen `open -R`).
+- DnD ověřen jen syntetickými událostmi v prohlížeči (wails dev); v nativním WKWebView neověřeno – při potížích přejít na pointer events (PLAN 8.2).
+- `make dev` potřebuje `~/go/bin` v PATH (jinak „wails: No such file“).
 - Screenshoty v panelu prohlížeče občas ukazují zastaralý stav – ověřovat přes DOM (`javascript_tool`).
 - Testy v `wails dev` zapisují do skutečného `~/Library/Application Support/MinorREST/workspace.yaml` – testovací projekty zakládat přes binding do scratch adresáře a po testu zavřít.
 - Nil slice → v JSON `null`; frontend s tím musí počítat (případně normalizovat v bindingu F3).
