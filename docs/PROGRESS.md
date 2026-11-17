@@ -1,8 +1,8 @@
 # Stav projektu
 
 ## Aktuálně
-- **Fáze:** F3 hotová (krok 4 hotový), další je F4.
-- **Další krok:** F4, krok 1 – `internal/httpclient` jádro: metody, hlavičky, těla (raw, form, multipart, binary), HTTP verze, TLS, redirecty, timeout/cancel, chybové kódy + testy (kap. 4, 11.2). Nastavení request → projekt → globální už spojuje `HTTPSettings.Over` + `settings.DefaultHTTP()`.
+- **Fáze:** F4, krok 1 hotový.
+- **Další krok:** F4, krok 2 – metriky v `internal/httpclient`: timing přes `httptrace` (per skok, poslední skok + total), adresy (`RemoteAddr/LocalAddr/ResolvedAddrs`), skutečně odeslané hlavičky (`WroteHeaderField`), velikosti, `Accept-Encoding` auto hlavička + dekomprese (gzip/deflate/br/zstd), charset → UTF-8, limity těla (10 MB paměť / temp soubor / `MaxBodyBytes` + `truncated`), LRU 20 výsledků + testy (kap. 4).
 - **Prostředí:** Go 1.27.4 darwin/arm64, Node 26, Wails CLI v2.17.1 (`~/go/bin/wails`), gh CLI. Příkazy přes `make dev|build|test|check`.
 
 ## Co existuje (F0)
@@ -49,6 +49,12 @@
 - Zavření projektu s neuloženými taby (`closeProjectSafe`): modál Uložit vše / Zahodit / Zrušit.
 - Watcher emituje navíc `request:changedOnDisk {projectID, rel}` pro změněné `*.req.yaml`; čistý tab se tiše znovu načte, neuložený ukáže banner „Načíst z disku / Ponechat moje“ (Ponechat = verze z disku se stane základem, tab zůstane neuložený). Funguje i pro taby neaktivních projektů.
 
+## Co existuje (F4)
+- `internal/httpclient`: `Engine` (`New`, `Do(ctx, runID, Request, Options) (*Result, error)`, `Cancel(runID)`), `OptionsFrom(HTTPSettings, userAgent)`. Nový `http.Transport` na odeslání (`Protocols`: auto = h1+h2, http1, http2 / h2c prior knowledge pro `http://`), `DisableCompression`, `InsecureSkipVerify = !VerifyTLS`, vlastní `CheckRedirect` (záznam skoků `{status, method, url, location}`, limit → `REDIRECT_LIMIT`), timeout i zrušení přes context s příčinou (`NET_TIMEOUT` vs `CANCELED`), `TLSInfo` (verze, cipher, SNI, subjekt, vydavatel, expirace).
+- `Request{Method, URL, Headers []KV, Body model.Body, BaseDir, NoAuto []string}` – hlavičky kanonizované (`Add`, opakované se zachovají), `Host` → `req.Host`, `Content-Length` ignorován, auto `User-Agent`/`Accept: */*`/`Content-Type` jen když chybí a nejsou v `NoAuto`; vypnutý UA = prázdný (Go nedoplní vlastní).
+- Těla: raw typy s `; charset=utf-8`, form v pořadí řádků (`url.QueryEscape`, plné kódování), multipart v paměti (UTF-8 `filename`, Content-Type z přípony), binary streamem ze souboru; relativní cesty vůči `BaseDir`; `GetBody` → 307/308 pošle tělo znovu. Uživatelský `multipart/…` Content-Type bez boundary dostane boundary doplněné.
+- Chyby `*httpclient.Error{Code, Detail}` (`Error()` = `KÓD: detail`): `CANCELED NET_TIMEOUT NET_DNS NET_REFUSED NET_ERROR TLS_VERIFY TLS_ERROR HTTP2_UNSUPPORTED REDIRECT_LIMIT FILE_NOT_FOUND URL_INVALID METHOD_INVALID` (+ i18n cs/en). `HTTP2_UNSUPPORTED` jen při vynuceném http2 podle textu chyby (chybí ALPN h2 / h2c na HTTP/1 serveru).
+
 ## Log
 | Datum | Fáze | Commit | Poznámka |
 |---|---|---|---|
@@ -71,6 +77,7 @@
 | 2026-11-17 | F3/2 | fd322c1 | KvEditor, bulk edit, Params/Headers, path params, našeptávač hlaviček |
 | 2026-11-17 | F3/3 | 9264db3 | tělo: CodeEditor, typy těla, FormatJSON, PickFile(projectID) |
 | 2026-11-17 | F3/4 | 96cf3dd | nastavení, dokumentace, dialog zavření okna/projektu, změna na disku |
+| 2026-11-17 | F4/1 | d5efcf7 | jádro httpclient: verze, těla, redirecty, timeout/cancel, chybové kódy |
 
 ## Rozhodnutí uživatele
 - Wails v2 + Svelte 5, YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
@@ -99,3 +106,4 @@
 - F12 vyžaduje od uživatele ed25519 klíč v GitHub Secrets (`UPDATE_SIGNING_KEY`).
 - KvEditor: blok „Automatické a zděděné hlavičky“ (kap. 8.3) odložen – potřebuje `prepare`/nastavení složek (F4/F6). Request s `:param` v URL, ale bez `params.path` v YAML, je po otevření hned neuložený (doplní se řádky). V režimu hromadné úpravy se textarea nepřepočítá, když se query změní z URL baru. Datalist (našeptávač) a DnD řádků ověřeny jen v prohlížeči, ne v nativním WKWebView. Při přejmenování `:i` → `:id` během psaní se hodnota path paramu nepřenese.
 - Tělo: drop souboru do multipart/binary zatím není (Wails `OnFileDrop` – doplnit v F13 nebo dle potřeby). Text varování nevalidního JSON je z `JSON.parse` prohlížeče (WebKit má jiné znění a bez pozice). Výběr souboru (nativní dialog) v prohlížeči neověřen, jen v kódu.
+- httpclient: hlavičky odpovědi jsou seřazené podle názvu (net/http nedrží pořadí ze serveru, plán chce „pořadí dle serveru“ – pro HTTP/1 by šlo jen vlastním čtením). `Accept-Encoding` se zatím neposílá (přijde s dekompresí v F4/2). Proxy zatím `ProxyFromEnvironment` z klonu `DefaultTransport` (F4/4). Multipart soubory se načítají celé do paměti.
