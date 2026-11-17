@@ -1,8 +1,8 @@
 # Stav projektu
 
 ## Aktuálně
-- **Fáze:** F3, krok 1 hotový.
-- **Další krok:** F3, krok 2 – `KvEditor` (checkbox, klíč, hodnota `VarInput`, popis, smazat, nový řádek psaním do posledního, přetažení pořadí) + Bulk edit; pod URL barem záložky (Params | Body | Headers | Auth | Nastavení | Dokumentace – zatím Params a Headers). Params: query tabulka (`tab.draft.params.query` – URL bar se sám přepočítá, viz `RequestEditor.svelte`), path params z `:name` v URL. Headers s našeptávačem názvů a běžných hodnot. Kap. 8.3.
+- **Fáze:** F3, krok 2 hotový.
+- **Další krok:** F3, krok 3 – Body: `CodeEditor` (CodeMirror wrapper: json/xml/html/markdown/text, read-only režim, téma), přepínač typu těla (none/json/xml/text/html/form-urlencoded/multipart/binary), form a multipart přes `KvEditor` (multipart: text/soubor), binding `FormatJSON` (backend `json.Indent`, `{{…}}` mimo řetězce přes zástupné tokeny), výběr souborů (relativně k projektu). Záložku Body přidat do `sections` v `RequestEditor.svelte`. Kap. 8.3, 2.5.
 - **Prostředí:** Go 1.27.4 darwin/arm64, Node 26, Wails CLI v2.17.1 (`~/go/bin/wails`), gh CLI. Příkazy přes `make dev|build|test|check`.
 
 ## Co existuje (F0)
@@ -40,6 +40,8 @@
 - Komponenty: `TabBar` (metoda, název ze stromu, tečka = neuloženo, × / prostřední tlačítko zavře, + nový request, dialog Uložit/Zahodit/Zrušit), `RequestEditor` (MethodSelect + URL bar + Odeslat), `MethodSelect` (nativní select, barva metody), `VarInput` (průhledný input nad zrcadlem, tokenizace `{{…}}`, `\{{` = escape, `$` modře; synchronizovaný scroll ověřen).
 - URL bar (`util/urlbar.ts`): text = URL + zapnuté query; při psaní se rozdělí do `url` a `params.query` (zapnuté řádky se nahradí v pořadí, popisy zůstanou, vypnuté řádky zůstanou na místě, `?name` → `bare`). Vlastní text se drží, dokud se URL/query nezmění odjinud.
 - Strom: dvojklik/Enter na requestu otevře tab; nový request (Cmd+N, +) se otevře v tabu a název je v editaci. Menu: Cmd+S uložit, Cmd+W zavřít tab, Cmd+L fokus URL. Cmd+Enter / Odeslat zatím toast (F4).
+- `KvEditor` (`rows` bindable, volitelné; `fixed` = path params; `allowBare`; `names` + `valuesFor` = datalist našeptávač): checkbox, název a hodnota `VarInput` (nové props `list`, `compact`), popis (prázdný se maže kvůli omitempty), smazání, „duch“ řádek na konci (stejný klíč indexu → fokus se při prvním znaku neztratí), přetažení za úchyt (HTML5 DnD, čára před/za), Hromadná úprava (`util/kv.ts` `toBulk/fromBulk`, popisy podle názvu, řádek bez `:` = `bare` jen u query).
+- `RequestEditor`: záložky Parametry | Hlavičky s počty (poslední záložka per tab v paměti). Query tabulka ↔ URL bar, path params (`syncPath`) podle `:name` v URL (stejná pravidla jako `vars.BuildURL`, hodnoty se drží podle názvu). Headers: `util/headers.ts` (běžné názvy a hodnoty).
 
 ## Log
 | Datum | Fáze | Commit | Poznámka |
@@ -60,6 +62,7 @@
 | 2026-11-17 | F2/3 | 521ce8f | drag & drop, hledání ve stromu |
 | 2026-11-17 | F2/4 | 942083b | watcher (FSEvents), tree:changed, oprava duplicitních ID |
 | 2026-11-17 | F3/1 | 647e970 | taby, načtení/uložení requestu, MethodSelect, VarInput, URL bar |
+| 2026-11-17 | F3/2 | fd322c1 | KvEditor, bulk edit, Params/Headers, path params, našeptávač hlaviček |
 
 ## Rozhodnutí uživatele
 - Wails v2 + Svelte 5, YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
@@ -85,3 +88,4 @@
 - `VarInput` zatím barví všechny `{{proměnné}}` jako známé (vyhodnocení a hover v F6).
 - Retina větev fontů ověřena jen syntakticky (media query platná), vizuálně ne – ověřit na retina displeji.
 - F12 vyžaduje od uživatele ed25519 klíč v GitHub Secrets (`UPDATE_SIGNING_KEY`).
+- KvEditor: blok „Automatické a zděděné hlavičky“ (kap. 8.3) odložen – potřebuje `prepare`/nastavení složek (F4/F6). Request s `:param` v URL, ale bez `params.path` v YAML, je po otevření hned neuložený (doplní se řádky). V režimu hromadné úpravy se textarea nepřepočítá, když se query změní z URL baru. Datalist (našeptávač) a DnD řádků ověřeny jen v prohlížeči, ne v nativním WKWebView. Při přejmenování `:i` → `:id` během psaní se hodnota path paramu nepřenese.
