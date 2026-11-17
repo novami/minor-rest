@@ -1,8 +1,8 @@
 # Stav projektu
 
 ## Aktuálně
-- **Fáze:** F3, krok 3 hotový.
-- **Další krok:** F3, krok 4 – záložky Nastavení (HTTP verze, redirecty, max redirectů, timeout, TLS – každé „Zdědit (aktuálně: …)“; ukazatele v `model.HTTPSettings`) a Dokumentace (`CodeEditor` lang markdown), dialog neuložených změn i při zavření okna (`OnBeforeClose`), reakce na `request:changedOnDisk` (watcher → čistý tab znovu načíst, neuložený tab nabídnout). Kap. 8.3, 11.3. Pak ověřit „Hotovo“ F3 (úprava → uložení → restart → identický YAML dle 2.5).
+- **Fáze:** F3 hotová (krok 4 hotový), další je F4.
+- **Další krok:** F4, krok 1 – `internal/httpclient` jádro: metody, hlavičky, těla (raw, form, multipart, binary), HTTP verze, TLS, redirecty, timeout/cancel, chybové kódy + testy (kap. 4, 11.2). Nastavení request → projekt → globální už spojuje `HTTPSettings.Over` + `settings.DefaultHTTP()`.
 - **Prostředí:** Go 1.27.4 darwin/arm64, Node 26, Wails CLI v2.17.1 (`~/go/bin/wails`), gh CLI. Příkazy přes `make dev|build|test|check`.
 
 ## Co existuje (F0)
@@ -44,6 +44,10 @@
 - Tělo (`BodyEditor`): přepínač 8 typů (data ostatních typů se při přepnutí zachovají), raw typy v `CodeEditor` (CodeMirror 6 `basicSetup`, jazyk dle typu, `readonly`, téma z CSS proměnných `--code-*`, zvýraznění `{{…}}`, externí změna hodnoty přepíše dokument). JSON: tlačítko Formátovat → binding `FormatJSON` (`internal/jsonfmt`: `json.Indent`, `{{…}}` i `\{{…}}` přes zástupce – mimo řetězec v uvozovkách, chyba `JSON_INVALID: <řádek>: …`), validace jen varováním pod editorem (`JSON.parse` na textu s proměnnými nahrazenými `1` + mezery stejné délky). Formulář = `KvEditor`, multipart = `KvEditor multipart` (text/soubor, výběr souboru, sloupec Content-Type místo popisu, bez bulk), binary = výběr souboru.
 - `PickFile(projectID)` (schválená změna signatury, PLAN 11) → `storage.Project.FileRef`: uvnitř projektu relativně s `/`, jinak absolutně; symlinky (/var → /private/var) se rozvinou u nejbližšího existujícího předka.
 - `RequestEditor`: záložky Parametry | Tělo | Hlavičky s počty (poslední záložka per tab v paměti). Query tabulka ↔ URL bar, path params (`syncPath`) podle `:name` v URL (stejná pravidla jako `vars.BuildURL`, hodnoty se drží podle názvu). Headers: `util/headers.ts` (běžné názvy a hodnoty).
+- Záložka Nastavení (`SettingsEditor`): HTTP verze, redirecty, max redirectů, timeout, ověřování TLS; select „Zdědit (aktuálně: …)“ / hodnota („Vlastní“ + číslo). Zdědit = klíč se smaže (na disku chybí); klíče se skládají v pořadí polí Go, aby porovnání JSON nehlásilo falešné změny. Binding `GetInheritedSettings(projectID)` = nastavení projektu `.Over(settings.DefaultHTTP())` (globální nastavení v F11). Záložka Dokumentace = `CodeEditor` markdown (prázdná → `docs` se vynechá); tečka u záložky, když je vyplněná.
+- Zavření okna/aplikace s neuloženými taby: nativní dialog Uložit / Neukládat / Zrušit; Uložit → událost `app:saveAndQuit` → frontend `saveAll()` → binding `Quit()` (příznak `quitting` přeskočí dialog). Selže-li uložení, aplikace zůstane otevřená (toast).
+- Zavření projektu s neuloženými taby (`closeProjectSafe`): modál Uložit vše / Zahodit / Zrušit.
+- Watcher emituje navíc `request:changedOnDisk {projectID, rel}` pro změněné `*.req.yaml`; čistý tab se tiše znovu načte, neuložený ukáže banner „Načíst z disku / Ponechat moje“ (Ponechat = verze z disku se stane základem, tab zůstane neuložený). Funguje i pro taby neaktivních projektů.
 
 ## Log
 | Datum | Fáze | Commit | Poznámka |
@@ -66,6 +70,7 @@
 | 2026-11-17 | F3/1 | 647e970 | taby, načtení/uložení requestu, MethodSelect, VarInput, URL bar |
 | 2026-11-17 | F3/2 | fd322c1 | KvEditor, bulk edit, Params/Headers, path params, našeptávač hlaviček |
 | 2026-11-17 | F3/3 | 9264db3 | tělo: CodeEditor, typy těla, FormatJSON, PickFile(projectID) |
+| 2026-11-17 | F3/4 | 96cf3dd | nastavení, dokumentace, dialog zavření okna/projektu, změna na disku |
 
 ## Rozhodnutí uživatele
 - Wails v2 + Svelte 5, YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
@@ -87,7 +92,8 @@
 - Screenshoty v panelu prohlížeče občas ukazují zastaralý stav – ověřovat přes DOM (`javascript_tool`).
 - Testy v `wails dev` zapisují do skutečného `~/Library/Application Support/MinorREST/workspace.yaml` – testovací projekty zakládat přes binding do scratch adresáře a po testu zavřít.
 - Nil slice → v JSON `null`; `GetRequest` normalizuje (`FillNilSlices`), ostatní DTO zatím ne.
-- Zavření projektu s neuloženými taby změny tiše zahodí; dialog řešit v F3/4 spolu s `OnBeforeClose`. Tab smazaného requestu s neuloženými změnami zůstane otevřený, uložení skončí `NOT_FOUND`.
+- Tab smazaného requestu s neuloženými změnami zůstane otevřený, uložení skončí `NOT_FOUND` (pak blokuje i „Uložit“ při ukončení – zbývá „Neukládat“).
+- F3/4 ověřeno v `wails dev` (prohlížeč): nastavení + docs → uložení → YAML dle 2.5, změna zvenku u čistého i neuloženého tabu, modál zavření projektu s „Uložit vše“. Neověřeno: nativní dialog při zavření okna / Cmd+Q a `Quit()` (jen v sestavené aplikaci), vzhled záložky Nastavení (jen DOM). Při hromadném přeskenování FSEvents (`rels == nil`) se `request:changedOnDisk` neposílá.
 - `VarInput` zatím barví všechny `{{proměnné}}` jako známé (vyhodnocení a hover v F6).
 - Retina větev fontů ověřena jen syntakticky (media query platná), vizuálně ne – ověřit na retina displeji.
 - F12 vyžaduje od uživatele ed25519 klíč v GitHub Secrets (`UPDATE_SIGNING_KEY`).
