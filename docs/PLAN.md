@@ -166,7 +166,7 @@ extract:                    # po odpovědi → runtime proměnná (F8)
 settings: {}                # jen přepsané položky; chybějící = zděděno (Go: ukazatele + omitempty)
 docs: ""
 ```
-- **Zdroj pravdy pro query je `params.query`**, `url` na disku query neobsahuje. URL bar zobrazuje `url + "?" + zapnuté parametry` (bez kódování, tak jak je uživatel napsal); při editaci URL baru se text za prvním `?` rozparsuje zpět do `params.query` (vypnuté řádky zůstávají na svých pozicích). Parsování dělat ručně (split `&`, `=`), ne přes `URL` API – nesmí se rozbít `{{proměnné}}`.
+- **Zdroj pravdy pro query je `params.query`**, `url` na disku query neobsahuje. URL bar zobrazuje `url + "?" + zapnuté parametry` (bez kódování, tak jak je uživatel napsal); při editaci URL baru se text za prvním `?` rozparsuje zpět do `params.query` (vypnuté řádky zůstávají na svých pozicích). Parametr bez `=` (`?wsdl`) dostane `bare: true` a odešle se bez `=`; `?flag=` i nový prázdný řádek se odešlou jako `flag=`. Parsování dělat ručně (split `&`, `=`), ne přes `URL` API – nesmí se rozbít `{{proměnné}}`.
 - `:nazev` v cestě (segment začínající `:`, ne port) → automaticky řádek v `params.path`; zmizí-li z URL, řádek odstranit.
 - Cesty k souborům (`multipart.path`, `binaryPath`): pokud leží uvnitř projektu, ukládat relativně ke kořeni projektu, jinak absolutně.
 - Prázdné sekce se nezapisují (`omitempty`), pořadí klíčů dle struktury → stabilní diffy v gitu.
@@ -243,9 +243,9 @@ vars:
 - Syntaxe `{{nazev}}`, název `[A-Za-z0-9_.-]+`, mezery uvnitř závorek tolerovat. `\{{` = literál `{{`.
 - **Priorita (vyšší vyhrává):** runtime → request → složky (nejbližší první) → prostředí → projekt → globální. Vypnuté (`enabled: false`) se ignorují.
 - **Runtime proměnné:** jen v paměti, per projekt (mapa v App), plní je `extract` a zobrazují se v přehledu „oko“ (lze je tam smazat). Po restartu prázdné.
-- Dynamické: `{{$uuid}}`, `{{$ulid}}`, `{{$timestamp}}`, `{{$timestampMs}}`, `{{$isoTimestamp}}`, `{{$randomInt}}` (0–1000), `{{$randomString}}` (16 znaků). Každý **výskyt** se vyhodnotí zvlášť, kromě `$timestamp*` (jedna hodnota na odeslání).
+- Dynamické: `{{$uuid}}`, `{{$ulid}}`, `{{$timestamp}}`, `{{$timestampMs}}`, `{{$isoTimestamp}}`, `{{$randomInt}}` (0–1000), `{{$randomString}}` (16 znaků). Každý **výskyt** se vyhodnotí zvlášť, kromě `$timestamp*` (jedna hodnota na odeslání). Pojmenovaná proměnná má v rámci odeslání jednu hodnotu (`id: "{{$uuid}}"` → `{{id}}` všude stejné).
 - Rekurze: hodnota může obsahovat proměnné, max hloubka 10, cyklus → chyba `VAR_CYCLE`.
-- Neznámá proměnná: ponechat literál `{{x}}`, vrátit v seznamu `unresolved`; UI před odesláním zobrazí nemodální varování (odeslání neblokuje).
+- Neznámá proměnná: ponechat literál `{{x}}`, vrátit v seznamu `unresolved`; UI před odesláním zobrazí nemodální varování (odeslání neblokuje). Výjimka: nevyhodnocená proměnná v hostu → chyba `VAR_UNRESOLVED_HOST` (detail = názvy; UI napoví vybrat prostředí).
 - Platí v: URL, query, path, headers (název i hodnota), body raw/form/multipart text, cesty souborů, všechna auth pole.
 - **Sestavení URL při odeslání** (`internal/prepare`): vyhodnotit proměnné v `url` → nahradit `:param` (hodnota po vyhodnocení, `url.PathEscape`) → pokud chybí schéma, doplnit `http://` → připojit zapnuté query parametry kódované funkcí `encodeQuery` (percent-encode UTF-8, mezera jako `%20`, **existující platné `%XX` sekvence zachovat**) → `url.Parse` (chyba → `URL_INVALID`).
 - API (`internal/vars`): `New(scopes ...Scope)` (pořadí = priorita), `Resolve(s string) (string, []string /*unresolved*/, error /*VAR_CYCLE*/)`, `Unresolved()`, `Explain() []VarInfo{Name, Value, Resolved, Source, Ref, Secret}` pro UI – tajné hodnoty se nevrací a v `Resolved` se maskují `***`. Sestavení URL: `vars.BuildURL(url, path, query, resolver)`, `EncodeQuery`, `EncodeQueryComponent`; `internal/prepare` je jen volá.

@@ -8,8 +8,13 @@ import (
 	"github.com/novami/minor-rest/internal/model"
 )
 
-// ErrURLInvalid – výsledná URL nejde rozparsovat nebo nemá host.
-const ErrURLInvalid = "URL_INVALID"
+// Kódy chyb sestavení URL.
+const (
+	ErrURLInvalid = "URL_INVALID" // výsledná URL nejde rozparsovat nebo nemá host
+	// ErrHostUnresolved – host obsahuje nevyhodnocenou proměnnou (typicky nevybrané prostředí);
+	// detail = názvy proměnných oddělené čárkou.
+	ErrHostUnresolved = "VAR_UNRESOLVED_HOST"
+)
 
 // EncodeQueryComponent percent-enkóduje název/hodnotu query parametru (UTF-8, mezera = %20).
 // Platné sekvence %XX zachová; znaky s významem v query (& = + #) enkóduje.
@@ -34,7 +39,7 @@ func EncodeQueryComponent(s string) string {
 }
 
 // EncodeQuery sestaví query string ze zapnutých parametrů (řádky bez názvu vynechá;
-// prázdná hodnota → jen název).
+// prázdná hodnota → `name=`, s Bare jen `name`).
 func EncodeQuery(params []model.KV) string {
 	var parts []string
 	for _, p := range params {
@@ -42,7 +47,7 @@ func EncodeQuery(params []model.KV) string {
 			continue
 		}
 		part := EncodeQueryComponent(p.Name)
-		if p.Value != "" {
+		if p.Value != "" || !p.Bare {
 			part += "=" + EncodeQueryComponent(p.Value)
 		}
 		parts = append(parts, part)
@@ -53,7 +58,7 @@ func EncodeQuery(params []model.KV) string {
 // BuildURL sestaví URL pro odeslání: proměnné v URL → `:param` v cestě → doplnění
 // `http://` → připojení zapnutých query parametrů. Nevyhodnocené proměnné hlásí r.Unresolved().
 func BuildURL(raw string, path []model.PathParam, query []model.KV, r *Resolver) (string, error) {
-	u, _, err := r.Resolve(strings.TrimSpace(raw))
+	u, unresolved, err := r.Resolve(strings.TrimSpace(raw))
 	if err != nil {
 		return "", err
 	}
@@ -84,13 +89,27 @@ func BuildURL(raw string, path []model.PathParam, query []model.KV, r *Resolver)
 		u += sep + qs
 	}
 	parsed, err := url.Parse(u)
+	if err == nil && parsed.Host == "" {
+		err = fmt.Errorf("missing host")
+	}
 	if err != nil {
+		if len(unresolved) > 0 && strings.Contains(hostPart(u), "{{") {
+			return "", fmt.Errorf("%s: %s", ErrHostUnresolved, strings.Join(unresolved, ", "))
+		}
 		return "", fmt.Errorf("%s: %w", ErrURLInvalid, err)
 	}
-	if parsed.Host == "" {
-		return "", fmt.Errorf("%s: missing host", ErrURLInvalid)
-	}
 	return u, nil
+}
+
+// hostPart vrátí část URL mezi `://` a první `/`, `?` nebo `#`.
+func hostPart(u string) string {
+	if i := strings.Index(u, "://"); i >= 0 {
+		u = u[i+3:]
+	}
+	if i := strings.IndexAny(u, "/?#"); i >= 0 {
+		u = u[:i]
+	}
+	return u
 }
 
 // replacePathParams nahradí segmenty cesty `:nazev` hodnotou (url.PathEscape).

@@ -50,14 +50,22 @@ type VarInfo struct {
 	Secret   bool   `json:"secret,omitempty" yaml:"secret,omitempty"`
 }
 
+type cached struct {
+	val        string
+	unresolved []string
+}
+
 type entry struct {
 	v     model.Var
 	scope *Scope
 }
 
-// Resolver vyhodnocuje proměnné pro jedno odeslání (časové dynamické proměnné jsou pevné).
+// Resolver vyhodnocuje proměnné pro jedno odeslání: časové dynamické proměnné a hodnoty
+// pojmenovaných proměnných jsou pevné (`{{id}}` s `{{$uuid}}` dá všude stejné UUID),
+// přímý výskyt `{{$uuid}}` je pokaždé nový.
 type Resolver struct {
 	vars       map[string]entry
+	cache      map[string]cached // pojmenovaná proměnná má v rámci odeslání jednu hodnotu
 	now        time.Time
 	unresolved map[string]bool
 }
@@ -65,7 +73,7 @@ type Resolver struct {
 // New vytvoří resolver; scopes v pořadí priority (první vyhrává):
 // runtime → request → složky (nejbližší první) → prostředí → projekt → globální.
 func New(scopes ...Scope) *Resolver {
-	r := &Resolver{vars: map[string]entry{}, now: time.Now(), unresolved: map[string]bool{}}
+	r := &Resolver{vars: map[string]entry{}, cache: map[string]cached{}, now: time.Now(), unresolved: map[string]bool{}}
 	for i := range scopes {
 		for _, v := range scopes[i].Vars {
 			if !v.Enabled || v.Name == "" {
@@ -189,8 +197,22 @@ func (r *Resolver) lookup(name string, stack []string, unresolved *[]string) (st
 	if len(stack) >= maxDepth {
 		return "", false, fmt.Errorf("%s: %s", ErrCycle, strings.Join(append(stack, name), " → "))
 	}
-	v, err := r.resolve(e.v.Value, append(stack[:len(stack):len(stack)], name), unresolved)
-	return v, err == nil, err
+	if c, ok := r.cache[name]; ok {
+		for _, n := range c.unresolved {
+			*unresolved = appendUnique(*unresolved, n)
+		}
+		return c.val, true, nil
+	}
+	var inner []string
+	v, err := r.resolve(e.v.Value, append(stack[:len(stack):len(stack)], name), &inner)
+	if err != nil {
+		return "", false, err
+	}
+	r.cache[name] = cached{v, inner}
+	for _, n := range inner {
+		*unresolved = appendUnique(*unresolved, n)
+	}
+	return v, true, nil
 }
 
 func (r *Resolver) dynamic(name string) (string, bool) {

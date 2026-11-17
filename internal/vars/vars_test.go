@@ -86,6 +86,15 @@ func TestDynamic(t *testing.T) {
 	if len(f[4]) != 16 {
 		t.Errorf("randomString: %q", f[4])
 	}
+	// pojmenovaná proměnná má v rámci odeslání jednu hodnotu
+	r = New(Scope{Source: SourceRequest, Vars: []model.Var{v("id", "{{$uuid}}"), v("x", "{{nic}}")}})
+	got, unres, _ := r.Resolve("{{id}} {{id}} {{x}}")
+	if f = strings.Fields(got); f[0] != f[1] {
+		t.Errorf("id se liší: %v", f)
+	}
+	if _, unres2, _ := r.Resolve("{{x}}"); !reflect.DeepEqual(unres, []string{"nic"}) || !reflect.DeepEqual(unres2, []string{"nic"}) {
+		t.Errorf("unresolved z cache: %v %v", unres, unres2)
+	}
 }
 
 func TestEncodeQueryComponent(t *testing.T) {
@@ -113,15 +122,19 @@ func TestBuildURL(t *testing.T) {
 		{Name: "q", Value: "{{q}}", Enabled: true},
 		{Name: "vypnuty", Value: "1"},
 		{Name: "flag", Enabled: true},
+		{Name: "wsdl", Enabled: true, Bare: true},
 		{Name: "pct", Value: "%2F", Enabled: true},
 	}
 	got, err := BuildURL("{{baseUrl}}/users/:id/x.:fmt/:neni", path, query, r)
-	want := "http://localhost:8080/users/a%20b%2F%C4%8D/x.:fmt/:neni?q=%C5%BDlu%C5%A5ou%C4%8Dk%C3%BD%20k%C5%AF%C5%88&flag&pct=%2F"
+	want := "http://localhost:8080/users/a%20b%2F%C4%8D/x.:fmt/:neni?q=%C5%BDlu%C5%A5ou%C4%8Dk%C3%BD%20k%C5%AF%C5%88&flag=&wsdl&pct=%2F"
 	if err != nil || got != want {
 		t.Errorf("BuildURL\n got %q %v\nwant %q", got, err, want)
 	}
-	if _, err := BuildURL("{{nic}}/a", nil, nil, r); err == nil || !strings.HasPrefix(err.Error(), ErrURLInvalid) {
+	if _, err := BuildURL("{{nic}}/a", nil, nil, r); err == nil || err.Error() != ErrHostUnresolved+": nic" {
 		t.Errorf("neznámý host: %v", err)
+	}
+	if _, err := BuildURL("http://a b/", nil, nil, r); err == nil || !strings.HasPrefix(err.Error(), ErrURLInvalid) {
+		t.Errorf("neplatná URL: %v", err)
 	}
 	if got, err := BuildURL("https://api.cz/u/:id", path[:1], nil, New()); err != nil || got != "https://api.cz/u/%7B%7Bid%7D%7D" {
 		t.Errorf("nevyhodnocený path param: %q %v", got, err)

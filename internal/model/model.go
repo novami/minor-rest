@@ -55,6 +55,8 @@ type KV struct {
 	Value       string `json:"value" yaml:"value"`
 	Enabled     bool   `json:"enabled" yaml:"enabled"`
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+	// Bare: jen query – při prázdné hodnotě poslat `?name` místo `?name=` (uživatel tak napsal URL).
+	Bare bool `json:"bare,omitempty" yaml:"bare,omitempty"`
 }
 
 // UnmarshalYAML: chybějící `enabled` znamená zapnuto.
