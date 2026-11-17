@@ -458,13 +458,14 @@ DeleteNode(projectID, rel string) error
 RevealInFinder(projectID, rel string) error
 GetWorkspace() Workspace;  SaveWorkspace(w Workspace) error;  SetDirty(dirty bool)
 // Workspace {Projects (spravuje backend, ze SaveWorkspace se ignoruje), ActiveProject, Expanded map[projectID][]rel,
-//            SidebarHidden, SidebarWidth, ResponseHeight}; další pole (taby, prostředí) přibudou v F3/F6
+//            Tabs map[projectID][]requestID, ActiveTab map[projectID]requestID,
+//            SidebarHidden, SidebarWidth, ResponseHeight}; další pole (prostředí) přibudou v F6
 // CreateProject: parentDir "" = ~/Documents/MinorREST; OpenProjectDialog nabídne založit projekt v adresáři bez minorrest.yaml
 PickDirectory(defaultDir string) (string, error);  DefaultProjectsDir() string
 
 // Requesty a konfigurace (F3)
 GetRequest(projectID, rel string) (Request, error)
-SaveRequest(projectID, rel string, r Request) error
+SaveRequest(projectID, rel string, r Request) error   // ID, Name, Seq se převezmou z disku (patří stromu)
 GetFolderConfig / SaveFolderConfig(projectID, rel string, …)
 GetProjectConfig / SaveProjectConfig(projectID string, …)
 FormatJSON(text string) (string, error)

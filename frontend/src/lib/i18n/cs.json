@@ -45,5 +45,12 @@
   "tree.noMatches": "Nic nenalezeno",
   "tree.deleteTitle": "Smazat",
   "tree.deleteFolderMessage": "Přesunout složku „{name}“ se vším obsahem do Koše?",
-  "tree.deleteRequestMessage": "Přesunout request „{name}“ do Koše?"
+  "tree.deleteRequestMessage": "Přesunout request „{name}“ do Koše?",
+  "tabs.close": "Zavřít",
+  "tabs.unsavedTitle": "Neuložené změny",
+  "tabs.unsavedMessage": "Request „{name}“ má neuložené změny. Uložit je?",
+  "tabs.save": "Uložit",
+  "tabs.discard": "Zahodit",
+  "request.send": "Odeslat",
+  "request.urlPlaceholder": "Zadejte URL, např. {{baseUrl}}/users"
 }

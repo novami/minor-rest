@@ -101,3 +101,12 @@ func TestUniqueSlug(t *testing.T) {
 		t.Errorf("dlouhý slug: %q", got)
 	}
 }
+
+func TestFillNilSlices(t *testing.T) {
+	r := NewRequest("x", "y")
+	r.Body.Form = []KV{{Name: "a"}}
+	FillNilSlices(&r)
+	if r.Headers == nil || r.Params.Query == nil || r.Body.Multipart == nil || len(r.Body.Form) != 1 {
+		t.Errorf("%+v", r)
+	}
+}

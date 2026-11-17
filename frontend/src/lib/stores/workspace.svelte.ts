@@ -9,6 +9,8 @@ export const ws = $state({
   projects: [] as model.ProjectInfo[],
   activeProject: '',
   expanded: {} as Record<string, string[]>,
+  tabs: {} as Record<string, string[]>, // project ID → open tabs (request IDs)
+  activeTab: {} as Record<string, string>,
   sidebarHidden: false,
   sidebarWidth: 260,
   responseHeight: 320,
@@ -28,6 +30,8 @@ export async function initWorkspace() {
   const w = await App.GetWorkspace()
   ws.activeProject = w.activeProject
   ws.expanded = w.expanded ?? {}
+  ws.tabs = w.tabs ?? {}
+  ws.activeTab = w.activeTab ?? {}
   ws.sidebarHidden = w.sidebarHidden
   ws.sidebarWidth = w.sidebarWidth
   ws.responseHeight = w.responseHeight
@@ -46,6 +50,8 @@ export function saveWorkspace() {
       projects: [],
       activeProject: ws.activeProject,
       expanded: $state.snapshot(ws.expanded),
+      tabs: $state.snapshot(ws.tabs),
+      activeTab: $state.snapshot(ws.activeTab),
       sidebarHidden: ws.sidebarHidden,
       sidebarWidth: ws.sidebarWidth,
       responseHeight: ws.responseHeight,
@@ -54,17 +60,17 @@ export function saveWorkspace() {
   }, 400)
 }
 
+/** Called after every tree (re)load – e.g. open tabs follow renames and moves. */
+export const treeLoaded: (() => void)[] = []
+
 export async function reloadTree() {
-  if (!ws.activeProject) {
-    ws.tree = null
-    return
-  }
   try {
-    ws.tree = await App.GetTree(ws.activeProject)
+    ws.tree = ws.activeProject ? await App.GetTree(ws.activeProject) : null
   } catch (err) {
     ws.tree = null
     fail(err)
   }
+  treeLoaded.forEach((fn) => fn())
 }
 
 export async function selectProject(id: string) {
@@ -106,6 +112,8 @@ export async function closeProject(id: string) {
     ws.projects = (await App.ListProjects()) ?? []
     ws.activeProject = w.activeProject
     delete ws.expanded[id]
+    delete ws.tabs[id]
+    delete ws.activeTab[id]
     await reloadTree()
   } catch (err) {
     fail(err)

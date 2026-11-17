@@ -66,3 +66,33 @@ func normalize(v reflect.Value) {
 		}
 	}
 }
+
+// FillNilSlices nahradí nil slice prázdnými (v JSON `[]` místo `null` pro frontend).
+func FillNilSlices(v any) {
+	fill(reflect.ValueOf(v))
+}
+
+func fill(v reflect.Value) {
+	switch v.Kind() {
+	case reflect.Pointer:
+		if !v.IsNil() {
+			fill(v.Elem())
+		}
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			if v.Type().Field(i).IsExported() {
+				fill(v.Field(i))
+			}
+		}
+	case reflect.Slice:
+		if v.IsNil() {
+			if v.CanSet() {
+				v.Set(reflect.MakeSlice(v.Type(), 0, 0))
+			}
+			return
+		}
+		for i := 0; i < v.Len(); i++ {
+			fill(v.Index(i))
+		}
+	}
+}

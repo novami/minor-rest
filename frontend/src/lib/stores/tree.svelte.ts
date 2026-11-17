@@ -4,6 +4,7 @@ import { t } from '../i18n/index.svelte'
 import { showToast } from './toast.svelte'
 import { errorText } from '../util/errors'
 import { ws, reloadTree, saveWorkspace } from './workspace.svelte'
+import { openTab } from './tabs.svelte'
 
 export const tree = $state({
   selected: '', // Rel of the selected node
@@ -72,6 +73,7 @@ export async function createNode(kind: 'folder' | 'request', parent = targetFold
     if (parent) setExpanded(parent, true)
     await reloadTree()
     tree.selected = n.rel
+    if (kind === 'request') await openTab(n.rel)
     tree.editing = n.rel
   } catch (err) {
     fail(err)

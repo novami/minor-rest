@@ -145,7 +145,7 @@ func TestRenameMoveDuplicateDelete(t *testing.T) {
 	finderCopy := must(p.CreateRequest(a.Rel, "Kopie z Finderu"))
 	fc := must(p.LoadRequest(finderCopy.Rel))
 	fc.ID = orig.ID
-	must(0, p.SaveRequest(finderCopy.Rel, fc))
+	must(0, writeYAML(filepath.Join(p.Root, finderCopy.Rel), fc))
 	resp := filepath.Join(p.Root, model.ResponsesDir, orig.ID)
 	os.MkdirAll(resp, 0o755)
 	if err := p.Delete("becko/dva.req.yaml"); err != nil || !exists(resp) {
@@ -170,11 +170,13 @@ func TestSaveRequestAndGuards(t *testing.T) {
 	n := must(p.CreateRequest("", "X"))
 	r := must(p.LoadRequest(n.Rel))
 	r.URL = "{{baseUrl}}/a"
+	id := r.ID
+	r.ID, r.Name, r.Seq = "JINE", "Zastaralý název z tabu", 9 // identitu drží strom
 	if err := p.SaveRequest(n.Rel, r); err != nil {
 		t.Fatal(err)
 	}
-	if got := must(p.LoadRequest(n.Rel)); got.URL != r.URL {
-		t.Errorf("url: %q", got.URL)
+	if got := must(p.LoadRequest(n.Rel)); got.URL != r.URL || got.ID != id || got.Name != "X" || got.Seq != 1 {
+		t.Errorf("uloženo: %+v", got)
 	}
 	for _, rel := range []string{"../venku.req.yaml", "/abs.req.yaml", "a/../b.req.yaml"} {
 		if _, err := p.LoadRequest(rel); err == nil || codeOf(err) != ErrPathInvalid {

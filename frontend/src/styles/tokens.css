@@ -21,6 +21,9 @@
   --method-delete: #d70015;
   --method-head: #6e6e73;
   --method-options: #0f8a8a;
+  --var-known: #1a8f3c;
+  --var-unknown: #d70015;
+  --var-dynamic: #0062cc;
 
   --status-1xx: #6e6e73;
   --status-2xx: #1a8f3c;
@@ -53,6 +56,9 @@
     --method-delete: #ff453a;
     --method-head: #98989d;
     --method-options: #40c8e0;
+    --var-known: #4ec36f;
+    --var-unknown: #ff5a5f;
+    --var-dynamic: #5aa9ff;
 
     --status-1xx: #98989d;
     --status-2xx: #32d74b;
@@ -82,6 +88,9 @@
   --method-delete: #ff453a;
   --method-head: #98989d;
   --method-options: #40c8e0;
+  --var-known: #4ec36f;
+  --var-unknown: #ff5a5f;
+  --var-dynamic: #5aa9ff;
 
   --status-1xx: #98989d;
   --status-2xx: #32d74b;

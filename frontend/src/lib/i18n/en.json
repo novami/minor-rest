@@ -45,5 +45,12 @@
   "tree.noMatches": "No matches",
   "tree.deleteTitle": "Delete",
   "tree.deleteFolderMessage": "Move the folder “{name}” and all its contents to the Trash?",
-  "tree.deleteRequestMessage": "Move the request “{name}” to the Trash?"
+  "tree.deleteRequestMessage": "Move the request “{name}” to the Trash?",
+  "tabs.close": "Close",
+  "tabs.unsavedTitle": "Unsaved changes",
+  "tabs.unsavedMessage": "Request “{name}” has unsaved changes. Save them?",
+  "tabs.save": "Save",
+  "tabs.discard": "Discard",
+  "request.send": "Send",
+  "request.urlPlaceholder": "Enter URL, e.g. {{baseUrl}}/users"
 }

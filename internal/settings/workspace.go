@@ -21,9 +21,11 @@ const (
 
 // Workspace je stav UI mezi spuštěními.
 type Workspace struct {
-	Projects       []string            `json:"projects" yaml:"projects"`             // cesty otevřených projektů v pořadí
-	ActiveProject  string              `json:"activeProject" yaml:"activeProject"`   // ID
-	Expanded       map[string][]string `json:"expanded" yaml:"expanded"`             // ID projektu → rozbalené složky (Rel)
+	Projects       []string            `json:"projects" yaml:"projects"`           // cesty otevřených projektů v pořadí
+	ActiveProject  string              `json:"activeProject" yaml:"activeProject"` // ID
+	Expanded       map[string][]string `json:"expanded" yaml:"expanded"`           // ID projektu → rozbalené složky (Rel)
+	Tabs           map[string][]string `json:"tabs" yaml:"tabs"`                   // ID projektu → otevřené taby (ID requestů)
+	ActiveTab      map[string]string   `json:"activeTab" yaml:"activeTab"`         // ID projektu → aktivní tab (ID requestu)
 	SidebarHidden  bool                `json:"sidebarHidden" yaml:"sidebarHidden"`
 	SidebarWidth   int                 `json:"sidebarWidth" yaml:"sidebarWidth"`
 	ResponseHeight int                 `json:"responseHeight" yaml:"responseHeight"`
@@ -81,6 +83,12 @@ func (w Workspace) normalized() Workspace {
 	}
 	if w.Expanded == nil {
 		w.Expanded = map[string][]string{}
+	}
+	if w.Tabs == nil {
+		w.Tabs = map[string][]string{}
+	}
+	if w.ActiveTab == nil {
+		w.ActiveTab = map[string]string{}
 	}
 	if w.SidebarWidth <= 0 {
 		w.SidebarWidth = DefaultSidebarWidth

@@ -78,6 +78,7 @@ func (p *Project) LoadRequest(rel string) (model.Request, error) {
 }
 
 // SaveRequest uloží existující request (soubor se nepřejmenovává, viz Rename).
+// ID, název a pořadí patří stromu – převezmou se ze souboru na disku.
 func (p *Project) SaveRequest(rel string, r model.Request) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -90,6 +91,10 @@ func (p *Project) SaveRequest(rel string, r model.Request) error {
 	}
 	if !exists(abs) {
 		return errCode(ErrNotFound, rel)
+	}
+	var cur model.Request
+	if err := readYAML(abs, &cur); err == nil {
+		r.ID, r.Name, r.Seq = cur.ID, cur.Name, cur.Seq
 	}
 	model.NormalizeNFC(&r)
 	return writeYAML(abs, r)

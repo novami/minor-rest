@@ -17,6 +17,7 @@
     revealInFinder,
     moveNode,
   } from '../stores/tree.svelte'
+  import { openTab } from '../stores/tabs.svelte'
   import { fold } from '../util/text'
 
   interface Props {
@@ -157,8 +158,10 @@
     tree.selected = rel
   }
 
+  /** Folder: expand/collapse; request: open in a tab. */
   function toggle(n: model.TreeNode) {
     if (n.kind === 'folder') setExpanded(n.rel, !isExpanded(n.rel))
+    else openTab(n.rel)
   }
 
   function nodeMenu(n: model.TreeNode): MenuItem[] {

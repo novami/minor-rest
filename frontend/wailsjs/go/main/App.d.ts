@@ -17,6 +17,8 @@ export function DeleteNode(arg1:string,arg2:string):Promise<void>;
 
 export function DuplicateNode(arg1:string,arg2:string,arg3:string):Promise<model.TreeNode>;
 
+export function GetRequest(arg1:string,arg2:string):Promise<model.Request>;
+
 export function GetTree(arg1:string):Promise<model.TreeNode>;
 
 export function GetVersion():Promise<string>;
@@ -34,6 +36,8 @@ export function PickDirectory(arg1:string):Promise<string>;
 export function RenameNode(arg1:string,arg2:string,arg3:string):Promise<model.TreeNode>;
 
 export function RevealInFinder(arg1:string,arg2:string):Promise<void>;
+
+export function SaveRequest(arg1:string,arg2:string,arg3:model.Request):Promise<void>;
 
 export function SaveWorkspace(arg1:settings.Workspace):Promise<void>;
 

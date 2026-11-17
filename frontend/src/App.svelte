@@ -7,8 +7,12 @@
   import Toasts from './lib/components/Toasts.svelte'
   import ProjectSwitcher from './lib/components/ProjectSwitcher.svelte'
   import Tree from './lib/components/Tree.svelte'
+  import TabBar from './lib/components/TabBar.svelte'
+  import RequestEditor from './lib/components/RequestEditor.svelte'
+  import * as Backend from '../wailsjs/go/main/App'
   import { ws, initWorkspace, saveWorkspace, reloadTree } from './lib/stores/workspace.svelte'
   import { createNode, duplicateNode } from './lib/stores/tree.svelte'
+  import { activeTab, anyDirty, closeTab, saveTab } from './lib/stores/tabs.svelte'
 
   let ready = false
   $effect(() => {
@@ -17,11 +21,30 @@
     if (ready) saveWorkspace()
   })
 
+  const tab = $derived(activeTab())
+  let urlEl = $state<HTMLInputElement>()
+
+  // native quit confirmation needs to know about unsaved tabs
+  let lastDirty = false
+  $effect(() => {
+    const d = anyDirty()
+    if (d !== lastDirty && (window as any).go) Backend.SetDirty(d)
+    lastDirty = d
+  })
+
+  function send() {
+    showToast(t('toast.notImplemented', { action: 'send' }))
+  }
+
+  function onkeydown(e: KeyboardEvent) {
+    if (e.metaKey && e.key === 'Enter' && tab) {
+      e.preventDefault()
+      send()
+    }
+  }
+
   const pendingActions = [
-    'save',
-    'close-tab',
     'settings',
-    'focus-url',
     'save-response',
     'copy-curl',
     'palette',
@@ -36,11 +59,16 @@
       onMenu('new-request', () => createNode('request')),
       onMenu('new-folder', () => createNode('folder')),
       onMenu('duplicate', () => duplicateNode()),
+      onMenu('save', () => saveTab()),
+      onMenu('close-tab', () => closeTab()),
+      onMenu('focus-url', () => urlEl?.select()),
       ...pendingActions.map((a) => onMenu(a, () => showToast(t('toast.notImplemented', { action: a })))),
     ]
     return () => offs.forEach((off) => off())
   })
 </script>
+
+<svelte:window {onkeydown} />
 
 <div class="app">
   <header class="titlebar">
@@ -61,10 +89,19 @@
 
     <main class="main">
       <section class="request">
-        <div class="empty">
-          <div>{t('request.empty')}</div>
-          <div class="hint">{t('request.emptyHint')}</div>
-        </div>
+        {#if ws.activeProject}
+          <TabBar />
+        {/if}
+        {#if tab}
+          {#key tab.id}
+            <RequestEditor {tab} onsend={send} bind:urlEl />
+          {/key}
+        {:else}
+          <div class="empty">
+            <div>{t('request.empty')}</div>
+            <div class="hint">{t('request.emptyHint')}</div>
+          </div>
+        {/if}
       </section>
       <Splitter bind:size={ws.responseHeight} direction="vertical" min={120} max={1200} invert />
       <section class="response" style:height="{ws.responseHeight}px">
@@ -115,6 +152,12 @@
     flex: 1;
     min-height: 120px;
     overflow: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .request .empty {
+    height: auto;
+    flex: 1;
   }
   .response {
     flex: none;

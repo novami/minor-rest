@@ -30,6 +30,10 @@ export function DuplicateNode(arg1, arg2, arg3) {
   return window['go']['main']['App']['DuplicateNode'](arg1, arg2, arg3);
 }
 
+export function GetRequest(arg1, arg2) {
+  return window['go']['main']['App']['GetRequest'](arg1, arg2);
+}
+
 export function GetTree(arg1) {
   return window['go']['main']['App']['GetTree'](arg1);
 }
@@ -64,6 +68,10 @@ export function RenameNode(arg1, arg2, arg3) {
 
 export function RevealInFinder(arg1, arg2) {
   return window['go']['main']['App']['RevealInFinder'](arg1, arg2);
+}
+
+export function SaveRequest(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveRequest'](arg1, arg2, arg3);
 }
 
 export function SaveWorkspace(arg1) {

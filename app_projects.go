@@ -52,9 +52,19 @@ func (a *App) updateWorkspace(fn func(w *settings.Workspace)) error {
 			a.ws.ActiveProject = open[0].ID
 		}
 	}
-	for id := range a.ws.Expanded {
-		if !slices.ContainsFunc(open, func(p model.ProjectInfo) bool { return p.ID == id }) {
-			delete(a.ws.Expanded, id)
+	isOpen := func(id string) bool {
+		return slices.ContainsFunc(open, func(p model.ProjectInfo) bool { return p.ID == id })
+	}
+	for _, m := range []map[string][]string{a.ws.Expanded, a.ws.Tabs} {
+		for id := range m {
+			if !isOpen(id) {
+				delete(m, id)
+			}
+		}
+	}
+	for id := range a.ws.ActiveTab {
+		if !isOpen(id) {
+			delete(a.ws.ActiveTab, id)
 		}
 	}
 	if a.appDir == "" {
