@@ -45,8 +45,8 @@ func codeOf(err error) string {
 	return ErrFS
 }
 
-// writeFileAtomic zapíše soubor přes dočasný soubor ve stejném adresáři a rename.
-func writeFileAtomic(name string, data []byte) error {
+// WriteFileAtomic zapíše soubor přes dočasný soubor ve stejném adresáři a rename.
+func WriteFileAtomic(name string, data []byte) error {
 	f, err := os.CreateTemp(filepath.Dir(name), ".tmp-*")
 	if err != nil {
 		return fsErr(err)
@@ -77,7 +77,7 @@ func writeYAML(name string, v any) error {
 	if err != nil {
 		return errf(ErrFS, err)
 	}
-	return writeFileAtomic(name, data)
+	return WriteFileAtomic(name, data)
 }
 
 func readYAML(name string, v any) error {

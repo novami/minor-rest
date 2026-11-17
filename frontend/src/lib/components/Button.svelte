@@ -6,13 +6,14 @@
     disabled?: boolean
     title?: string
     type?: 'button' | 'submit'
+    form?: string
     onclick?: (e: MouseEvent) => void
     children: Snippet
   }
-  let { variant = 'default', disabled = false, title, type = 'button', onclick, children }: Props = $props()
+  let { variant = 'default', disabled = false, title, type = 'button', form, onclick, children }: Props = $props()
 </script>
 
-<button class="btn {variant}" {type} {disabled} {title} {onclick}>
+<button class="btn {variant}" {type} {form} {disabled} {title} {onclick}>
   {@render children()}
 </button>
 

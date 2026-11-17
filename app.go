@@ -2,15 +2,24 @@ package main
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+
+	"github.com/novami/minor-rest/internal/settings"
+	"github.com/novami/minor-rest/internal/storage"
 )
 
 // App holds Wails bindings. Keep it thin – logic belongs to internal/*.
 type App struct {
-	ctx   context.Context
-	dirty atomic.Bool
+	ctx      context.Context
+	dirty    atomic.Bool
+	projects storage.Registry
+	appDir   string
+
+	wsMu sync.Mutex
+	ws   settings.Workspace
 }
 
 func NewApp() *App {
@@ -19,6 +28,7 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.loadWorkspace()
 }
 
 // beforeClose asks for confirmation when the frontend reports unsaved changes.

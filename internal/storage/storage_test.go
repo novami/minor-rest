@@ -202,3 +202,23 @@ func TestSaveRequestAndGuards(t *testing.T) {
 		t.Errorf(".gitignore: %q", gi)
 	}
 }
+
+func TestRegistry(t *testing.T) {
+	p := newProject(t)
+	var r Registry
+	a := must(r.Open(p.Root))
+	b := must(r.Open(p.Root + "/")) // stejné ID → stejná instance
+	if a != b || len(r.List()) != 1 {
+		t.Fatalf("duplicate open: %v", r.List())
+	}
+	if _, err := r.Open(t.TempDir()); codeOf(err) != ErrProjectInvalid {
+		t.Fatalf("non-project dir: %v", err)
+	}
+	id := a.Info().ID
+	if err := r.Close(id); err != nil || len(r.Paths()) != 0 {
+		t.Fatalf("close: %v %v", err, r.Paths())
+	}
+	if _, err := r.Get(id); codeOf(err) != ErrNotFound {
+		t.Fatalf("get closed: %v", err)
+	}
+}

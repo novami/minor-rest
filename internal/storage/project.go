@@ -170,5 +170,8 @@ func syncGitignore(root string, ignore bool) error {
 	if len(lines) > 0 {
 		out = strings.Join(lines, "\n") + "\n"
 	}
-	return writeFileAtomic(name, []byte(out))
+	return WriteFileAtomic(name, []byte(out))
 }
+
+// Abs vrátí absolutní cestu uzlu (pro „Zobrazit ve Finderu“).
+func (p *Project) Abs(rel string) (string, error) { return p.abs(rel) }

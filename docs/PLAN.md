@@ -453,10 +453,13 @@ CreateFolder(projectID, parentRel, name string) (TreeNode, error)
 CreateRequest(projectID, parentRel, name string) (TreeNode, error)
 RenameNode(projectID, rel, newName string) (TreeNode, error)   // vrací nový Rel
 MoveNode(projectID, rel, targetParentRel string, index int) (TreeNode, error)
-DuplicateNode(projectID, rel string) (TreeNode, error)
+DuplicateNode(projectID, rel, copySuffix string) (TreeNode, error)   // přípona v jazyce UI, "" = „ kopie“
 DeleteNode(projectID, rel string) error
 RevealInFinder(projectID, rel string) error
 GetWorkspace() Workspace;  SaveWorkspace(w Workspace) error;  SetDirty(dirty bool)
+// Workspace {Projects (spravuje backend, ze SaveWorkspace se ignoruje), ActiveProject, Expanded map[projectID][]rel,
+//            SidebarHidden, SidebarWidth, ResponseHeight}; další pole (taby, prostředí) přibudou v F3/F6
+// CreateProject: parentDir "" = ~/Documents/MinorREST
 
 // Requesty a konfigurace (F3)
 GetRequest(projectID, rel string) (Request, error)

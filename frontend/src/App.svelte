@@ -5,10 +5,16 @@
   import { showToast } from './lib/stores/toast.svelte'
   import Splitter from './lib/components/Splitter.svelte'
   import Toasts from './lib/components/Toasts.svelte'
+  import ProjectSwitcher from './lib/components/ProjectSwitcher.svelte'
+  import Tree from './lib/components/Tree.svelte'
+  import { ws, initWorkspace, saveWorkspace } from './lib/stores/workspace.svelte'
 
-  let sidebarVisible = $state(true)
-  let sidebarWidth = $state(260)
-  let responseHeight = $state(320)
+  let ready = false
+  $effect(() => {
+    // persist panel layout whenever it changes (after the workspace is loaded)
+    void [ws.sidebarHidden, ws.sidebarWidth, ws.responseHeight]
+    if (ready) saveWorkspace()
+  })
 
   const pendingActions = [
     'new-request',
@@ -25,8 +31,9 @@
   ]
 
   onMount(() => {
+    initWorkspace().finally(() => (ready = true))
     const offs = [
-      onMenu('toggle-sidebar', () => (sidebarVisible = !sidebarVisible)),
+      onMenu('toggle-sidebar', () => (ws.sidebarHidden = !ws.sidebarHidden)),
       ...pendingActions.map((a) => onMenu(a, () => showToast(t('toast.notImplemented', { action: a })))),
     ]
     return () => offs.forEach((off) => off())
@@ -35,16 +42,21 @@
 
 <div class="app">
   <header class="titlebar">
-    <span class="title">{t('app.name')}</span>
+    <ProjectSwitcher />
   </header>
 
   <div class="workspace">
-    {#if sidebarVisible}
-      <aside class="sidebar" style:width="{sidebarWidth}px">
-        <div class="section-title">{t('sidebar.title')}</div>
-        <div class="empty">{t('sidebar.empty')}</div>
+    {#if !ws.sidebarHidden}
+      <aside class="sidebar" style:width="{ws.sidebarWidth}px">
+        {#if !ws.activeProject}
+          <div class="empty">{t('sidebar.noProject')}</div>
+        {:else if ws.tree?.children?.length}
+          <Tree nodes={ws.tree.children} />
+        {:else if ws.tree}
+          <div class="empty">{t('sidebar.empty')}</div>
+        {/if}
       </aside>
-      <Splitter bind:size={sidebarWidth} direction="horizontal" min={180} max={600} />
+      <Splitter bind:size={ws.sidebarWidth} direction="horizontal" min={180} max={600} />
     {/if}
 
     <main class="main">
@@ -54,8 +66,8 @@
           <div class="hint">{t('request.emptyHint')}</div>
         </div>
       </section>
-      <Splitter bind:size={responseHeight} direction="vertical" min={120} max={1200} invert />
-      <section class="response" style:height="{responseHeight}px">
+      <Splitter bind:size={ws.responseHeight} direction="vertical" min={120} max={1200} invert />
+      <section class="response" style:height="{ws.responseHeight}px">
         <div class="empty">
           <div>{t('response.empty')}</div>
           <div class="hint">{t('response.emptyHint')}</div>
@@ -83,10 +95,6 @@
     border-bottom: 1px solid var(--border);
     background: var(--bg-sidebar);
   }
-  .title {
-    font-weight: 600;
-    color: var(--text-muted);
-  }
   .workspace {
     flex: 1;
     min-height: 0;
@@ -97,12 +105,8 @@
     overflow: auto;
     background: var(--bg-sidebar);
   }
-  .section-title {
-    padding: 10px 12px 4px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: var(--text-muted);
+  .sidebar :global(.tree) {
+    padding: 6px 0;
   }
   .main {
     flex: 1;
