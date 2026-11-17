@@ -31,5 +31,17 @@
   "errors.VAR_UNRESOLVED_HOST": "Host obsahuje nevyhodnocené proměnné",
   "errors.URL_INVALID": "Neplatná URL",
   "project.location": "Umístění",
-  "project.changeLocation": "Změnit…"
+  "project.changeLocation": "Změnit…",
+  "tree.newRequest": "Nový request",
+  "tree.newFolder": "Nová složka",
+  "tree.newRequestName": "Nový request",
+  "tree.newFolderName": "Nová složka",
+  "tree.rename": "Přejmenovat",
+  "tree.duplicate": "Duplikovat",
+  "tree.reveal": "Zobrazit ve Finderu",
+  "tree.delete": "Smazat",
+  "tree.copySuffix": " kopie",
+  "tree.deleteTitle": "Smazat",
+  "tree.deleteFolderMessage": "Přesunout složku „{name}“ se vším obsahem do Koše?",
+  "tree.deleteRequestMessage": "Přesunout request „{name}“ do Koše?"
 }

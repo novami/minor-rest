@@ -8,6 +8,7 @@
   import ProjectSwitcher from './lib/components/ProjectSwitcher.svelte'
   import Tree from './lib/components/Tree.svelte'
   import { ws, initWorkspace, saveWorkspace } from './lib/stores/workspace.svelte'
+  import { createNode, duplicateNode } from './lib/stores/tree.svelte'
 
   let ready = false
   $effect(() => {
@@ -17,15 +18,12 @@
   })
 
   const pendingActions = [
-    'new-request',
-    'new-folder',
     'save',
     'close-tab',
     'settings',
     'focus-url',
     'save-response',
     'copy-curl',
-    'duplicate',
     'palette',
     'environment',
   ]
@@ -34,6 +32,9 @@
     initWorkspace().finally(() => (ready = true))
     const offs = [
       onMenu('toggle-sidebar', () => (ws.sidebarHidden = !ws.sidebarHidden)),
+      onMenu('new-request', () => createNode('request')),
+      onMenu('new-folder', () => createNode('folder')),
+      onMenu('duplicate', () => duplicateNode()),
       ...pendingActions.map((a) => onMenu(a, () => showToast(t('toast.notImplemented', { action: a })))),
     ]
     return () => offs.forEach((off) => off())
@@ -50,10 +51,8 @@
       <aside class="sidebar" style:width="{ws.sidebarWidth}px">
         {#if !ws.activeProject}
           <div class="empty">{t('sidebar.noProject')}</div>
-        {:else if ws.tree?.children?.length}
-          <Tree nodes={ws.tree.children} />
         {:else if ws.tree}
-          <div class="empty">{t('sidebar.empty')}</div>
+          <Tree root={ws.tree} />
         {/if}
       </aside>
       <Splitter bind:size={ws.sidebarWidth} direction="horizontal" min={180} max={600} />
@@ -104,9 +103,6 @@
     flex: none;
     overflow: auto;
     background: var(--bg-sidebar);
-  }
-  .sidebar :global(.tree) {
-    padding: 6px 0;
   }
   .main {
     flex: 1;

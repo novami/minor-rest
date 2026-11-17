@@ -31,5 +31,17 @@
   "errors.VAR_UNRESOLVED_HOST": "The host contains unresolved variables",
   "errors.URL_INVALID": "Invalid URL",
   "project.location": "Location",
-  "project.changeLocation": "Change…"
+  "project.changeLocation": "Change…",
+  "tree.newRequest": "New Request",
+  "tree.newFolder": "New Folder",
+  "tree.newRequestName": "New Request",
+  "tree.newFolderName": "New Folder",
+  "tree.rename": "Rename",
+  "tree.duplicate": "Duplicate",
+  "tree.reveal": "Show in Finder",
+  "tree.delete": "Delete",
+  "tree.copySuffix": " copy",
+  "tree.deleteTitle": "Delete",
+  "tree.deleteFolderMessage": "Move the folder “{name}” and all its contents to the Trash?",
+  "tree.deleteRequestMessage": "Move the request “{name}” to the Trash?"
 }
