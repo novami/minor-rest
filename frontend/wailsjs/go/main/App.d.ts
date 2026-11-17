@@ -17,6 +17,8 @@ export function DeleteNode(arg1:string,arg2:string):Promise<void>;
 
 export function DuplicateNode(arg1:string,arg2:string,arg3:string):Promise<model.TreeNode>;
 
+export function FormatJSON(arg1:string):Promise<string>;
+
 export function GetRequest(arg1:string,arg2:string):Promise<model.Request>;
 
 export function GetTree(arg1:string):Promise<model.TreeNode>;
@@ -32,6 +34,8 @@ export function MoveNode(arg1:string,arg2:string,arg3:string,arg4:number):Promis
 export function OpenProjectDialog():Promise<model.ProjectInfo>;
 
 export function PickDirectory(arg1:string):Promise<string>;
+
+export function PickFile(arg1:string):Promise<string>;
 
 export function RenameNode(arg1:string,arg2:string,arg3:string):Promise<model.TreeNode>;
 

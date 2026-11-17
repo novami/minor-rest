@@ -1,5 +1,6 @@
 <script lang="ts" module>
-  const lastSection = new Map<string, 'params' | 'headers'>()
+  type Section = 'params' | 'body' | 'headers'
+  const lastSection = new Map<string, Section>()
 </script>
 
 <script lang="ts">
@@ -8,6 +9,7 @@
   import MethodSelect from './MethodSelect.svelte'
   import VarInput from './VarInput.svelte'
   import KvEditor from './KvEditor.svelte'
+  import BodyEditor from './BodyEditor.svelte'
   import { syncPath } from '../util/kv'
   import { headerNames, valuesFor } from '../util/headers'
   import type { Tab } from '../stores/tabs.svelte'
@@ -39,7 +41,6 @@
     if (p) tab.draft.params.path = p
   })
 
-  type Section = 'params' | 'headers'
   // svelte-ignore state_referenced_locally
   let section = $state<Section>(lastSection.get(tab.id) ?? 'params')
   $effect(() => {
@@ -49,6 +50,7 @@
     (rows ?? []).filter((r) => r.enabled !== false && r.name).length
   const sections = $derived<{ id: Section; n: number }[]>([
     { id: 'params', n: count(tab.draft.params.query) + (tab.draft.params.path?.length ?? 0) },
+    { id: 'body', n: 0 },
     { id: 'headers', n: count(tab.draft.headers) },
   ])
 
@@ -75,12 +77,12 @@
 <nav class="sections">
   {#each sections as s (s.id)}
     <button class:active={section === s.id} onclick={() => (section = s.id)}>
-      {t(`request.section.${s.id}`)}{#if s.n}<span class="n">{s.n}</span>{/if}
+      {t(`request.section.${s.id}`)}{#if s.id === 'body' && tab.draft.body.type !== 'none'}<span class="dot"></span>{/if}{#if s.n}<span class="n">{s.n}</span>{/if}
     </button>
   {/each}
 </nav>
 
-<div class="panel">
+<div class="panel" class:fill={section === 'body'}>
   {#if section === 'params'}
     <h4>{t('request.query')}</h4>
     <KvEditor bind:rows={tab.draft.params.query} allowBare />
@@ -88,6 +90,8 @@
       <h4>{t('request.path')}</h4>
       <KvEditor bind:rows={tab.draft.params.path} fixed />
     {/if}
+  {:else if section === 'body'}
+    <BodyEditor bind:body={tab.draft.body} projectID={tab.projectID} />
   {:else}
     <KvEditor bind:rows={tab.draft.headers} names={headerNames} {valuesFor} />
   {/if}
@@ -118,6 +122,15 @@
     color: var(--text);
     border-bottom-color: var(--accent);
   }
+  .dot {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    margin-left: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    vertical-align: middle;
+  }
   .n {
     margin-left: 5px;
     color: var(--text-muted);
@@ -125,6 +138,10 @@
   }
   .panel {
     padding: 8px;
+  }
+  .panel.fill {
+    flex: 1;
+    min-height: 0;
   }
   h4 {
     margin: 4px 0 4px;

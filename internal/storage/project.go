@@ -125,6 +125,31 @@ func (p *Project) abs(rel string) (string, error) {
 	return filepath.Join(p.Root, filepath.FromSlash(rel)), nil
 }
 
+// FileRef vrátí cestu k souboru pro uložení v requestu: uvnitř projektu relativně
+// (s `/`), jinak absolutně. Symlinky (např. /tmp → /private/tmp) se porovnávají rozvinuté.
+func (p *Project) FileRef(abs string) string {
+	abs = norm.NFC.String(abs)
+	rel, err := filepath.Rel(realPath(p.Root), realPath(abs))
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return abs
+	}
+	return filepath.ToSlash(rel)
+}
+
+// realPath rozvine symlinky nejbližšího existujícího předka (soubor nemusí existovat).
+func realPath(f string) string {
+	rest := ""
+	for d := filepath.Clean(f); ; d = filepath.Dir(d) {
+		if r, err := filepath.EvalSymlinks(d); err == nil {
+			return filepath.Join(r, rest)
+		}
+		if filepath.Dir(d) == d {
+			return f
+		}
+		rest = filepath.Join(filepath.Base(d), rest)
+	}
+}
+
 func (p *Project) writable() error {
 	if p.readOnly {
 		return errCode(ErrReadOnly, p.Root)

@@ -469,7 +469,7 @@ SaveRequest(projectID, rel string, r Request) error   // ID, Name, Seq se převe
 GetFolderConfig / SaveFolderConfig(projectID, rel string, …)
 GetProjectConfig / SaveProjectConfig(projectID string, …)
 FormatJSON(text string) (string, error)
-PickFile() (string, error)
+PickFile(projectID string) (string, error)        // uvnitř projektu relativní cesta (s `/`), jinak absolutní; "" = zrušeno
 
 // Odeslání (F4, F5)
 Send(in RunInput) (RunResult, error)               // blokuje do konce; runID generuje frontend

@@ -262,3 +262,17 @@ func TestDuplicateIDFixedOnLoad(t *testing.T) {
 		t.Errorf("nové ID se neuložilo: %s", again.ID)
 	}
 }
+
+func TestFileRef(t *testing.T) {
+	p := newProject(t)
+	outside := filepath.Join(t.TempDir(), "x.bin")
+	for _, c := range []struct{ in, want string }{
+		{filepath.Join(p.Root, "data", "foto.jpg"), "data/foto.jpg"},
+		{outside, outside},
+		{p.Root + "-jiny/a.txt", p.Root + "-jiny/a.txt"},
+	} {
+		if got := p.FileRef(c.in); got != c.want {
+			t.Errorf("FileRef(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

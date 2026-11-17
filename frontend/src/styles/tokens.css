@@ -24,6 +24,10 @@
   --var-known: #1a8f3c;
   --var-unknown: #d70015;
   --var-dynamic: #0062cc;
+  --code-string: #a31515;
+  --code-number: #098658;
+  --code-property: #0451a5;
+  --code-keyword: #800000;
 
   --status-1xx: #6e6e73;
   --status-2xx: #1a8f3c;
@@ -58,6 +62,10 @@
     --method-options: #40c8e0;
     --var-known: #4ec36f;
     --var-unknown: #ff5a5f;
+    --code-string: #ce9178;
+    --code-number: #b5cea8;
+    --code-property: #9cdcfe;
+    --code-keyword: #569cd6;
     --var-dynamic: #5aa9ff;
 
     --status-1xx: #98989d;
@@ -91,6 +99,10 @@
   --var-known: #4ec36f;
   --var-unknown: #ff5a5f;
   --var-dynamic: #5aa9ff;
+  --code-string: #ce9178;
+  --code-number: #b5cea8;
+  --code-property: #9cdcfe;
+  --code-keyword: #569cd6;
 
   --status-1xx: #98989d;
   --status-2xx: #32d74b;

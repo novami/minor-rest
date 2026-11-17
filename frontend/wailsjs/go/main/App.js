@@ -30,6 +30,10 @@ export function DuplicateNode(arg1, arg2, arg3) {
   return window['go']['main']['App']['DuplicateNode'](arg1, arg2, arg3);
 }
 
+export function FormatJSON(arg1) {
+  return window['go']['main']['App']['FormatJSON'](arg1);
+}
+
 export function GetRequest(arg1, arg2) {
   return window['go']['main']['App']['GetRequest'](arg1, arg2);
 }
@@ -60,6 +64,10 @@ export function OpenProjectDialog() {
 
 export function PickDirectory(arg1) {
   return window['go']['main']['App']['PickDirectory'](arg1);
+}
+
+export function PickFile(arg1) {
+  return window['go']['main']['App']['PickFile'](arg1);
 }
 
 export function RenameNode(arg1, arg2, arg3) {

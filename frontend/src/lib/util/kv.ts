@@ -2,16 +2,20 @@ import type { model } from '../../../wailsjs/go/models'
 
 export interface Row {
   name: string
-  value: string
+  value?: string
   enabled?: boolean
   description?: string
   bare?: boolean
+  // multipart
+  kind?: string
+  path?: string
+  contentType?: string
 }
 
 /** Bulk text: one `name: value` per line, `//` prefix = disabled row. */
 export function toBulk(rows: Row[]): string {
   return rows
-    .map((r) => `${r.enabled === false ? '//' : ''}${r.name}${r.bare && !r.value ? '' : `: ${r.value}`}`)
+    .map((r) => `${r.enabled === false ? '//' : ''}${r.name}${r.bare && !r.value ? '' : `: ${r.value ?? ''}`}`)
     .join('\n')
 }
 

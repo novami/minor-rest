@@ -10,11 +10,25 @@
     allowBare?: boolean
     names?: string[]
     valuesFor?: (name: string) => string[]
+    /** Multipart parts: text/file switch, file picker, Content-Type instead of description; no bulk edit. */
+    multipart?: boolean
+    onpick?: () => Promise<string>
   }
-  let { rows = $bindable(), fixed = false, allowBare = false, names, valuesFor }: Props = $props()
+  let {
+    rows = $bindable(),
+    fixed = false,
+    allowBare = false,
+    names,
+    valuesFor,
+    multipart = false,
+    onpick,
+  }: Props = $props()
 
   const uid = $props.id()
-  const ghost: Row = { name: '', value: '', enabled: true }
+  const ghost: Row = $derived(
+    multipart ? { name: '', value: '', kind: 'text', enabled: true } : { name: '', value: '', enabled: true },
+  )
+  const third = $derived(multipart ? 'contentType' : 'description')
   // The ghost row shares the index key with the row it becomes, so focus survives the first keystroke.
   const list = $derived(rows ?? [])
   const shown = $derived(fixed ? list : [...list, ghost])
@@ -22,16 +36,26 @@
   let bulk = $state(false)
   let bulkText = $state('')
 
-  function set(i: number, field: 'name' | 'value' | 'description', v: string) {
+  function set(i: number, field: 'name' | 'value' | 'description' | 'contentType' | 'path', v: string) {
     if (!rows || i === rows.length) {
       // Reassigned (not pushed) so it reaches the parent even when it had no array yet.
-      rows = [...list, { name: '', value: '', enabled: true, [field]: v }]
+      rows = [...list, { ...ghost, [field]: v }]
       return
     }
-    // Empty description is dropped so the draft matches the backend (omitempty) and stays clean.
-    if (field === 'description' && !v) delete rows[i].description
+    // Empty optional fields are dropped so the draft matches the backend (omitempty) and stays clean.
+    if (field !== 'name' && field !== 'value' && !v) delete rows[i][field]
     else rows[i][field] = v
     if (field === 'value' && v) delete rows[i].bare
+  }
+
+  function setKind(i: number, kind: string) {
+    if (i === list.length) rows = [...list, { ...ghost, kind }]
+    else rows![i].kind = kind
+  }
+
+  async function pick(i: number) {
+    const f = await onpick?.()
+    if (f) set(i, 'path', f)
   }
 
   function toggleBulk() {
@@ -89,7 +113,8 @@
   {:else}
     <div class="row head" class:fixed>
       <span></span><span></span>
-      <span>{t('kv.name')}</span><span>{t('kv.value')}</span><span>{t('kv.description')}</span><span></span>
+      <span>{t('kv.name')}</span><span>{t('kv.value')}</span>
+      <span>{t(multipart ? 'kv.contentType' : 'kv.description')}</span><span></span>
     </div>
     {#each shown as row, i (i)}
       {@const isGhost = !fixed && i === list.length}
@@ -129,18 +154,32 @@
             oninput={(v) => set(i, 'name', v)}
           />
         {/if}
-        <VarInput
-          compact
-          value={row.value}
-          list={valuesFor && valuesFor(row.name).length ? `${uid}-v${i}` : undefined}
-          placeholder={isGhost ? t('kv.value') : ''}
-          oninput={(v) => set(i, 'value', v)}
-        />
+        <div class="value">
+          {#if multipart}
+            <select class="kind" value={row.kind ?? 'text'} onchange={(e) => setKind(i, e.currentTarget.value)}>
+              <option value="text">{t('kv.kindText')}</option>
+              <option value="file">{t('kv.kindFile')}</option>
+            </select>
+          {/if}
+          {#if multipart && row.kind === 'file'}
+            <button class="file" title={row.path} onclick={() => pick(i)}>
+              {row.path || t('kv.pickFile')}
+            </button>
+          {:else}
+            <VarInput
+              compact
+              value={row.value ?? ''}
+              list={valuesFor && valuesFor(row.name).length ? `${uid}-v${i}` : undefined}
+              placeholder={isGhost ? t('kv.value') : ''}
+              oninput={(v) => set(i, 'value', v)}
+            />
+          {/if}
+        </div>
         <input
           class="desc"
-          value={row.description ?? ''}
-          placeholder={isGhost ? t('kv.description') : ''}
-          oninput={(e) => set(i, 'description', e.currentTarget.value)}
+          value={row[third] ?? ''}
+          placeholder={isGhost ? t(multipart ? 'kv.contentType' : 'kv.description') : ''}
+          oninput={(e) => set(i, third, e.currentTarget.value)}
         />
         {#if fixed || isGhost}
           <span></span>
@@ -160,7 +199,7 @@
       </datalist>
     {/if}
   {/if}
-  {#if !fixed}
+  {#if !fixed && !multipart}
     <div class="tools">
       <button class="link" onclick={toggleBulk}>{bulk ? t('kv.table') : t('kv.bulk')}</button>
     </div>
@@ -213,6 +252,36 @@
   .row :global(.var-input.compact:focus-within),
   .desc:focus {
     border-color: var(--accent);
+  }
+  .value {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .kind {
+    flex: none;
+    height: 22px;
+    border: 0;
+    background: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 11px;
+  }
+  .file {
+    flex: 1;
+    min-width: 0;
+    height: 22px;
+    padding: 0 6px;
+    overflow: hidden;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    background: none;
+    color: var(--text);
+    font-family: var(--font-code);
+    font-size: var(--font-size-code);
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .handle {
     color: var(--text-muted);
