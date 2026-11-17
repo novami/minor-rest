@@ -248,7 +248,7 @@ vars:
 - Neznámá proměnná: ponechat literál `{{x}}`, vrátit v seznamu `unresolved`; UI před odesláním zobrazí nemodální varování (odeslání neblokuje).
 - Platí v: URL, query, path, headers (název i hodnota), body raw/form/multipart text, cesty souborů, všechna auth pole.
 - **Sestavení URL při odeslání** (`internal/prepare`): vyhodnotit proměnné v `url` → nahradit `:param` (hodnota po vyhodnocení, `url.PathEscape`) → pokud chybí schéma, doplnit `http://` → připojit zapnuté query parametry kódované funkcí `encodeQuery` (percent-encode UTF-8, mezera jako `%20`, **existující platné `%XX` sekvence zachovat**) → `url.Parse` (chyba → `URL_INVALID`).
-- API: `Resolve(s string) (string, []string /*unresolved*/)`, `Explain() []VarInfo{Name, Value, Source, Secret}` pro UI.
+- API (`internal/vars`): `New(scopes ...Scope)` (pořadí = priorita), `Resolve(s string) (string, []string /*unresolved*/, error /*VAR_CYCLE*/)`, `Unresolved()`, `Explain() []VarInfo{Name, Value, Resolved, Source, Ref, Secret}` pro UI – tajné hodnoty se nevrací a v `Resolved` se maskují `***`. Sestavení URL: `vars.BuildURL(url, path, query, resolver)`, `EncodeQuery`, `EncodeQueryComponent`; `internal/prepare` je jen volá.
 
 ## 4. HTTP engine (`internal/httpclient`)
 
