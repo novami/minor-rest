@@ -1,8 +1,8 @@
 # Stav projektu
 
 ## Aktuálně
-- **Fáze:** F2, krok 3 hotový.
-- **Další krok:** F2, krok 4 – watcher (`fsnotify`, každý adresář projektu kromě `.git`, `.responses`, debounce 300 ms) → emit `tree:changed {projectID}`; potlačit vlastní zápisy (mapa `cesta → čas zápisu`, ignorovat 1 s – napojit na `WriteFileAtomic`/rename/mazání ve storage). Frontend na `tree:changed` zavolá `reloadTree`. Zvážit detekci duplicitních ID (viz otevřené body). Kap. 8.2. Tím je F2 hotová – ověřit kritérium „Hotovo“ z PLAN.md.
+- **Fáze:** F2 hotová (krok 4 – watcher). Kritérium „Hotovo“ splněno, kromě DnD v nativním WKWebView (neověřeno).
+- **Další krok:** F3, krok 1 – store tabů (otevřít, zavřít, dirty, obnovení ze workspace), načtení/uložení requestu (bindingy z kap. 11), `MethodSelect`, `VarInput` (zatím jen zvýraznění `{{}}`), URL bar. Napojit Enter/dvojklik ve stromu na otevření tabu. Zachytit `watch` cesty pro `request:changedOnDisk` (callback watcheru už dostává změněné rel – zatím se zahazují). Nil slice v DTO normalizovat v bindingu.
 - **Prostředí:** Go 1.27.4 darwin/arm64, Node 26, Wails CLI v2.17.1 (`~/go/bin/wails`), gh CLI. Příkazy přes `make dev|build|test|check`.
 
 ## Co existuje (F0)
@@ -29,6 +29,8 @@
 - Strom (`Tree.svelte` plochý seznam viditelných řádků + `stores/tree.svelte.ts`): rozbalení ve `ws.expanded`, výběr, klávesy (šipky, Enter = rozbalit, F2 přejmenovat, Cmd+Backspace/Delete smazat), kontextové menu (`ContextMenu.svelte`) na uzlu i prázdné ploše, inline přejmenování, nový request/složka rovnou v editaci názvu, duplikace s příponou dle jazyka, mazání s potvrzením, Zobrazit ve Finderu. Menu `new-request`/`new-folder`/`duplicate` napojeno (cíl = vybraná složka / složka vybraného requestu / kořen).
 - Drag & drop ve stromu (HTML5 DnD): složka – horní/dolní čtvrtina = před/za, střed = dovnitř (rozbalená jen před/dovnitř); request nad složkou = dovnitř, nad requestem = před/za; složka nad requestem = do jeho složky; prázdná plocha = kořen. Indikátor čárou / rámečkem, podržení nad sbalenou složkou 700 ms ji rozbalí, složku nelze do sebe. Index se počítá mezi sourozenci stejného druhu bez přetahovaného uzlu; přesun na stejné místo se nevolá.
 - Hledání: pole nad stromem, filtr bez diakritiky a velikosti písmen (`util/text.ts` `fold`) podle názvu, URL a metody; zobrazí shody s nadřazenými složkami (rozbalené), u shody složky celý podstrom. Esc vymaže / vrátí fokus, Enter/↓ přejde do stromu. Během filtru je DnD vypnutý. `TreeNode` má nově `URL`.
+- `internal/watch` (FSEvents, `github.com/fsnotify/fsevents`): `New(onChange, ignoreSelf)`, `Add(id, root)`, `Remove`, `Close`; jeden rekurzivní stream na projekt, latence 300 ms, skryté položky (`.git`, `.responses`, `.tmp-*`) ignoruje, `IgnoreSelf` potlačí vlastní zápisy (schválená odchylka od fsnotify, zapsáno v PLAN 8.2). App sleduje každý otevřený projekt (start, vytvoření, otevření), při zavření/ukončení stream zastaví; emit `tree:changed {projectID}` → frontend `reloadTree` u aktivního projektu.
+- `LoadTree` přidělí nové ID requestům se shodným ID (kopie z Finderu); původní zůstane nejdříve vytvořenému souboru (`birthTime`, macOS Birthtimespec). V read-only projektu ne.
 - Frontend: `stores/workspace.svelte.ts` (`ws`, init, debounced `saveWorkspace`, create/open/close/select), `ProjectSwitcher` v titlebaru (+ modál nového projektu), `Tree` (zatím jen zobrazení), `util/errors.ts` (`errorText` → `errors.<CODE>`), i18n sekce `errors`. Rozměry/viditelnost panelů se ukládají.
 
 ## Log
@@ -48,6 +50,7 @@
 | 2026-11-17 | F2/1 | 7440a15 | modál uprostřed, volba umístění, založení projektu v adresáři |
 | 2026-11-17 | F2/2 | 056c3d6 | interaktivní strom |
 | 2026-11-17 | F2/3 | 521ce8f | drag & drop, hledání ve stromu |
+| 2026-11-17 | F2/4 | 942083b | watcher (FSEvents), tree:changed, oprava duplicitních ID |
 
 ## Rozhodnutí uživatele
 - Wails v2 + Svelte 5, YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
@@ -58,13 +61,13 @@
 ## Otevřené body / známé problémy
 - YAML: chybějící `enabled` u KV/Var/multipart/extract = zapnuto (vlastní `UnmarshalYAML`). Řádky se zapisují blokovým stylem, ne flow `{…}` jako v ukázkách plánu.
 - Storage: složky a requesty sdílí jmenný prostor slugů (kolize case-insensitive); v kořeni je `environments` rezervované. Nečitelné soubory jsou ve stromu na konci s `Error`. `Duplicate(rel, copySuffix)` – binding `DuplicateNode` předá příponu v jazyce UI (prázdná = „ kopie“). Mazání nepřesune do Koše `.responses/<id>`, pokud stejné ID má jiný request.
-- Návrh pro F2 (watcher): při načtení stromu detekovat duplicitní ID (soubor zkopírovaný ve Finderu) a novějšímu souboru přidělit nové ID.
 - Testy storage nahrazují `trashItem` přesunem do TempDir; skutečný Koš ověřen jednorázově ručně.
 - Vars: nevyhodnocená proměnná v hostu → `VAR_UNRESOLVED_HOST: <názvy>`; v cestě se pošle enkódovaně (`%7B%7Bid%7D%7D`) a je v `Unresolved`. Pojmenovaná proměnná = jedna hodnota na resolver (cache), přímé `{{$uuid}}` pokaždé nové. Query: prázdná hodnota → `name=`, `KV.Bare` → `name` (URL bar v F3 nastaví `bare` při `?name` bez `=`).
 - i18n `errors.*` pokrývá kódy z `internal/*`; nové kódy (HTTP, auth…) přidávat průběžně.
 - `wails dev` v prohlížeči: chyba z `wails/ipc.js` („reading 'nodes'“) je v overlayi Wails „odpojeno“ (Svelte v ipc.js), jen dev, aplikaci neovlivňuje.
 - Strom: Enter na requestu zatím nic neotevře (taby v F3). Kontextové menu bez „Kopírovat jako cURL“ (F9) a „Nastavení složky“ (F3). Zobrazit ve Finderu neověřeno v UI (jen `open -R`).
 - DnD ověřen jen syntetickými událostmi v prohlížeči (wails dev); v nativním WKWebView neověřeno – při potížích přejít na pointer events (PLAN 8.2).
+- Watcher: Finder „Duplikovat“ zachová datum změny, proto se rozhoduje podle data vytvoření; při shodě podle rel. Změna kořenového adresáře projektu (přesun/smazání) se nehlásí (bez `WatchRoot`).
 - `make dev` potřebuje `~/go/bin` v PATH (jinak „wails: No such file“).
 - Screenshoty v panelu prohlížeče občas ukazují zastaralý stav – ověřovat přes DOM (`javascript_tool`).
 - Testy v `wails dev` zapisují do skutečného `~/Library/Application Support/MinorREST/workspace.yaml` – testovací projekty zakládat přes binding do scratch adresáře a po testu zavřít.
