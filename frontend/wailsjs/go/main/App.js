@@ -34,6 +34,10 @@ export function FormatJSON(arg1) {
   return window['go']['main']['App']['FormatJSON'](arg1);
 }
 
+export function GetInheritedSettings(arg1) {
+  return window['go']['main']['App']['GetInheritedSettings'](arg1);
+}
+
 export function GetRequest(arg1, arg2) {
   return window['go']['main']['App']['GetRequest'](arg1, arg2);
 }
@@ -68,6 +72,10 @@ export function PickDirectory(arg1) {
 
 export function PickFile(arg1) {
   return window['go']['main']['App']['PickFile'](arg1);
+}
+
+export function Quit() {
+  return window['go']['main']['App']['Quit']();
 }
 
 export function RenameNode(arg1, arg2, arg3) {

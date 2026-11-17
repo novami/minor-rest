@@ -107,6 +107,29 @@ type HTTPSettings struct {
 	CookieJar       *bool   `json:"cookieJar,omitempty" yaml:"cookieJar,omitempty"`
 }
 
+// Over doplní nevyplněné (zděděné) položky z base.
+func (s HTTPSettings) Over(base HTTPSettings) HTTPSettings {
+	if s.HTTPVersion == nil {
+		s.HTTPVersion = base.HTTPVersion
+	}
+	if s.FollowRedirects == nil {
+		s.FollowRedirects = base.FollowRedirects
+	}
+	if s.MaxRedirects == nil {
+		s.MaxRedirects = base.MaxRedirects
+	}
+	if s.TimeoutMs == nil {
+		s.TimeoutMs = base.TimeoutMs
+	}
+	if s.VerifyTLS == nil {
+		s.VerifyTLS = base.VerifyTLS
+	}
+	if s.CookieJar == nil {
+		s.CookieJar = base.CookieJar
+	}
+	return s
+}
+
 // Auth je konfigurace autorizace; vyplněný je blok odpovídající Type.
 type Auth struct {
 	Type   string      `json:"type" yaml:"type"`

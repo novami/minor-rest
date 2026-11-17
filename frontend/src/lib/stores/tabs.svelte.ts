@@ -2,7 +2,7 @@ import * as App from '../../../wailsjs/go/main/App'
 import type { model } from '../../../wailsjs/go/models'
 import { showToast } from './toast.svelte'
 import { errorText } from '../util/errors'
-import { ws, reloadTree, saveWorkspace, treeLoaded } from './workspace.svelte'
+import { ws, reloadTree, saveWorkspace, treeLoaded, closeProject } from './workspace.svelte'
 import { findNode } from './tree.svelte'
 
 export interface Tab {
@@ -11,11 +11,13 @@ export interface Tab {
   rel: string
   draft: model.Request
   saved: string // JSON of the last loaded/saved state
+  diskChanged?: model.Request // newer version on disk while the tab has local changes
 }
 
 export const tabs = $state({
   list: [] as Tab[],
   confirmClose: '', // ID of a dirty tab waiting for Save / Discard / Cancel
+  confirmProject: '', // ID of a project with dirty tabs waiting for Save / Discard / Cancel
 })
 
 const restored = new Set<string>()
@@ -111,19 +113,88 @@ export async function resolveClose(choice: 'save' | 'discard' | 'cancel') {
   remove(id)
 }
 
-export async function saveTab(id = ws.activeTab[ws.activeProject]): Promise<boolean> {
+export function saveTab(id = ws.activeTab[ws.activeProject]): Promise<boolean> {
   const t = projectTabs().find((t) => t.id === id)
-  if (!t) return false
+  return t ? save(t) : Promise.resolve(false)
+}
+
+async function save(t: Tab, reload = true): Promise<boolean> {
   try {
     const r = $state.snapshot(t.draft) as model.Request
     await App.SaveRequest(t.projectID, t.rel, r)
     t.saved = JSON.stringify(r)
-    await reloadTree() // method and URL are shown/searched in the tree
+    t.diskChanged = undefined
+    if (reload) await reloadTree() // method and URL are shown/searched in the tree
     return true
   } catch (err) {
     fail(err)
     return false
   }
+}
+
+/** Save all dirty tabs (of one project, or all); false when any save failed. */
+export async function saveAll(projectID?: string): Promise<boolean> {
+  let ok = true
+  for (const t of tabs.list.filter((t) => isDirty(t) && (!projectID || t.projectID === projectID))) {
+    ok = (await save(t, false)) && ok
+  }
+  await reloadTree()
+  return ok
+}
+
+/** Close a project; with dirty tabs it first asks (see tabs.confirmProject). */
+export function closeProjectSafe(id: string) {
+  if (tabs.list.some((t) => t.projectID === id && isDirty(t))) tabs.confirmProject = id
+  else closeProject(id)
+}
+
+export async function resolveCloseProject(choice: 'save' | 'discard' | 'cancel') {
+  const id = tabs.confirmProject
+  tabs.confirmProject = ''
+  if (choice === 'cancel') return
+  if (choice === 'save' && !(await saveAll(id))) return
+  tabs.list = tabs.list.filter((t) => t.projectID !== id)
+  await closeProject(id)
+}
+
+/** Window close → Save chosen in the native dialog: save everything, then quit. */
+export async function saveAllAndQuit() {
+  if (await saveAll()) App.Quit()
+}
+
+/** The request file changed on disk (not by us): reload a clean tab, offer a choice for a dirty one. */
+export async function changedOnDisk(projectID: string, rel: string) {
+  const t = tabs.list.find((t) => t.projectID === projectID && t.rel === rel)
+  if (!t) return
+  let r: model.Request
+  try {
+    r = await App.GetRequest(projectID, rel)
+  } catch {
+    return // deleted or moved – the tree sync handles it
+  }
+  const disk = JSON.stringify(r)
+  if (disk === t.saved) {
+    t.diskChanged = undefined
+  } else if (isDirty(t)) {
+    t.diskChanged = r
+  } else {
+    t.draft = r
+    t.saved = disk
+  }
+}
+
+export function reloadFromDisk(t: Tab) {
+  if (!t.diskChanged) return
+  t.draft = t.diskChanged
+  t.saved = JSON.stringify(t.diskChanged)
+  t.diskChanged = undefined
+}
+
+/** Keep local edits; the disk version becomes the baseline, so the tab stays dirty against it. */
+export function keepMine(t: Tab) {
+  if (!t.diskChanged) return
+  t.saved = JSON.stringify(t.diskChanged)
+  t.diskChanged = undefined
 }
 
 /** After a tree load: restore tabs of the project once, follow renames/moves, drop deleted clean tabs. */

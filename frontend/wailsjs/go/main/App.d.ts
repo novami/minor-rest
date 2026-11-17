@@ -19,6 +19,8 @@ export function DuplicateNode(arg1:string,arg2:string,arg3:string):Promise<model
 
 export function FormatJSON(arg1:string):Promise<string>;
 
+export function GetInheritedSettings(arg1:string):Promise<model.HTTPSettings>;
+
 export function GetRequest(arg1:string,arg2:string):Promise<model.Request>;
 
 export function GetTree(arg1:string):Promise<model.TreeNode>;
@@ -36,6 +38,8 @@ export function OpenProjectDialog():Promise<model.ProjectInfo>;
 export function PickDirectory(arg1:string):Promise<string>;
 
 export function PickFile(arg1:string):Promise<string>;
+
+export function Quit():Promise<void>;
 
 export function RenameNode(arg1:string,arg2:string,arg3:string):Promise<model.TreeNode>;
 

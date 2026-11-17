@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/novami/minor-rest/internal/jsonfmt"
 	"github.com/novami/minor-rest/internal/model"
+	"github.com/novami/minor-rest/internal/settings"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -39,4 +40,13 @@ func (a *App) PickFile(projectID string) (string, error) {
 		return "", err
 	}
 	return p.FileRef(f), nil
+}
+
+// GetInheritedSettings vrátí HTTP nastavení, která request zdědí (projekt → globální výchozí).
+func (a *App) GetInheritedSettings(projectID string) (model.HTTPSettings, error) {
+	p, err := a.projects.Get(projectID)
+	if err != nil {
+		return model.HTTPSettings{}, err
+	}
+	return p.Config().Settings.Over(settings.DefaultHTTP()), nil
 }

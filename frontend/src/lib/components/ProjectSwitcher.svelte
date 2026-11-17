@@ -8,10 +8,10 @@
     selectProject,
     createProject,
     openProjectDialog,
-    closeProject,
     defaultProjectsDir,
     pickDirectory,
   } from '../stores/workspace.svelte'
+  import { closeProjectSafe } from '../stores/tabs.svelte'
 
   let open = $state(false)
   let creating = $state(false)
@@ -77,7 +77,7 @@
       </button>
       {#if current}
         <div class="sep"></div>
-        <button role="menuitem" class="item" onclick={() => run(() => closeProject(current.id))}>
+        <button role="menuitem" class="item" onclick={() => run(() => closeProjectSafe(current.id))}>
           <span class="check"></span>{t('project.close')}
         </button>
       {/if}

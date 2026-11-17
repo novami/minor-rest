@@ -470,6 +470,8 @@ GetFolderConfig / SaveFolderConfig(projectID, rel string, …)
 GetProjectConfig / SaveProjectConfig(projectID string, …)
 FormatJSON(text string) (string, error)
 PickFile(projectID string) (string, error)        // uvnitř projektu relativní cesta (s `/`), jinak absolutní; "" = zrušeno
+GetInheritedSettings(projectID string) (HTTPSettings, error)  // co request zdědí: projekt → globální výchozí (záložka Nastavení)
+Quit()                                             // ukončí bez dotazu (po „Uložit“ v dialogu zavření a uložení tabů)
 
 // Odeslání (F4, F5)
 Send(in RunInput) (RunResult, error)               // blokuje do konce; runID generuje frontend
@@ -537,7 +539,7 @@ type BodyView struct { Text string; Lang string /* json|xml|html|text */; Size i
 `RunResult` záměrně **neobsahuje tělo** – to si frontend vyžádá přes `GetRunBody` (umožní líné načtení a Pretty/Raw bez opakovaného přenosu metadat).
 
 ### 11.3 Události (backend → frontend)
-`tree:changed {projectID}` · `request:changedOnDisk {projectID, rel}` · `menu:<akce>` · `oauth:waiting` / `oauth:done` · `update:ready {version, notesURL}` · `update:error {code}` · `file:dropped {paths}`
+`tree:changed {projectID}` · `request:changedOnDisk {projectID, rel}` · `app:saveAndQuit` · `menu:<akce>` · `oauth:waiting` / `oauth:done` · `update:ready {version, notesURL}` · `update:error {code}` · `file:dropped {paths}`
 
 ## 12. Fáze implementace
 

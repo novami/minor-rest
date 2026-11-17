@@ -4,10 +4,11 @@
   import Button from './Button.svelte'
   import { ws } from '../stores/workspace.svelte'
   import { createNode } from '../stores/tree.svelte'
-  import { tabs, projectTabs, isDirty, tabName, activate, closeTab, resolveClose } from '../stores/tabs.svelte'
+  import { tabs, projectTabs, isDirty, tabName, activate, closeTab, resolveClose, resolveCloseProject } from '../stores/tabs.svelte'
 
   const list = $derived(projectTabs())
   const pending = $derived(list.find((x) => x.id === tabs.confirmClose))
+  const pendingProject = $derived(ws.projects.find((p) => p.id === tabs.confirmProject))
 
   function onauxclick(e: MouseEvent, id: string) {
     if (e.button === 1) closeTab(id)
@@ -50,6 +51,20 @@
     <Button onclick={() => resolveClose('cancel')}>{t('common.cancel')}</Button>
     <Button variant="danger" onclick={() => resolveClose('discard')}>{t('tabs.discard')}</Button>
     <Button variant="primary" onclick={() => resolveClose('save')}>{t('tabs.save')}</Button>
+  {/snippet}
+</Modal>
+
+<Modal
+  open={!!pendingProject}
+  title={t('tabs.unsavedTitle')}
+  width="440px"
+  onclose={() => resolveCloseProject('cancel')}
+>
+  <p class="confirm">{t('tabs.unsavedProject', { name: pendingProject?.name ?? '' })}</p>
+  {#snippet footer()}
+    <Button onclick={() => resolveCloseProject('cancel')}>{t('common.cancel')}</Button>
+    <Button variant="danger" onclick={() => resolveCloseProject('discard')}>{t('tabs.discard')}</Button>
+    <Button variant="primary" onclick={() => resolveCloseProject('save')}>{t('tabs.saveAll')}</Button>
   {/snippet}
 </Modal>
 

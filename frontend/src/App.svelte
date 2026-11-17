@@ -12,7 +12,7 @@
   import * as Backend from '../wailsjs/go/main/App'
   import { ws, initWorkspace, saveWorkspace, reloadTree } from './lib/stores/workspace.svelte'
   import { createNode, duplicateNode } from './lib/stores/tree.svelte'
-  import { activeTab, anyDirty, closeTab, saveTab } from './lib/stores/tabs.svelte'
+  import { activeTab, anyDirty, closeTab, saveTab, changedOnDisk, saveAllAndQuit } from './lib/stores/tabs.svelte'
 
   let ready = false
   $effect(() => {
@@ -55,6 +55,8 @@
     initWorkspace().finally(() => (ready = true))
     const offs = [
       onEvent('tree:changed', (e: { projectID: string }) => e?.projectID === ws.activeProject && reloadTree()),
+      onEvent('request:changedOnDisk', (e: { projectID: string; rel: string }) => changedOnDisk(e.projectID, e.rel)),
+      onEvent('app:saveAndQuit', () => saveAllAndQuit()),
       onMenu('toggle-sidebar', () => (ws.sidebarHidden = !ws.sidebarHidden)),
       onMenu('new-request', () => createNode('request')),
       onMenu('new-folder', () => createNode('folder')),

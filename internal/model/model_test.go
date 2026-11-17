@@ -110,3 +110,11 @@ func TestFillNilSlices(t *testing.T) {
 		t.Errorf("%+v", r)
 	}
 }
+
+func TestHTTPSettingsOver(t *testing.T) {
+	v1, v2, zero, ten, no := "http1", "auto", 0, 10, false
+	got := HTTPSettings{HTTPVersion: &v1, MaxRedirects: &zero}.Over(HTTPSettings{HTTPVersion: &v2, MaxRedirects: &ten, VerifyTLS: &no})
+	if *got.HTTPVersion != "http1" || *got.MaxRedirects != 0 || got.VerifyTLS == nil || *got.VerifyTLS || got.TimeoutMs != nil {
+		t.Fatalf("Over: %+v", got)
+	}
+}
