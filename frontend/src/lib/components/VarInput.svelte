@@ -28,8 +28,19 @@
     onkeydown?: (e: KeyboardEvent) => void
     onpaste?: (e: ClipboardEvent) => void
     el?: HTMLInputElement
+    list?: string
+    compact?: boolean
   }
-  let { value = $bindable(''), placeholder = '', oninput, onkeydown, onpaste, el = $bindable() }: Props = $props()
+  let {
+    value = $bindable(''),
+    placeholder = '',
+    oninput,
+    onkeydown,
+    onpaste,
+    el = $bindable(),
+    list,
+    compact = false,
+  }: Props = $props()
 
   let mirror: HTMLDivElement
   const tokens = $derived(tokenize(value))
@@ -45,7 +56,7 @@
   }
 </script>
 
-<div class="var-input">
+<div class="var-input" class:compact>
   <div class="mirror" bind:this={mirror} aria-hidden="true">
     {#each tokens as tok, i (i)}<span class={tok.kind}>{tok.text}</span>{/each}
   </div>
@@ -53,6 +64,7 @@
     bind:this={el}
     {value}
     {placeholder}
+    {list}
     spellcheck="false"
     autocomplete="off"
     autocapitalize="off"
@@ -74,6 +86,16 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     background: var(--bg);
+  }
+  .var-input.compact {
+    height: 24px;
+    border-color: transparent;
+    background: transparent;
+  }
+  .var-input.compact .mirror,
+  .var-input.compact input {
+    padding: 0 6px;
+    line-height: 22px;
   }
   .var-input:focus-within {
     border-color: var(--accent);

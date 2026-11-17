@@ -52,5 +52,17 @@
   "tabs.save": "Uložit",
   "tabs.discard": "Zahodit",
   "request.send": "Odeslat",
-  "request.urlPlaceholder": "Zadejte URL, např. {{baseUrl}}/users"
+  "request.urlPlaceholder": "Zadejte URL, např. {{baseUrl}}/users",
+  "request.section.params": "Parametry",
+  "request.section.headers": "Hlavičky",
+  "request.query": "Query parametry",
+  "request.path": "Path parametry",
+  "kv.name": "Název",
+  "kv.value": "Hodnota",
+  "kv.description": "Popis",
+  "kv.delete": "Smazat řádek",
+  "kv.drag": "Přetažením změníte pořadí",
+  "kv.bulk": "Hromadná úprava",
+  "kv.table": "Tabulka",
+  "kv.bulkHint": "název: hodnota (jeden řádek na položku, // = vypnuto)"
 }

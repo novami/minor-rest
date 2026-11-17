@@ -52,5 +52,17 @@
   "tabs.save": "Save",
   "tabs.discard": "Discard",
   "request.send": "Send",
-  "request.urlPlaceholder": "Enter URL, e.g. {{baseUrl}}/users"
+  "request.urlPlaceholder": "Enter URL, e.g. {{baseUrl}}/users",
+  "request.section.params": "Params",
+  "request.section.headers": "Headers",
+  "request.query": "Query parameters",
+  "request.path": "Path parameters",
+  "kv.name": "Name",
+  "kv.value": "Value",
+  "kv.description": "Description",
+  "kv.delete": "Delete row",
+  "kv.drag": "Drag to reorder",
+  "kv.bulk": "Bulk edit",
+  "kv.table": "Table",
+  "kv.bulkHint": "name: value (one item per line, // = disabled)"
 }
