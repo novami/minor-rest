@@ -1,8 +1,8 @@
 # Stav projektu
 
 ## Aktuálně
-- **Fáze:** F1, krok 2 hotový.
-- **Další krok:** F1, krok 3 – `internal/vars` (kap. 3): `Resolve`, `Explain`, priorita scope, dynamické proměnné, rekurze/`VAR_CYCLE`, neznámé → `unresolved`; `encodeQuery` (zachovat `%XX`) a sestavení URL (path params, doplnění `http://`, `URL_INVALID`). Testy dle `### F1` bod 3.
+- **Fáze:** F1 hotová.
+- **Další krok:** F2, krok 1 – viz `docs/PLAN.md` → `### F2` (sidebar a projekty: bindingy z kap. 11.1 nad `internal/storage`, workspace). Na začátku F2 přečíst kap. 8 (UI) a 11.
 - **Prostředí:** Go 1.27.4 darwin/arm64, Node 26, Wails CLI v2.17.1 (`~/go/bin/wails`), gh CLI. Příkazy přes `make dev|build|test|check`.
 
 ## Co existuje (F0)
@@ -19,6 +19,8 @@
 - `model.TreeNode` (+ pole `Error` = kód chyby nečitelného souboru), `model.ProjectInfo`, `model.NewID()` (ULID).
 - `internal/storage`: `CreateProject(parentDir, name)`, `OpenProject(root)` → `*Project` (`Info`, `Config`, `SaveConfig` + správa `.gitignore`), `LoadTree`, `CreateFolder/CreateRequest(parentRel, name)`, `LoadRequest/SaveRequest`, `LoadFolderConfig/SaveFolderConfig`, `Rename`, `Move(rel, target, index)` (index mezi sourozenci stejného druhu), `Duplicate`, `Delete` (Koš přes cgo `trash_darwin.go`, i `.responses/<id>`). Atomický zápis, přečíslování `seq` 1..n, ochrana proti `..`, read-only při vyšší formatVersion. Chyby: `NOT_FOUND`, `PATH_INVALID`, `NAME_EMPTY`, `PROJECT_READONLY`, `PROJECT_INVALID`, `MOVE_INTO_SELF`, `FS_ERROR`, `TRASH_FAILED`.
 
+- `internal/vars`: `New(scopes...)`, `Resolve` (→ text, nevyhodnocené, `VAR_CYCLE`), `Unresolved()`, `Explain()` (tajné maskované), dynamické `$uuid $ulid $timestamp $timestampMs $isoTimestamp $randomInt $randomString` (časové jednou na resolver = na odeslání), escape `\{{`. `BuildURL` (proměnné → `:param` přes PathEscape → `http://` → query), `EncodeQuery` (prázdná hodnota → jen název), `EncodeQueryComponent` (zachová `%XX`, enkóduje `& = + #`), `URL_INVALID`.
+
 ## Log
 | Datum | Fáze | Commit | Poznámka |
 |---|---|---|---|
@@ -29,6 +31,7 @@
 | 2026-11-16 | F1/1 | a5e44f8 | model, slugify, YAML roundtrip |
 | 2026-11-17 | F1/2 | 2420b89 | storage: strom, CRUD, přesun, duplikace, koš |
 | 2026-11-17 | ikona | 897e237 | smaragdová ikona { ▶ } s odleskem |
+| 2026-11-17 | F1/3 | caf8f68 | proměnné, sestavení URL |
 | 2026-11-17 | F1/2 | 5d6e771 | přípona duplikátu parametrem, ochrana odpovědí sdíleného ID |
 
 ## Rozhodnutí uživatele
@@ -42,6 +45,7 @@
 - Storage: složky a requesty sdílí jmenný prostor slugů (kolize case-insensitive); v kořeni je `environments` rezervované. Nečitelné soubory jsou ve stromu na konci s `Error`. `Duplicate(rel, copySuffix)` – binding `DuplicateNode` předá příponu v jazyce UI (prázdná = „ kopie“). Mazání nepřesune do Koše `.responses/<id>`, pokud stejné ID má jiný request.
 - Návrh pro F2 (watcher): při načtení stromu detekovat duplicitní ID (soubor zkopírovaný ve Finderu) a novějšímu souboru přidělit nové ID.
 - Testy storage nahrazují `trashItem` přesunem do TempDir; skutečný Koš ověřen jednorázově ručně.
+- Vars: nevyhodnocená proměnná v hostu → `URL_INVALID` (odeslat nejde); v cestě se pošle enkódovaně (`%7B%7Bid%7D%7D`) a je v `Unresolved`. Hodnota proměnné se vyhodnocuje při každém výskytu (proměnná s `{{$uuid}}` dá pokaždé jiné UUID).
 - Nil slice → v JSON `null`; frontend s tím musí počítat (případně normalizovat v bindingu F3).
 - Retina větev fontů ověřena jen syntakticky (media query platná), vizuálně ne – ověřit na retina displeji.
 - Rozměry panelů se zatím neukládají (přijde s workspace v F2).
