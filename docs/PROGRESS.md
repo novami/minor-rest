@@ -1,8 +1,8 @@
 # Stav projektu
 
 ## Aktuálně
-- **Fáze:** F3, krok 2 hotový.
-- **Další krok:** F3, krok 3 – Body: `CodeEditor` (CodeMirror wrapper: json/xml/html/markdown/text, read-only režim, téma), přepínač typu těla (none/json/xml/text/html/form-urlencoded/multipart/binary), form a multipart přes `KvEditor` (multipart: text/soubor), binding `FormatJSON` (backend `json.Indent`, `{{…}}` mimo řetězce přes zástupné tokeny), výběr souborů (relativně k projektu). Záložku Body přidat do `sections` v `RequestEditor.svelte`. Kap. 8.3, 2.5.
+- **Fáze:** F3, krok 3 hotový.
+- **Další krok:** F3, krok 4 – záložky Nastavení (HTTP verze, redirecty, max redirectů, timeout, TLS – každé „Zdědit (aktuálně: …)“; ukazatele v `model.HTTPSettings`) a Dokumentace (`CodeEditor` lang markdown), dialog neuložených změn i při zavření okna (`OnBeforeClose`), reakce na `request:changedOnDisk` (watcher → čistý tab znovu načíst, neuložený tab nabídnout). Kap. 8.3, 11.3. Pak ověřit „Hotovo“ F3 (úprava → uložení → restart → identický YAML dle 2.5).
 - **Prostředí:** Go 1.27.4 darwin/arm64, Node 26, Wails CLI v2.17.1 (`~/go/bin/wails`), gh CLI. Příkazy přes `make dev|build|test|check`.
 
 ## Co existuje (F0)
@@ -41,7 +41,9 @@
 - URL bar (`util/urlbar.ts`): text = URL + zapnuté query; při psaní se rozdělí do `url` a `params.query` (zapnuté řádky se nahradí v pořadí, popisy zůstanou, vypnuté řádky zůstanou na místě, `?name` → `bare`). Vlastní text se drží, dokud se URL/query nezmění odjinud.
 - Strom: dvojklik/Enter na requestu otevře tab; nový request (Cmd+N, +) se otevře v tabu a název je v editaci. Menu: Cmd+S uložit, Cmd+W zavřít tab, Cmd+L fokus URL. Cmd+Enter / Odeslat zatím toast (F4).
 - `KvEditor` (`rows` bindable, volitelné; `fixed` = path params; `allowBare`; `names` + `valuesFor` = datalist našeptávač): checkbox, název a hodnota `VarInput` (nové props `list`, `compact`), popis (prázdný se maže kvůli omitempty), smazání, „duch“ řádek na konci (stejný klíč indexu → fokus se při prvním znaku neztratí), přetažení za úchyt (HTML5 DnD, čára před/za), Hromadná úprava (`util/kv.ts` `toBulk/fromBulk`, popisy podle názvu, řádek bez `:` = `bare` jen u query).
-- `RequestEditor`: záložky Parametry | Hlavičky s počty (poslední záložka per tab v paměti). Query tabulka ↔ URL bar, path params (`syncPath`) podle `:name` v URL (stejná pravidla jako `vars.BuildURL`, hodnoty se drží podle názvu). Headers: `util/headers.ts` (běžné názvy a hodnoty).
+- Tělo (`BodyEditor`): přepínač 8 typů (data ostatních typů se při přepnutí zachovají), raw typy v `CodeEditor` (CodeMirror 6 `basicSetup`, jazyk dle typu, `readonly`, téma z CSS proměnných `--code-*`, zvýraznění `{{…}}`, externí změna hodnoty přepíše dokument). JSON: tlačítko Formátovat → binding `FormatJSON` (`internal/jsonfmt`: `json.Indent`, `{{…}}` i `\{{…}}` přes zástupce – mimo řetězec v uvozovkách, chyba `JSON_INVALID: <řádek>: …`), validace jen varováním pod editorem (`JSON.parse` na textu s proměnnými nahrazenými `1` + mezery stejné délky). Formulář = `KvEditor`, multipart = `KvEditor multipart` (text/soubor, výběr souboru, sloupec Content-Type místo popisu, bez bulk), binary = výběr souboru.
+- `PickFile(projectID)` (schválená změna signatury, PLAN 11) → `storage.Project.FileRef`: uvnitř projektu relativně s `/`, jinak absolutně; symlinky (/var → /private/var) se rozvinou u nejbližšího existujícího předka.
+- `RequestEditor`: záložky Parametry | Tělo | Hlavičky s počty (poslední záložka per tab v paměti). Query tabulka ↔ URL bar, path params (`syncPath`) podle `:name` v URL (stejná pravidla jako `vars.BuildURL`, hodnoty se drží podle názvu). Headers: `util/headers.ts` (běžné názvy a hodnoty).
 
 ## Log
 | Datum | Fáze | Commit | Poznámka |
@@ -63,6 +65,7 @@
 | 2026-11-17 | F2/4 | 942083b | watcher (FSEvents), tree:changed, oprava duplicitních ID |
 | 2026-11-17 | F3/1 | 647e970 | taby, načtení/uložení requestu, MethodSelect, VarInput, URL bar |
 | 2026-11-17 | F3/2 | fd322c1 | KvEditor, bulk edit, Params/Headers, path params, našeptávač hlaviček |
+| 2026-11-17 | F3/3 | 9264db3 | tělo: CodeEditor, typy těla, FormatJSON, PickFile(projectID) |
 
 ## Rozhodnutí uživatele
 - Wails v2 + Svelte 5, YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
@@ -89,3 +92,4 @@
 - Retina větev fontů ověřena jen syntakticky (media query platná), vizuálně ne – ověřit na retina displeji.
 - F12 vyžaduje od uživatele ed25519 klíč v GitHub Secrets (`UPDATE_SIGNING_KEY`).
 - KvEditor: blok „Automatické a zděděné hlavičky“ (kap. 8.3) odložen – potřebuje `prepare`/nastavení složek (F4/F6). Request s `:param` v URL, ale bez `params.path` v YAML, je po otevření hned neuložený (doplní se řádky). V režimu hromadné úpravy se textarea nepřepočítá, když se query změní z URL baru. Datalist (našeptávač) a DnD řádků ověřeny jen v prohlížeči, ne v nativním WKWebView. Při přejmenování `:i` → `:id` během psaní se hodnota path paramu nepřenese.
+- Tělo: drop souboru do multipart/binary zatím není (Wails `OnFileDrop` – doplnit v F13 nebo dle potřeby). Text varování nevalidního JSON je z `JSON.parse` prohlížeče (WebKit má jiné znění a bez pozice). Výběr souboru (nativní dialog) v prohlížeči neověřen, jen v kódu.
