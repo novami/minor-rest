@@ -3,11 +3,14 @@ module github.com/novami/minor-rest
 go 1.26.0
 
 require (
+	github.com/andybalholm/brotli v1.3.0
 	github.com/fsnotify/fsevents v0.2.0
 	github.com/google/uuid v1.6.0
+	github.com/klauspost/compress v1.20.4
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/wailsapp/wails/v2 v2.17.1
-	golang.org/x/text v0.42.0
+	golang.org/x/net v0.62.0
+	golang.org/x/text v0.43.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -35,9 +38,8 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/wailsapp/go-webview2 v1.0.22 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/net v0.60.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/crypto v0.58.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
 )
 
 // replace github.com/wailsapp/wails/v2 v2.17.1 => /Users/Michal/go/pkg/mod

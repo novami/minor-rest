@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"slices"
 	"strings"
@@ -32,7 +33,7 @@ type Request struct {
 	Headers []model.KV // odešlou se jen zapnuté, pořadí se zachová
 	Body    model.Body
 	BaseDir string   // kořen projektu pro relativní cesty souborů
-	NoAuto  []string // automatické hlavičky, které uživatel vypnul (User-Agent, Accept, Content-Type)
+	NoAuto  []string // automatické hlavičky, které uživatel vypnul (User-Agent, Accept, Accept-Encoding, Content-Type)
 }
 
 // Options jsou výsledná (zděděná) nastavení odeslání.
@@ -43,6 +44,7 @@ type Options struct {
 	Timeout         time.Duration // 0 = bez limitu
 	VerifyTLS       bool
 	UserAgent       string
+	MaxBodyBytes    int64 // 0 = DefaultMaxBody
 }
 
 // OptionsFrom převede složená nastavení na Options (nil položky = nulové hodnoty).
@@ -84,24 +86,58 @@ type TLSInfo struct {
 	NotAfter   string `json:"notAfter,omitempty" yaml:"notAfter,omitempty"` // RFC 3339
 }
 
-// Result je výsledek odeslání.
+// Sizes jsou velikosti v bajtech (u HTTP/2 nekomprimované hlavičky).
+type Sizes struct {
+	ReqHeaders  int64 `json:"reqHeaders" yaml:"reqHeaders"`
+	ReqBody     int64 `json:"reqBody" yaml:"reqBody"`
+	Headers     int64 `json:"headers" yaml:"headers"`
+	BodyWire    int64 `json:"bodyWire" yaml:"bodyWire"`
+	BodyDecoded int64 `json:"bodyDecoded" yaml:"bodyDecoded"`
+}
+
+// Sent je skutečně odeslaný request posledního skoku.
+type Sent struct {
+	Method      string     `json:"method" yaml:"method"`
+	URL         string     `json:"url" yaml:"url"`
+	Headers     []model.KV `json:"headers" yaml:"headers"` // v pořadí odeslání, u HTTP/2 i pseudo-hlavičky
+	BodyPreview string     `json:"bodyPreview,omitempty" yaml:"bodyPreview,omitempty"`
+	BodySize    int64      `json:"bodySize" yaml:"bodySize"`
+}
+
+// Result je výsledek odeslání. Při chybě Do vrací i částečný Result (Sent, Timing, Redirects).
 type Result struct {
-	Status     int
-	StatusText string
-	Proto      string
-	Headers    []model.KV // pořadí dle abecedy názvů (net/http pořadí ze serveru nedrží), opakované jako samostatné řádky
-	Body       []byte
-	Redirects  []Redirect
-	TLS        *TLSInfo
+	Status        int
+	StatusText    string
+	Proto         string
+	Headers       []model.KV // pořadí dle abecedy názvů (net/http pořadí ze serveru nedrží), opakované jako samostatné řádky
+	Body          *Body
+	Redirects     []Redirect
+	TLS           *TLSInfo
+	RemoteAddr    string
+	LocalAddr     string
+	ResolvedAddrs []string
+	Timing        Timing
+	Sizes         Sizes
+	Sent          Sent
+	ContentType   string // media type bez parametrů
+	Charset       string // "" u binárního obsahu
+	IsBinary      bool
+	Truncated     bool
 }
 
-// Engine odesílá requesty a umožňuje je rušit podle runID.
+const keepResults = 20
+
+// Engine odesílá requesty, umožňuje je rušit a drží posledních 20 výsledků.
 type Engine struct {
-	mu   sync.Mutex
-	runs map[string]context.CancelCauseFunc
+	mu      sync.Mutex
+	runs    map[string]context.CancelCauseFunc
+	results map[string]*Result
+	order   []string // nejstarší první
 }
 
-func New() *Engine { return &Engine{runs: map[string]context.CancelCauseFunc{}} }
+func New() *Engine {
+	return &Engine{runs: map[string]context.CancelCauseFunc{}, results: map[string]*Result{}}
+}
 
 // Cancel zruší běžící odeslání; neznámé runID ignoruje.
 func (e *Engine) Cancel(runID string) {
@@ -113,7 +149,41 @@ func (e *Engine) Cancel(runID string) {
 	}
 }
 
-// Do odešle request a přečte celé tělo odpovědi; chyby jsou *Error.
+// Get vrátí uložený výsledek (posledních 20 úspěšných odeslání).
+func (e *Engine) Get(runID string) (*Result, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	r, ok := e.results[runID]
+	return r, ok
+}
+
+// Close smaže temp soubory všech držených výsledků.
+func (e *Engine) Close() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, r := range e.results {
+		r.Body.remove()
+	}
+	e.results, e.order = map[string]*Result{}, nil
+}
+
+func (e *Engine) keep(runID string, r *Result) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if old, ok := e.results[runID]; ok {
+		old.Body.remove()
+		e.order = slices.DeleteFunc(e.order, func(s string) bool { return s == runID })
+	}
+	e.results[runID] = r
+	e.order = append(e.order, runID)
+	for len(e.order) > keepResults {
+		e.results[e.order[0]].Body.remove()
+		delete(e.results, e.order[0])
+		e.order = e.order[1:]
+	}
+}
+
+// Do odešle request a přečte tělo odpovědi; chyby jsou *Error.
 func (e *Engine) Do(ctx context.Context, runID string, r Request, o Options) (*Result, error) {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
@@ -131,50 +201,113 @@ func (e *Engine) Do(ctx context.Context, runID string, r Request, o Options) (*R
 		e.mu.Unlock()
 	}()
 
-	req, err := newRequest(ctx, r, o)
+	tr := &tracer{start: time.Now()}
+	ctx = httptrace.WithClientTrace(ctx, tr.trace())
+	req, pl, err := newRequest(ctx, r, o)
 	if err != nil {
 		return nil, err
 	}
-	tr := newTransport(req.URL.Scheme, o)
-	defer tr.CloseIdleConnections()
-	res := &Result{}
-	client := &http.Client{Transport: tr, CheckRedirect: checkRedirect(o, res)}
+	transport := newTransport(req.URL.Scheme, o)
+	defer transport.CloseIdleConnections()
+	res := &Result{Sent: Sent{Method: req.Method, URL: req.URL.String(), BodyPreview: pl.preview, BodySize: pl.size}}
+	client := &http.Client{Transport: transport, CheckRedirect: checkRedirect(o, res)}
 	http2Only := o.HTTPVersion == VersionHTTP2
+	fail := func(err error) (*Result, error) {
+		h := tr.last()
+		res.Timing = h.timing(tr.start, time.Now())
+		res.Sent.Headers = h.headers
+		return res, classify(ctx, err, http2Only)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, classify(ctx, err, http2Only)
+		return fail(err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, classify(ctx, err, http2Only)
+	maxBody := o.MaxBodyBytes
+	if maxBody <= 0 {
+		maxBody = DefaultMaxBody
 	}
+	body, wire, truncated, err := readBody(resp.Body, resp.Header.Get("Content-Encoding"), maxBody)
+	end := time.Now()
+	if err != nil {
+		return fail(err)
+	}
+	h := tr.last()
 	res.Status = resp.StatusCode
 	res.StatusText = strings.TrimSpace(strings.TrimPrefix(resp.Status, fmt.Sprint(resp.StatusCode)))
 	res.Proto = resp.Proto
 	res.Headers = headerRows(resp.Header)
-	res.Body = body
+	res.Body, res.Truncated = body, truncated
 	res.TLS = tlsInfo(resp.TLS)
+	res.RemoteAddr, res.LocalAddr, res.ResolvedAddrs = h.remote, h.local, h.addrs
+	res.Timing = h.timing(tr.start, end)
+
+	last := resp.Request
+	res.Sent.Method, res.Sent.URL, res.Sent.Headers = last.Method, last.URL.String(), h.headers
+	if last != req { // po redirectu: 301–303 tělo zahodí
+		res.Sent.BodySize = max(last.ContentLength, 0)
+		if res.Sent.BodySize == 0 {
+			res.Sent.BodyPreview = ""
+		}
+	}
+	res.Sizes = Sizes{
+		ReqHeaders:  reqHeadersSize(last, resp.ProtoMajor, h.headers),
+		ReqBody:     res.Sent.BodySize,
+		Headers:     respHeadersSize(resp, res.Headers),
+		BodyWire:    wire,
+		BodyDecoded: body.Size(),
+	}
+
+	var sample []byte
+	if rc, err := body.Open(); err == nil {
+		sample, _ = io.ReadAll(io.LimitReader(rc, sniffLen))
+		rc.Close()
+	}
+	res.ContentType, res.Charset, res.IsBinary = sniff(resp.Header.Get("Content-Type"), sample)
+	e.keep(runID, res)
 	return res, nil
 }
 
-func newRequest(ctx context.Context, r Request, o Options) (*http.Request, error) {
+func lineSize(name, value string) int64 { return int64(len(name) + 2 + len(value) + 2) }
+
+// reqHeadersSize: request line (jen HTTP/1) + hlavičky + prázdný řádek.
+func reqHeadersSize(r *http.Request, protoMajor int, headers []model.KV) int64 {
+	var n int64 = 2
+	if protoMajor < 2 {
+		n += int64(len(r.Method) + 1 + len(r.URL.RequestURI()) + 1 + len("HTTP/1.1") + 2)
+	}
+	for _, h := range headers {
+		n += lineSize(h.Name, h.Value)
+	}
+	return n
+}
+
+// respHeadersSize: status line + hlavičky + prázdný řádek.
+func respHeadersSize(resp *http.Response, rows []model.KV) int64 {
+	n := int64(len(resp.Proto)+1+len(resp.Status)+2) + 2
+	for _, h := range rows {
+		n += lineSize(h.Name, h.Value)
+	}
+	return n
+}
+
+func newRequest(ctx context.Context, r Request, o Options) (*http.Request, payload, error) {
 	u, err := url.Parse(r.URL)
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
 		if err == nil {
 			err = errors.New(r.URL)
 		}
-		return nil, newErr(ErrURLInvalid, err)
+		return nil, payload{}, newErr(ErrURLInvalid, err)
 	}
 	pl, err := buildBody(r.Body, r.BaseDir)
 	if err != nil {
-		return nil, err
+		return nil, payload{}, err
 	}
 	var body io.ReadCloser
 	if pl.open != nil {
 		if body, err = pl.open(); err != nil {
-			return nil, err
+			return nil, payload{}, err
 		}
 	}
 	req, err := http.NewRequestWithContext(ctx, strings.ToUpper(r.Method), u.String(), body)
@@ -182,7 +315,7 @@ func newRequest(ctx context.Context, r Request, o Options) (*http.Request, error
 		if body != nil {
 			body.Close()
 		}
-		return nil, newErr(ErrMethodInvalid, err)
+		return nil, payload{}, newErr(ErrMethodInvalid, err)
 	}
 	if pl.open != nil {
 		req.ContentLength = pl.size
@@ -219,6 +352,7 @@ func newRequest(ctx context.Context, r Request, o Options) (*http.Request, error
 	}
 	auto("User-Agent", o.UserAgent)
 	auto("Accept", "*/*")
+	auto("Accept-Encoding", "gzip, deflate, br, zstd")
 	if pl.open != nil {
 		auto("Content-Type", pl.contentType)
 		fixBoundary(req.Header, pl.contentType)
@@ -226,7 +360,7 @@ func newRequest(ctx context.Context, r Request, o Options) (*http.Request, error
 	if !has["User-Agent"] && (off["User-Agent"] || o.UserAgent == "") {
 		req.Header.Set("User-Agent", "") // jinak by Go doplnilo vlastní
 	}
-	return req, nil
+	return req, pl, nil
 }
 
 // fixBoundary doplní boundary do uživatelského multipart Content-Type bez něj.

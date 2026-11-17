@@ -41,6 +41,7 @@
   "errors.REDIRECT_LIMIT": "Too many redirects",
   "errors.FILE_NOT_FOUND": "File not found",
   "errors.METHOD_INVALID": "Invalid method",
+  "errors.DECODE_ERROR": "Compressed response body is corrupted",
   "project.location": "Location",
   "project.changeLocation": "Change…",
   "tree.newRequest": "New Request",

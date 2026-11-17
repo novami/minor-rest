@@ -24,6 +24,7 @@ const (
 	ErrFileNotFound     = "FILE_NOT_FOUND"
 	ErrURLInvalid       = "URL_INVALID"
 	ErrMethodInvalid    = "METHOD_INVALID"
+	ErrDecode           = "DECODE_ERROR" // poškozené komprimované tělo odpovědi
 )
 
 // Error je chyba odeslání s kódem pro UI a původním textem jako detailem.

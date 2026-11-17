@@ -54,6 +54,11 @@ func hdr(res *Result, name string) []string {
 	return v
 }
 
+func bodyStr(res *Result) string {
+	b, _ := res.Body.Bytes()
+	return string(b)
+}
+
 func TestMethods(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(echo))
 	defer srv.Close()
@@ -63,8 +68,8 @@ func TestMethods(t *testing.T) {
 		if err != nil || res.Status != 200 || hdr(res, "X-Method")[0] != m {
 			t.Fatalf("%s: %v %+v", m, err, res)
 		}
-		if want := map[bool]string{true: "", false: "x"}[m == "HEAD"]; string(res.Body) != want {
-			t.Errorf("%s: body %q", m, res.Body)
+		if want := map[bool]string{true: "", false: "x"}[m == "HEAD"]; bodyStr(res) != want {
+			t.Errorf("%s: body %q", m, bodyStr(res))
 		}
 	}
 }
@@ -273,7 +278,7 @@ func TestRedirects(t *testing.T) {
 	}
 	// 307 pošle tělo znovu.
 	res, err := New().Do(context.Background(), "r", Request{Method: "POST", URL: srv.URL + "/r/2", Body: model.Body{Type: model.BodyText, Raw: "data"}}, defOpts)
-	if err != nil || string(res.Body) != "data" || res.Redirects[0].Status != 307 || res.Redirects[0].Location != "/r/1" {
+	if err != nil || bodyStr(res) != "data" || res.Redirects[0].Status != 307 || res.Redirects[0].Location != "/r/1" {
 		t.Errorf("307: %v %+v", err, res)
 	}
 }

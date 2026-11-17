@@ -19,6 +19,7 @@ import (
 type payload struct {
 	contentType string // automatický Content-Type ("" = žádný)
 	size        int64
+	preview     string                        // náhled pro záložku Odesláno (u souboru prázdný)
 	open        func() (io.ReadCloser, error) // nil = bez těla; volá se znovu při redirectu 307/308
 }
 
@@ -30,7 +31,7 @@ var rawTypes = map[string]string{
 }
 
 func bytesPayload(b []byte, ct string) payload {
-	return payload{contentType: ct, size: int64(len(b)), open: func() (io.ReadCloser, error) {
+	return payload{contentType: ct, size: int64(len(b)), preview: preview(b), open: func() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(b)), nil
 	}}
 }

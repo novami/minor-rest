@@ -41,6 +41,7 @@
   "errors.REDIRECT_LIMIT": "Překročen maximální počet přesměrování",
   "errors.FILE_NOT_FOUND": "Soubor nenalezen",
   "errors.METHOD_INVALID": "Neplatná metoda",
+  "errors.DECODE_ERROR": "Komprimované tělo odpovědi je poškozené",
   "project.location": "Umístění",
   "project.changeLocation": "Změnit…",
   "tree.newRequest": "Nový request",
