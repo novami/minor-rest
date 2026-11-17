@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/novami/minor-rest/internal/model"
 )
@@ -237,5 +238,25 @@ func TestInitProject(t *testing.T) {
 	}
 	if _, err := InitProject(dir, "Znovu"); codeOf(err) != ErrProjectInvalid {
 		t.Fatalf("second init: %v", err)
+	}
+}
+
+func TestDuplicateIDFixedOnLoad(t *testing.T) {
+	p := newProject(t)
+	r := must(p.CreateRequest("", "A"))
+	data, _ := os.ReadFile(filepath.Join(p.Root, r.Rel))
+	time.Sleep(10 * time.Millisecond)
+	os.WriteFile(filepath.Join(p.Root, "kopie.req.yaml"), data, 0o644) // kopie z Finderu
+
+	tree := must(p.LoadTree())
+	ids := map[string]string{}
+	for _, n := range tree.Children {
+		ids[n.Rel] = n.ID
+	}
+	if ids[r.Rel] != r.ID || ids["kopie.req.yaml"] == r.ID || ids["kopie.req.yaml"] == "" {
+		t.Errorf("ids: %v (původní %s)", ids, r.ID)
+	}
+	if again := must(p.LoadRequest("kopie.req.yaml")); again.ID != ids["kopie.req.yaml"] {
+		t.Errorf("nové ID se neuložilo: %s", again.ID)
 	}
 }

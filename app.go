@@ -9,6 +9,7 @@ import (
 
 	"github.com/novami/minor-rest/internal/settings"
 	"github.com/novami/minor-rest/internal/storage"
+	"github.com/novami/minor-rest/internal/watch"
 )
 
 // App holds Wails bindings. Keep it thin – logic belongs to internal/*.
@@ -17,6 +18,7 @@ type App struct {
 	dirty    atomic.Bool
 	projects storage.Registry
 	appDir   string
+	watcher  *watch.Watcher
 
 	wsMu sync.Mutex
 	ws   settings.Workspace
@@ -28,7 +30,16 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.watcher = watch.New(func(id string, _ []string) {
+		a.emit("tree:changed", map[string]string{"projectID": id})
+	}, true)
 	a.loadWorkspace()
+}
+
+func (a *App) shutdown(ctx context.Context) {
+	if a.watcher != nil {
+		a.watcher.Close()
+	}
 }
 
 // beforeClose asks for confirmation when the frontend reports unsaved changes.
@@ -61,8 +72,8 @@ func (a *App) GetVersion() string {
 	return version
 }
 
-func (a *App) emit(event string) {
+func (a *App) emit(event string, data ...any) {
 	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, event)
+		runtime.EventsEmit(a.ctx, event, data...)
 	}
 }

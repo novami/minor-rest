@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/novami/minor-rest/internal/model"
 )
@@ -13,7 +14,61 @@ import (
 func (p *Project) LoadTree() (model.TreeNode, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.node("", true)
+	t, err := p.node("", true)
+	if err == nil && !p.readOnly {
+		p.fixDuplicateIDs(&t)
+	}
+	return t, err
+}
+
+// fixDuplicateIDs přidělí nové ID requestům se shodným ID (soubor zkopírovaný mimo aplikaci).
+// Původní ID si ponechá nejdříve vytvořený soubor, aby mu zůstaly uložené odpovědi.
+func (p *Project) fixDuplicateIDs(t *model.TreeNode) {
+	byID := map[string][]*model.TreeNode{}
+	var walk func(n *model.TreeNode)
+	walk = func(n *model.TreeNode) {
+		for i := range n.Children {
+			c := &n.Children[i]
+			if c.Kind == model.KindRequest && c.ID != "" {
+				byID[c.ID] = append(byID[c.ID], c)
+			}
+			walk(c)
+		}
+	}
+	walk(t)
+	for _, ns := range byID {
+		if len(ns) < 2 {
+			continue
+		}
+		born := map[string]time.Time{}
+		for _, n := range ns {
+			abs, _ := p.abs(n.Rel)
+			born[n.Rel] = birthTime(abs)
+		}
+		sort.SliceStable(ns, func(i, j int) bool {
+			bi, bj := born[ns[i].Rel], born[ns[j].Rel]
+			if !bi.Equal(bj) {
+				return bi.Before(bj)
+			}
+			return ns[i].Rel < ns[j].Rel
+		})
+		for _, n := range ns[1:] {
+			id := model.NewID()
+			if err := p.setID(n.Rel, id); err == nil {
+				n.ID = id
+			}
+		}
+	}
+}
+
+func (p *Project) setID(rel, id string) error {
+	abs, _ := p.abs(rel)
+	var r model.Request
+	if err := readYAML(abs, &r); err != nil {
+		return err
+	}
+	r.ID = id
+	return writeYAML(abs, r)
 }
 
 // node vrátí uzel na rel; u složky s deep=true i s potomky.

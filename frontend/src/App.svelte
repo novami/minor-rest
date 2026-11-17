@@ -1,13 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { t } from './lib/i18n/index.svelte'
-  import { onMenu } from './lib/util/events'
+  import { onEvent, onMenu } from './lib/util/events'
   import { showToast } from './lib/stores/toast.svelte'
   import Splitter from './lib/components/Splitter.svelte'
   import Toasts from './lib/components/Toasts.svelte'
   import ProjectSwitcher from './lib/components/ProjectSwitcher.svelte'
   import Tree from './lib/components/Tree.svelte'
-  import { ws, initWorkspace, saveWorkspace } from './lib/stores/workspace.svelte'
+  import { ws, initWorkspace, saveWorkspace, reloadTree } from './lib/stores/workspace.svelte'
   import { createNode, duplicateNode } from './lib/stores/tree.svelte'
 
   let ready = false
@@ -31,6 +31,7 @@
   onMount(() => {
     initWorkspace().finally(() => (ready = true))
     const offs = [
+      onEvent('tree:changed', (e: { projectID: string }) => e?.projectID === ws.activeProject && reloadTree()),
       onMenu('toggle-sidebar', () => (ws.sidebarHidden = !ws.sidebarHidden)),
       onMenu('new-request', () => createNode('request')),
       onMenu('new-folder', () => createNode('folder')),

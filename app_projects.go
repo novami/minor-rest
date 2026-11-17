@@ -27,8 +27,10 @@ func (a *App) loadWorkspace() {
 		log.Printf("workspace: %v", err)
 	}
 	for _, root := range ws.Projects {
-		if _, err := a.projects.Open(root); err != nil {
+		if p, err := a.projects.Open(root); err != nil {
 			log.Printf("reopen %s: %v", root, err)
+		} else {
+			a.watch(p)
 		}
 	}
 	a.wsMu.Lock()
@@ -92,7 +94,7 @@ func (a *App) CreateProject(name, parentDir string) (model.ProjectInfo, error) {
 	if err != nil {
 		return model.ProjectInfo{}, err
 	}
-	return a.activate(a.projects.Add(p))
+	return a.activate(a.watch(a.projects.Add(p)))
 }
 
 // OpenProjectDialog nechá vybrat adresář projektu; nil = zrušeno.
@@ -119,14 +121,14 @@ func (a *App) OpenProjectDialog() (*model.ProjectInfo, error) {
 		if err != nil {
 			return nil, err
 		}
-		info, err := a.activate(a.projects.Add(p))
+		info, err := a.activate(a.watch(a.projects.Add(p)))
 		return &info, err
 	}
 	p, err := a.projects.Open(dir)
 	if err != nil {
 		return nil, err
 	}
-	info, err := a.activate(p)
+	info, err := a.activate(a.watch(p))
 	return &info, err
 }
 
@@ -141,6 +143,16 @@ func (a *App) DefaultProjectsDir() string {
 	return dir
 }
 
+// watch začne sledovat změny projektu na disku (chyba jen do logu – strom jde načíst i bez ní).
+func (a *App) watch(p *storage.Project) *storage.Project {
+	if a.watcher != nil {
+		if err := a.watcher.Add(p.Info().ID, p.Root); err != nil {
+			log.Printf("watch %s: %v", p.Root, err)
+		}
+	}
+	return p
+}
+
 func (a *App) activate(p *storage.Project) (model.ProjectInfo, error) {
 	info := p.Info()
 	return info, a.updateWorkspace(func(w *settings.Workspace) { w.ActiveProject = info.ID })
@@ -149,6 +161,9 @@ func (a *App) activate(p *storage.Project) (model.ProjectInfo, error) {
 func (a *App) CloseProject(projectID string) error {
 	if err := a.projects.Close(projectID); err != nil {
 		return err
+	}
+	if a.watcher != nil {
+		a.watcher.Remove(projectID)
 	}
 	return a.updateWorkspace(func(w *settings.Workspace) {})
 }

@@ -33,6 +33,7 @@ func main() {
 		Menu:             app.buildMenu(),
 		OnStartup:        app.startup,
 		OnBeforeClose:    app.beforeClose,
+		OnShutdown:       app.shutdown,
 		Bind:             []interface{}{app},
 		Mac: &mac.Options{
 			TitleBar:             mac.TitleBarHiddenInset(),
