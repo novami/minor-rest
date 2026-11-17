@@ -32,6 +32,7 @@
 | 2026-11-17 | F1/2 | 2420b89 | storage: strom, CRUD, přesun, duplikace, koš |
 | 2026-11-17 | ikona | 897e237 | smaragdová ikona { ▶ } s odleskem |
 | 2026-11-17 | F1/3 | caf8f68 | proměnné, sestavení URL |
+| 2026-11-17 | F1/3 | ec5b2ca | opravy: VAR_UNRESOLVED_HOST, cache proměnných, KV.bare |
 | 2026-11-17 | F1/2 | 5d6e771 | přípona duplikátu parametrem, ochrana odpovědí sdíleného ID |
 
 ## Rozhodnutí uživatele
@@ -45,7 +46,8 @@
 - Storage: složky a requesty sdílí jmenný prostor slugů (kolize case-insensitive); v kořeni je `environments` rezervované. Nečitelné soubory jsou ve stromu na konci s `Error`. `Duplicate(rel, copySuffix)` – binding `DuplicateNode` předá příponu v jazyce UI (prázdná = „ kopie“). Mazání nepřesune do Koše `.responses/<id>`, pokud stejné ID má jiný request.
 - Návrh pro F2 (watcher): při načtení stromu detekovat duplicitní ID (soubor zkopírovaný ve Finderu) a novějšímu souboru přidělit nové ID.
 - Testy storage nahrazují `trashItem` přesunem do TempDir; skutečný Koš ověřen jednorázově ručně.
-- Vars: nevyhodnocená proměnná v hostu → `URL_INVALID` (odeslat nejde); v cestě se pošle enkódovaně (`%7B%7Bid%7D%7D`) a je v `Unresolved`. Hodnota proměnné se vyhodnocuje při každém výskytu (proměnná s `{{$uuid}}` dá pokaždé jiné UUID).
+- Vars: nevyhodnocená proměnná v hostu → `VAR_UNRESOLVED_HOST: <názvy>`; v cestě se pošle enkódovaně (`%7B%7Bid%7D%7D`) a je v `Unresolved`. Pojmenovaná proměnná = jedna hodnota na resolver (cache), přímé `{{$uuid}}` pokaždé nové. Query: prázdná hodnota → `name=`, `KV.Bare` → `name` (URL bar v F3 nastaví `bare` při `?name` bez `=`).
+- i18n zatím nemá sekci `errors` – v F2 přidat klíče pro kódy z `internal/*` (`NOT_FOUND`, `PATH_INVALID`, `NAME_EMPTY`, `PROJECT_READONLY`, `PROJECT_INVALID`, `MOVE_INTO_SELF`, `FS_ERROR`, `TRASH_FAILED`, `YAML_INVALID`, `VAR_CYCLE`, `VAR_UNRESOLVED_HOST`, `URL_INVALID`).
 - Nil slice → v JSON `null`; frontend s tím musí počítat (případně normalizovat v bindingu F3).
 - Retina větev fontů ověřena jen syntakticky (media query platná), vizuálně ne – ověřit na retina displeji.
 - Rozměry panelů se zatím neukládají (přijde s workspace v F2).
