@@ -1,8 +1,8 @@
 # Stav projektu
 
 ## Aktuálně
-- **Fáze:** F2 hotová (krok 4 – watcher). Kritérium „Hotovo“ splněno, kromě DnD v nativním WKWebView (neověřeno).
-- **Další krok:** F3, krok 1 – store tabů (otevřít, zavřít, dirty, obnovení ze workspace), načtení/uložení requestu (bindingy z kap. 11), `MethodSelect`, `VarInput` (zatím jen zvýraznění `{{}}`), URL bar. Napojit Enter/dvojklik ve stromu na otevření tabu. Zachytit `watch` cesty pro `request:changedOnDisk` (callback watcheru už dostává změněné rel – zatím se zahazují). Nil slice v DTO normalizovat v bindingu.
+- **Fáze:** F3, krok 1 hotový.
+- **Další krok:** F3, krok 2 – `KvEditor` (checkbox, klíč, hodnota `VarInput`, popis, smazat, nový řádek psaním do posledního, přetažení pořadí) + Bulk edit; pod URL barem záložky (Params | Body | Headers | Auth | Nastavení | Dokumentace – zatím Params a Headers). Params: query tabulka (`tab.draft.params.query` – URL bar se sám přepočítá, viz `RequestEditor.svelte`), path params z `:name` v URL. Headers s našeptávačem názvů a běžných hodnot. Kap. 8.3.
 - **Prostředí:** Go 1.27.4 darwin/arm64, Node 26, Wails CLI v2.17.1 (`~/go/bin/wails`), gh CLI. Příkazy přes `make dev|build|test|check`.
 
 ## Co existuje (F0)
@@ -33,6 +33,14 @@
 - `LoadTree` přidělí nové ID requestům se shodným ID (kopie z Finderu); původní zůstane nejdříve vytvořenému souboru (`birthTime`, macOS Birthtimespec). V read-only projektu ne.
 - Frontend: `stores/workspace.svelte.ts` (`ws`, init, debounced `saveWorkspace`, create/open/close/select), `ProjectSwitcher` v titlebaru (+ modál nového projektu), `Tree` (zatím jen zobrazení), `util/errors.ts` (`errorText` → `errors.<CODE>`), i18n sekce `errors`. Rozměry/viditelnost panelů se ukládají.
 
+## Co existuje (F3)
+- Bindingy `GetRequest` (nil slice → `[]` přes `model.FillNilSlices`), `SaveRequest` (`app_requests.go`); `storage.SaveRequest` převezme ID, název a pořadí ze souboru (identitu drží strom – zastaralý tab nepřepíše přejmenování).
+- Workspace: `tabs` (projekt → ID requestů), `activeTab` (projekt → ID); zavřené projekty se z map mažou.
+- `stores/tabs.svelte.ts`: tab = {id (ID requestu), projectID, rel, draft, saved (JSON)}, dirty = porovnání JSON. Taby per projekt, obnova při prvním načtení stromu projektu, po každém načtení stromu sledují přejmenování/přesun (podle ID), smazaný čistý tab se zavře. `workspace.treeLoaded` = háčky po načtení stromu. Uložení → `reloadTree` (metoda/URL ve stromu). `SetDirty` podle libovolného dirty tabu.
+- Komponenty: `TabBar` (metoda, název ze stromu, tečka = neuloženo, × / prostřední tlačítko zavře, + nový request, dialog Uložit/Zahodit/Zrušit), `RequestEditor` (MethodSelect + URL bar + Odeslat), `MethodSelect` (nativní select, barva metody), `VarInput` (průhledný input nad zrcadlem, tokenizace `{{…}}`, `\{{` = escape, `$` modře; synchronizovaný scroll ověřen).
+- URL bar (`util/urlbar.ts`): text = URL + zapnuté query; při psaní se rozdělí do `url` a `params.query` (zapnuté řádky se nahradí v pořadí, popisy zůstanou, vypnuté řádky zůstanou na místě, `?name` → `bare`). Vlastní text se drží, dokud se URL/query nezmění odjinud.
+- Strom: dvojklik/Enter na requestu otevře tab; nový request (Cmd+N, +) se otevře v tabu a název je v editaci. Menu: Cmd+S uložit, Cmd+W zavřít tab, Cmd+L fokus URL. Cmd+Enter / Odeslat zatím toast (F4).
+
 ## Log
 | Datum | Fáze | Commit | Poznámka |
 |---|---|---|---|
@@ -51,6 +59,7 @@
 | 2026-11-17 | F2/2 | 056c3d6 | interaktivní strom |
 | 2026-11-17 | F2/3 | 521ce8f | drag & drop, hledání ve stromu |
 | 2026-11-17 | F2/4 | 942083b | watcher (FSEvents), tree:changed, oprava duplicitních ID |
+| 2026-11-17 | F3/1 | 647e970 | taby, načtení/uložení requestu, MethodSelect, VarInput, URL bar |
 
 ## Rozhodnutí uživatele
 - Wails v2 + Svelte 5, YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
@@ -71,6 +80,8 @@
 - `make dev` potřebuje `~/go/bin` v PATH (jinak „wails: No such file“).
 - Screenshoty v panelu prohlížeče občas ukazují zastaralý stav – ověřovat přes DOM (`javascript_tool`).
 - Testy v `wails dev` zapisují do skutečného `~/Library/Application Support/MinorREST/workspace.yaml` – testovací projekty zakládat přes binding do scratch adresáře a po testu zavřít.
-- Nil slice → v JSON `null`; frontend s tím musí počítat (případně normalizovat v bindingu F3).
+- Nil slice → v JSON `null`; `GetRequest` normalizuje (`FillNilSlices`), ostatní DTO zatím ne.
+- Zavření projektu s neuloženými taby změny tiše zahodí; dialog řešit v F3/4 spolu s `OnBeforeClose`. Tab smazaného requestu s neuloženými změnami zůstane otevřený, uložení skončí `NOT_FOUND`.
+- `VarInput` zatím barví všechny `{{proměnné}}` jako známé (vyhodnocení a hover v F6).
 - Retina větev fontů ověřena jen syntakticky (media query platná), vizuálně ne – ověřit na retina displeji.
 - F12 vyžaduje od uživatele ed25519 klíč v GitHub Secrets (`UPDATE_SIGNING_KEY`).
