@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os/exec"
+	"path/filepath"
 	"slices"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -94,10 +96,31 @@ func (a *App) CreateProject(name, parentDir string) (model.ProjectInfo, error) {
 }
 
 // OpenProjectDialog nechá vybrat adresář projektu; nil = zrušeno.
+// Adresář bez projektu nabídne založit jako nový projekt.
 func (a *App) OpenProjectDialog() (*model.ProjectInfo, error) {
-	dir, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{CanCreateDirectories: false})
+	dir, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{CanCreateDirectories: true})
 	if err != nil || dir == "" {
 		return nil, err
+	}
+	if !storage.IsProjectDir(dir) {
+		l := menuLabels(systemLang())
+		res, err := runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+			Type:          runtime.QuestionDialog,
+			Title:         l["initTitle"],
+			Message:       fmt.Sprintf(l["initMessage"], filepath.Base(dir)),
+			Buttons:       []string{l["initCreate"], l["closeCancel"]},
+			DefaultButton: l["initCreate"],
+			CancelButton:  l["closeCancel"],
+		})
+		if err != nil || res != l["initCreate"] {
+			return nil, err
+		}
+		p, err := storage.InitProject(dir, filepath.Base(dir))
+		if err != nil {
+			return nil, err
+		}
+		info, err := a.activate(a.projects.Add(p))
+		return &info, err
 	}
 	p, err := a.projects.Open(dir)
 	if err != nil {
@@ -105,6 +128,17 @@ func (a *App) OpenProjectDialog() (*model.ProjectInfo, error) {
 	}
 	info, err := a.activate(p)
 	return &info, err
+}
+
+// PickDirectory nechá vybrat adresář (např. umístění nového projektu); "" = zrušeno.
+func (a *App) PickDirectory(defaultDir string) (string, error) {
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{DefaultDirectory: defaultDir, CanCreateDirectories: true})
+}
+
+// DefaultProjectsDir vrátí výchozí adresář pro nové projekty.
+func (a *App) DefaultProjectsDir() string {
+	dir, _ := settings.DefaultProjectsDir()
+	return dir
 }
 
 func (a *App) activate(p *storage.Project) (model.ProjectInfo, error) {

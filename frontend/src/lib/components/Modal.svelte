@@ -44,9 +44,9 @@
     inset: 0;
     background: rgba(0, 0, 0, 0.3);
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
-    padding-top: 10vh;
+    padding: 20px;
     z-index: 100;
   }
   .modal {

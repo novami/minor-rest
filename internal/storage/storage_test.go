@@ -222,3 +222,15 @@ func TestRegistry(t *testing.T) {
 		t.Fatalf("get closed: %v", err)
 	}
 }
+
+func TestInitProject(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("x"), 0o644)
+	p := must(InitProject(dir, "Stávající"))
+	if !IsProjectDir(dir) || p.Info().Name != "Stávající" {
+		t.Fatal("not initialized")
+	}
+	if _, err := InitProject(dir, "Znovu"); codeOf(err) != ErrProjectInvalid {
+		t.Fatalf("second init: %v", err)
+	}
+}

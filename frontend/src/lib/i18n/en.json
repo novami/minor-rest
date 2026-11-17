@@ -17,7 +17,6 @@
   "project.close": "Close Project",
   "project.newTitle": "New Project",
   "project.name": "Name",
-  "project.newHint": "The project will be created in ~/Documents/MinorREST.",
   "common.create": "Create",
   "errors.NOT_FOUND": "Not found",
   "errors.PATH_INVALID": "Invalid path",
@@ -30,5 +29,7 @@
   "errors.YAML_INVALID": "The file cannot be read (invalid YAML)",
   "errors.VAR_CYCLE": "Variables reference each other in a cycle",
   "errors.VAR_UNRESOLVED_HOST": "The host contains unresolved variables",
-  "errors.URL_INVALID": "Invalid URL"
+  "errors.URL_INVALID": "Invalid URL",
+  "project.location": "Location",
+  "project.changeLocation": "Change…"
 }

@@ -11,6 +11,8 @@ export function CreateProject(arg1:string,arg2:string):Promise<model.ProjectInfo
 
 export function CreateRequest(arg1:string,arg2:string,arg3:string):Promise<model.TreeNode>;
 
+export function DefaultProjectsDir():Promise<string>;
+
 export function DeleteNode(arg1:string,arg2:string):Promise<void>;
 
 export function DuplicateNode(arg1:string,arg2:string,arg3:string):Promise<model.TreeNode>;
@@ -26,6 +28,8 @@ export function ListProjects():Promise<Array<model.ProjectInfo>>;
 export function MoveNode(arg1:string,arg2:string,arg3:string,arg4:number):Promise<model.TreeNode>;
 
 export function OpenProjectDialog():Promise<model.ProjectInfo>;
+
+export function PickDirectory(arg1:string):Promise<string>;
 
 export function RenameNode(arg1:string,arg2:string,arg3:string):Promise<model.TreeNode>;
 

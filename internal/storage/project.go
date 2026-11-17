@@ -39,6 +39,18 @@ func CreateProject(parentDir, name string) (*Project, error) {
 	if err := os.Mkdir(root, 0o755); err != nil {
 		return nil, fsErr(err)
 	}
+	return InitProject(root, name)
+}
+
+// InitProject založí projekt v existujícím adresáři (už založený → PROJECT_INVALID).
+func InitProject(root, name string) (*Project, error) {
+	name, err := cleanName(name)
+	if err != nil {
+		return nil, err
+	}
+	if exists(filepath.Join(root, model.ProjectFile)) {
+		return nil, errCode(ErrProjectInvalid, "already exists: "+root)
+	}
 	cfg := model.ProjectConfig{
 		FormatVersion:        model.FormatVersion,
 		ID:                   model.NewID(),
@@ -54,6 +66,9 @@ func CreateProject(parentDir, name string) (*Project, error) {
 	}
 	return &Project{Root: root, cfg: cfg}, nil
 }
+
+// IsProjectDir říká, zda adresář obsahuje soubor projektu.
+func IsProjectDir(root string) bool { return exists(filepath.Join(root, model.ProjectFile)) }
 
 // OpenProject otevře existující projekt. Vyšší formatVersion → jen pro čtení.
 func OpenProject(root string) (*Project, error) {

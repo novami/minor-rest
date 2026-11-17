@@ -9,11 +9,14 @@
     createProject,
     openProjectDialog,
     closeProject,
+    defaultProjectsDir,
+    pickDirectory,
   } from '../stores/workspace.svelte'
 
   let open = $state(false)
   let creating = $state(false)
   let newName = $state('')
+  let parentDir = $state('')
   let root: HTMLElement
 
   const current = $derived(activeProject())
@@ -23,15 +26,21 @@
     fn()
   }
 
-  function startCreate() {
+  async function startCreate() {
     newName = ''
     creating = true
+    if (!parentDir) parentDir = await defaultProjectsDir()
+  }
+
+  async function changeDir() {
+    const dir = await pickDirectory(parentDir)
+    if (dir) parentDir = dir
   }
 
   async function submitCreate(e: SubmitEvent) {
     e.preventDefault()
     if (!newName.trim()) return
-    if (await createProject(newName)) creating = false
+    if (await createProject(newName, parentDir)) creating = false
   }
 
   function onwindowclick(e: MouseEvent) {
@@ -83,7 +92,13 @@
       <!-- svelte-ignore a11y_autofocus -->
       <input bind:value={newName} autofocus spellcheck="false" />
     </label>
-    <p class="hint">{t('project.newHint')}</p>
+    <div class="field">
+      <span>{t('project.location')}</span>
+      <div class="location">
+        <span class="path mono" title={parentDir}>{parentDir}</span>
+        <Button onclick={changeDir}>{t('project.changeLocation')}</Button>
+      </div>
+    </div>
   </form>
   {#snippet footer()}
     <Button onclick={() => (creating = false)}>{t('common.cancel')}</Button>
@@ -176,9 +191,22 @@
     border-radius: var(--radius);
     background: var(--bg);
   }
-  .hint {
-    margin: 8px 0 0;
-    font-size: 0.9em;
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .location {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .path {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: var(--text-muted);
   }
 </style>

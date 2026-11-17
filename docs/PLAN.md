@@ -459,7 +459,8 @@ RevealInFinder(projectID, rel string) error
 GetWorkspace() Workspace;  SaveWorkspace(w Workspace) error;  SetDirty(dirty bool)
 // Workspace {Projects (spravuje backend, ze SaveWorkspace se ignoruje), ActiveProject, Expanded map[projectID][]rel,
 //            SidebarHidden, SidebarWidth, ResponseHeight}; další pole (taby, prostředí) přibudou v F3/F6
-// CreateProject: parentDir "" = ~/Documents/MinorREST
+// CreateProject: parentDir "" = ~/Documents/MinorREST; OpenProjectDialog nabídne založit projekt v adresáři bez minorrest.yaml
+PickDirectory(defaultDir string) (string, error);  DefaultProjectsDir() string
 
 // Requesty a konfigurace (F3)
 GetRequest(projectID, rel string) (Request, error)

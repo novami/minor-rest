@@ -18,6 +18,10 @@ export function CreateRequest(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateRequest'](arg1, arg2, arg3);
 }
 
+export function DefaultProjectsDir() {
+  return window['go']['main']['App']['DefaultProjectsDir']();
+}
+
 export function DeleteNode(arg1, arg2) {
   return window['go']['main']['App']['DeleteNode'](arg1, arg2);
 }
@@ -48,6 +52,10 @@ export function MoveNode(arg1, arg2, arg3, arg4) {
 
 export function OpenProjectDialog() {
   return window['go']['main']['App']['OpenProjectDialog']();
+}
+
+export function PickDirectory(arg1) {
+  return window['go']['main']['App']['PickDirectory'](arg1);
 }
 
 export function RenameNode(arg1, arg2, arg3) {

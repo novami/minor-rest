@@ -81,9 +81,9 @@ async function adopt(info: model.ProjectInfo | null) {
   await reloadTree()
 }
 
-export async function createProject(name: string): Promise<boolean> {
+export async function createProject(name: string, parentDir: string): Promise<boolean> {
   try {
-    await adopt(await App.CreateProject(name, ''))
+    await adopt(await App.CreateProject(name, parentDir))
     return true
   } catch (err) {
     fail(err)
@@ -109,5 +109,19 @@ export async function closeProject(id: string) {
     await reloadTree()
   } catch (err) {
     fail(err)
+  }
+}
+
+export function defaultProjectsDir(): Promise<string> {
+  return hasBackend() ? App.DefaultProjectsDir() : Promise.resolve('')
+}
+
+/** Native folder picker; returns '' when cancelled. */
+export async function pickDirectory(defaultDir: string): Promise<string> {
+  try {
+    return await App.PickDirectory(defaultDir)
+  } catch (err) {
+    fail(err)
+    return ''
   }
 }

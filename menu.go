@@ -31,6 +31,8 @@ var menuTexts = map[string]map[string]string{
 		"environment": "Vybrat prostředí…",
 		"closeTitle": "Neuložené změny", "closeMessage": "Některé requesty mají neuložené změny. Opravdu ukončit?",
 		"closeQuit": "Ukončit bez uložení", "closeCancel": "Zrušit",
+		"initTitle": "Adresář neobsahuje projekt", "initMessage": "Založit v adresáři „%s“ nový projekt?",
+		"initCreate": "Založit projekt",
 	},
 	"en": {
 		"file": "File", "newRequest": "New Request", "newFolder": "New Folder", "save": "Save",
@@ -41,6 +43,8 @@ var menuTexts = map[string]map[string]string{
 		"environment": "Select Environment…",
 		"closeTitle": "Unsaved changes", "closeMessage": "Some requests have unsaved changes. Quit anyway?",
 		"closeQuit": "Quit without saving", "closeCancel": "Cancel",
+		"initTitle": "No project in this folder", "initMessage": "Create a new project in “%s”?",
+		"initCreate": "Create Project",
 	},
 }
 
