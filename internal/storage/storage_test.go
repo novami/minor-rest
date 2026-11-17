@@ -58,6 +58,11 @@ func TestCreateAndTree(t *testing.T) {
 	if r.Rel != "uzivatele/seznam.req.yaml" || r.ID == "" || r.Method != model.MethodGet {
 		t.Errorf("request: %+v", r)
 	}
+	req := must(p.LoadRequest(r.Rel))
+	req.URL = "{{base}}/users"
+	if err := p.SaveRequest(r.Rel, req); err != nil {
+		t.Fatal(err)
+	}
 	tree := must(p.LoadTree())
 	if got := names(tree.Children); got != "Uživatelé,Kořenový,rozbity" {
 		t.Errorf("kořen: %s", got)
@@ -66,7 +71,7 @@ func TestCreateAndTree(t *testing.T) {
 		t.Errorf("rozbitý: %+v", tree.Children[2])
 	}
 	u := tree.Children[0]
-	if got := names(u.Children); got != "Detail,Seznam,Seznam" || u.Children[2].Rel != "uzivatele/seznam-2.req.yaml" {
+	if got := names(u.Children); got != "Detail,Seznam,Seznam" || u.Children[2].Rel != "uzivatele/seznam-2.req.yaml" || u.Children[1].URL != "{{base}}/users" {
 		t.Errorf("uživatelé: %+v", u.Children)
 	}
 

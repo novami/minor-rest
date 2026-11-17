@@ -25,6 +25,7 @@ export namespace model {
 	    seq: number;
 	    id?: string;
 	    method?: string;
+	    url?: string;
 	    error?: string;
 	    children?: TreeNode[];
 	
@@ -40,6 +41,7 @@ export namespace model {
 	        this.seq = source["seq"];
 	        this.id = source["id"];
 	        this.method = source["method"];
+	        this.url = source["url"];
 	        this.error = source["error"];
 	        this.children = this.convertValues(source["children"], TreeNode);
 	    }

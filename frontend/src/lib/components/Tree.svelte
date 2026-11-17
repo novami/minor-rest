@@ -15,7 +15,9 @@
     duplicateNode,
     deleteNode,
     revealInFinder,
+    moveNode,
   } from '../stores/tree.svelte'
+  import { fold } from '../util/text'
 
   interface Props {
     root: model.TreeNode
@@ -27,20 +29,125 @@
     depth: number
   }
 
-  // visible nodes in display order
+  let query = $state('')
+  const q = $derived(fold(query.trim()))
+
+  function matches(n: model.TreeNode): boolean {
+    if (fold(n.name).includes(q)) return true
+    return n.kind === 'request' && (fold(n.url ?? '').includes(q) || fold(n.method ?? '').includes(q))
+  }
+
+  // visible nodes in display order; with a filter: matches, their ancestors, and whole subtrees of matching folders
   const rows = $derived.by(() => {
-    const out: Row[] = []
-    const walk = (nodes: model.TreeNode[] | undefined, depth: number) => {
+    const walk = (nodes: model.TreeNode[] | undefined, depth: number, all: boolean): Row[] => {
+      const out: Row[] = []
       for (const node of nodes ?? []) {
-        out.push({ node, depth })
-        if (node.kind === 'folder' && isExpanded(node.rel)) walk(node.children, depth + 1)
+        const self = !q || all || matches(node)
+        if (node.kind !== 'folder') {
+          if (self) out.push({ node, depth })
+          continue
+        }
+        const sub = q || isExpanded(node.rel) ? walk(node.children, depth + 1, q ? self : false) : []
+        if (self || sub.length) out.push({ node, depth }, ...sub)
       }
+      return out
     }
-    walk(root.children, 0)
-    return out
+    return walk(root.children, 0, false)
   })
 
   let listEl: HTMLElement
+
+  // drag & drop
+  type DropPos = 'before' | 'after' | 'into'
+  let drag = $state<model.TreeNode | null>(null)
+  let drop = $state<{ rel: string; pos: DropPos } | null>(null)
+  let expandTimer: ReturnType<typeof setTimeout> | undefined
+  let expandRel = ''
+
+  function dropTarget(e: DragEvent, n: model.TreeNode): { rel: string; pos: DropPos } | null {
+    if (!drag) return null
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const y = (e.clientY - r.top) / r.height
+    let t: { rel: string; pos: DropPos }
+    if (n.kind === 'folder') {
+      if (drag.kind === 'request') t = { rel: n.rel, pos: 'into' }
+      else t = { rel: n.rel, pos: y < 0.25 ? 'before' : y > 0.75 && !isExpanded(n.rel) ? 'after' : 'into' }
+    } else if (drag.kind === 'request') {
+      t = { rel: n.rel, pos: y < 0.5 ? 'before' : 'after' }
+    } else {
+      t = { rel: parentOf(n.rel), pos: 'into' } // folder over a request: into that request's folder
+    }
+    if (t.rel === drag.rel && t.pos !== 'into') return null
+    const dest = t.pos === 'into' ? t.rel : parentOf(t.rel)
+    if (drag.kind === 'folder' && (dest === drag.rel || dest.startsWith(drag.rel + '/'))) return null
+    return t
+  }
+
+  function setDrop(t: { rel: string; pos: DropPos } | null) {
+    drop = t
+    const rel = t?.pos === 'into' && t.rel && !isExpanded(t.rel) ? t.rel : ''
+    if (rel === expandRel) return
+    clearTimeout(expandTimer)
+    expandRel = rel
+    if (rel) expandTimer = setTimeout(() => setExpanded(rel, true), 700)
+  }
+
+  function ondragstart(e: DragEvent, n: model.TreeNode) {
+    if (!e.dataTransfer) return
+    e.dataTransfer.setData('text/plain', n.rel) // WebKit starts a drag only with data set
+    e.dataTransfer.effectAllowed = 'move'
+    drag = n
+    select(n.rel)
+  }
+
+  function ondragover(e: DragEvent, n?: model.TreeNode) {
+    if (!drag) return
+    const t = n ? dropTarget(e, n) : { rel: '', pos: 'into' as DropPos }
+    e.stopPropagation()
+    setDrop(t)
+    if (!t) return
+    e.preventDefault()
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+  }
+
+  function ondragleave(e: DragEvent) {
+    if (!listEl.contains(e.relatedTarget as Node)) setDrop(null)
+  }
+
+  function ondrop(e: DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    const d = drag
+    const t = drop
+    ondragend()
+    if (!d || !t) return
+    const parent = t.pos === 'into' ? t.rel : parentOf(t.rel)
+    const sibs = (findNode(parent)?.children ?? []).filter((c) => c.kind === d.kind && c.rel !== d.rel)
+    let index = sibs.length
+    if (t.pos !== 'into') index = sibs.findIndex((c) => c.rel === t.rel) + (t.pos === 'after' ? 1 : 0)
+    if (parent === parentOf(d.rel)) {
+      const cur = (findNode(parent)?.children ?? []).filter((c) => c.kind === d.kind).findIndex((c) => c.rel === d.rel)
+      if (cur === index) return
+    }
+    moveNode(d.rel, parent, index)
+  }
+
+  function ondragend() {
+    drag = null
+    setDrop(null)
+  }
+
+  function onSearchKey(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      if (query) query = ''
+      else listEl.focus()
+    } else if (e.key === 'ArrowDown' || e.key === 'Enter') {
+      e.preventDefault()
+      if (rows.length && !rows.some((r) => r.node.rel === tree.selected)) select(rows[0].node.rel)
+      listEl.focus()
+    }
+  }
   let menu = $state<{ x: number; y: number; items: MenuItem[] } | null>(null)
   let confirmDelete = $state<model.TreeNode | null>(null)
   let editValue = $state('')
@@ -154,14 +261,27 @@
   }
 </script>
 
+<div class="search">
+  <input
+    type="search"
+    bind:value={query}
+    placeholder={t('tree.search')}
+    spellcheck="false"
+    onkeydown={onSearchKey}
+  />
+</div>
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   class="tree"
+  class:drop-root={drop?.rel === '' && drop.pos === 'into'}
   role="tree"
   tabindex="0"
   bind:this={listEl}
   {onkeydown}
   oncontextmenu={(e) => oncontextmenu(e)}
+  ondragover={(e) => ondragover(e)}
+  {ondragleave}
+  {ondrop}
 >
   {#each rows as { node: n, depth } (n.rel)}
     <!-- keyboard is handled by the focusable tree container -->
@@ -170,6 +290,14 @@
       class="row"
       class:selected={n.rel === tree.selected}
       class:broken={!!n.error}
+      class:dragging={drag?.rel === n.rel}
+      class:drop-before={drop?.rel === n.rel && drop.pos === 'before'}
+      class:drop-after={drop?.rel === n.rel && drop.pos === 'after'}
+      class:drop-into={drop?.rel === n.rel && drop.pos === 'into'}
+      draggable={!q && tree.editing !== n.rel}
+      ondragstart={(e) => ondragstart(e, n)}
+      ondragover={(e) => ondragover(e, n)}
+      {ondragend}
       role="treeitem"
       aria-selected={n.rel === tree.selected}
       aria-expanded={n.kind === 'folder' ? isExpanded(n.rel) : undefined}
@@ -203,7 +331,7 @@
     </div>
   {/each}
   {#if !rows.length}
-    <div class="empty">{t('sidebar.empty')}</div>
+    <div class="empty">{t(q ? 'tree.noMatches' : 'sidebar.empty')}</div>
   {/if}
 </div>
 
@@ -224,9 +352,47 @@
 </Modal>
 
 <style>
+  .search {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 6px 8px 0;
+    background: var(--bg-sidebar);
+  }
+  .search input {
+    width: 100%;
+    height: 24px;
+    padding: 0 6px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .search input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
   .tree {
-    min-height: 100%;
+    min-height: calc(100% - 30px);
     padding: 6px 0;
+  }
+  .tree.drop-root {
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+  }
+  .row.dragging {
+    opacity: 0.5;
+  }
+  .row.drop-before {
+    box-shadow: inset 0 2px 0 var(--accent);
+  }
+  .row.drop-after {
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+  .row.drop-into {
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+    background: var(--bg-hover);
   }
   .tree:focus-visible {
     outline: none;

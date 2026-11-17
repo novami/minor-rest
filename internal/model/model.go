@@ -275,6 +275,7 @@ type TreeNode struct {
 	Seq      int        `json:"seq" yaml:"seq"`
 	ID       string     `json:"id,omitempty" yaml:"id,omitempty"`
 	Method   string     `json:"method,omitempty" yaml:"method,omitempty"`
+	URL      string     `json:"url,omitempty" yaml:"url,omitempty"`     // kvůli hledání ve stromu
 	Error    string     `json:"error,omitempty" yaml:"error,omitempty"` // soubor nejde načíst (kód chyby)
 	Children []TreeNode `json:"children,omitempty" yaml:"children,omitempty"`
 }

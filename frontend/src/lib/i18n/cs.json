@@ -41,6 +41,8 @@
   "tree.reveal": "Zobrazit ve Finderu",
   "tree.delete": "Smazat",
   "tree.copySuffix": " kopie",
+  "tree.search": "Hledat…",
+  "tree.noMatches": "Nic nenalezeno",
   "tree.deleteTitle": "Smazat",
   "tree.deleteFolderMessage": "Přesunout složku „{name}“ se vším obsahem do Koše?",
   "tree.deleteRequestMessage": "Přesunout request „{name}“ do Koše?"

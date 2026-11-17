@@ -41,6 +41,8 @@
   "tree.reveal": "Show in Finder",
   "tree.delete": "Delete",
   "tree.copySuffix": " copy",
+  "tree.search": "Filter…",
+  "tree.noMatches": "No matches",
   "tree.deleteTitle": "Delete",
   "tree.deleteFolderMessage": "Move the folder “{name}” and all its contents to the Trash?",
   "tree.deleteRequestMessage": "Move the request “{name}” to the Trash?"

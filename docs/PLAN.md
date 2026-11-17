@@ -448,7 +448,7 @@ ListProjects() []ProjectInfo                       // {ID, Name, Path, ReadOnly}
 CreateProject(name, parentDir string) (ProjectInfo, error)
 OpenProjectDialog() (*ProjectInfo, error)          // nil = zrušeno
 CloseProject(projectID string) error
-GetTree(projectID string) (TreeNode, error)        // {Kind: "folder"|"request", Rel, Name, Seq, ID, Method, Children}
+GetTree(projectID string) (TreeNode, error)        // {Kind: "folder"|"request", Rel, Name, Seq, ID, Method, URL, Children}
 CreateFolder(projectID, parentRel, name string) (TreeNode, error)
 CreateRequest(projectID, parentRel, name string) (TreeNode, error)
 RenameNode(projectID, rel, newName string) (TreeNode, error)   // vrací nový Rel

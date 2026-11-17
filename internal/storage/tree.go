@@ -50,7 +50,7 @@ func (p *Project) requestNode(rel string) (model.TreeNode, error) {
 		n.Name, n.Error = slugOf(rel), codeOf(err)
 		return n, nil
 	}
-	n.Name, n.Seq, n.ID, n.Method = r.Name, r.Seq, r.ID, r.Method
+	n.Name, n.Seq, n.ID, n.Method, n.URL = r.Name, r.Seq, r.ID, r.Method, r.URL
 	return n, nil
 }
 
