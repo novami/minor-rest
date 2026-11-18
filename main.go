@@ -41,7 +41,7 @@ func main() {
 			WebviewIsTransparent: true,
 			About: &mac.AboutInfo{
 				Title:   "MinorREST",
-				Message: "Jednoduchý REST klient pro macOS\n" + version,
+				Message: menuLabels(systemLang())["about"] + "\n" + version,
 				Icon:    icon,
 			},
 		},

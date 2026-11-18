@@ -33,6 +33,7 @@ var menuTexts = map[string]map[string]string{
 		"closeSave": "Uložit", "closeQuit": "Neukládat", "closeCancel": "Zrušit",
 		"initTitle": "Adresář neobsahuje projekt", "initMessage": "Založit v adresáři „%s“ nový projekt?",
 		"initCreate": "Založit projekt",
+		"about":      "Jednoduchý REST klient pro macOS",
 	},
 	"en": {
 		"file": "File", "newRequest": "New Request", "newFolder": "New Folder", "save": "Save",
@@ -45,6 +46,7 @@ var menuTexts = map[string]map[string]string{
 		"closeSave": "Save", "closeQuit": "Don’t Save", "closeCancel": "Cancel",
 		"initTitle": "No project in this folder", "initMessage": "Create a new project in “%s”?",
 		"initCreate": "Create Project",
+		"about":      "A simple REST client for macOS",
 	},
 }
 

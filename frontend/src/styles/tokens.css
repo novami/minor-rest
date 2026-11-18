@@ -36,7 +36,7 @@
   --status-5xx: #d70015;
 
   --radius: 6px;
-  --titlebar-h: 38px;
+  --titlebar-h: 52px; /* HiddenInset = unified toolbar; traffic lights sit at its vertical center */
 }
 
 @media (prefers-color-scheme: dark) {
