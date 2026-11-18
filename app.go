@@ -8,6 +8,7 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"github.com/novami/minor-rest/internal/httpclient"
 	"github.com/novami/minor-rest/internal/model"
 	"github.com/novami/minor-rest/internal/settings"
 	"github.com/novami/minor-rest/internal/storage"
@@ -22,6 +23,7 @@ type App struct {
 	projects storage.Registry
 	appDir   string
 	watcher  *watch.Watcher
+	engine   *httpclient.Engine
 
 	wsMu sync.Mutex
 	ws   settings.Workspace
@@ -33,6 +35,7 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.engine = httpclient.New()
 	a.watcher = watch.New(func(id string, rels []string) {
 		a.emit("tree:changed", map[string]string{"projectID": id})
 		for _, rel := range rels {
@@ -47,6 +50,9 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) shutdown(ctx context.Context) {
 	if a.watcher != nil {
 		a.watcher.Close()
+	}
+	if a.engine != nil {
+		a.engine.Close()
 	}
 }
 

@@ -112,5 +112,13 @@
   "settings.off": "Ne",
   "settings.version.auto": "Automaticky",
   "settings.version.http1": "HTTP/1.1",
-  "settings.version.http2": "HTTP/2"
+  "settings.version.http2": "HTTP/2",
+  "request.cancel": "Zrušit",
+  "response.sending": "Odesílám…",
+  "response.unresolved": "Nevyhodnocené proměnné: {names}",
+  "response.binary": "Binární obsah ({size})",
+  "response.partial": "Zobrazen jen začátek těla (celkem {size})",
+  "response.truncated": "Tělo bylo oříznuto na maximální velikost",
+  "errors.INTERNAL_ERROR": "Interní chyba",
+  "errors.RUN_NOT_FOUND": "Výsledek odeslání už není k dispozici"
 }

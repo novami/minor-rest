@@ -112,5 +112,13 @@
   "settings.off": "No",
   "settings.version.auto": "Automatic",
   "settings.version.http1": "HTTP/1.1",
-  "settings.version.http2": "HTTP/2"
+  "settings.version.http2": "HTTP/2",
+  "request.cancel": "Cancel",
+  "response.sending": "Sending…",
+  "response.unresolved": "Unresolved variables: {names}",
+  "response.binary": "Binary content ({size})",
+  "response.partial": "Showing only the beginning of the body ({size} total)",
+  "response.truncated": "Body was truncated to the maximum size",
+  "errors.INTERNAL_ERROR": "Internal error",
+  "errors.RUN_NOT_FOUND": "The run result is no longer available"
 }

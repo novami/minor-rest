@@ -537,6 +537,7 @@ type RunResult struct {
 type BodyView struct { Text string; Lang string /* json|xml|html|text */; Size int64; Partial bool; DataURL string /* obrázky */ }
 ```
 `RunResult` záměrně **neobsahuje tělo** – to si frontend vyžádá přes `GetRunBody` (umožní líné načtení a Pretty/Raw bez opakovaného přenosu metadat).
+DTO jsou v `internal/run` (`run.Input`, `run.Result`, `run.Error`, `run.BodyView`); `Cookies`, `Extracted`, `AuthSource` přibudou ve fázích, které je plní (F4/4, F8, F7). Chyby přípravy (`VAR_*`, `URL_INVALID`, `NOT_FOUND`…) jsou v `RunResult.Error`, Go chyba jen u neznámého projektu. `GetRunBody` vrací max. 2 MB textu (`Partial`), u vyřazeného výsledku `RUN_NOT_FOUND`.
 
 ### 11.3 Události (backend → frontend)
 `tree:changed {projectID}` · `request:changedOnDisk {projectID, rel}` · `app:saveAndQuit` · `menu:<akce>` · `oauth:waiting` / `oauth:done` · `update:ready {version, notesURL}` · `update:error {code}` · `file:dropped {paths}`

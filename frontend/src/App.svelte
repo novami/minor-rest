@@ -9,6 +9,8 @@
   import Tree from './lib/components/Tree.svelte'
   import TabBar from './lib/components/TabBar.svelte'
   import RequestEditor from './lib/components/RequestEditor.svelte'
+  import ResponseView from './lib/components/ResponseView.svelte'
+  import { runs, send as sendTab, cancel } from './lib/stores/runs.svelte'
   import * as Backend from '../wailsjs/go/main/App'
   import { ws, initWorkspace, saveWorkspace, reloadTree } from './lib/stores/workspace.svelte'
   import { createNode, duplicateNode } from './lib/stores/tree.svelte'
@@ -32,8 +34,10 @@
     lastDirty = d
   })
 
+  const run = $derived(tab ? runs[tab.id] : undefined)
+
   function send() {
-    showToast(t('toast.notImplemented', { action: 'send' }))
+    if (tab) sendTab(tab)
   }
 
   function onkeydown(e: KeyboardEvent) {
@@ -96,7 +100,7 @@
         {/if}
         {#if tab}
           {#key tab.id}
-            <RequestEditor {tab} onsend={send} bind:urlEl />
+            <RequestEditor {tab} running={!!run?.running} onsend={send} oncancel={() => tab && cancel(tab)} bind:urlEl />
           {/key}
         {:else}
           <div class="empty">
@@ -107,10 +111,14 @@
       </section>
       <Splitter bind:size={ws.responseHeight} direction="vertical" min={120} max={1200} invert />
       <section class="response" style:height="{ws.responseHeight}px">
-        <div class="empty">
-          <div>{t('response.empty')}</div>
-          <div class="hint">{t('response.emptyHint')}</div>
-        </div>
+        {#if run}
+          <ResponseView {run} />
+        {:else}
+          <div class="empty">
+            <div>{t('response.empty')}</div>
+            <div class="hint">{t('response.emptyHint')}</div>
+          </div>
+        {/if}
       </section>
     </main>
   </div>

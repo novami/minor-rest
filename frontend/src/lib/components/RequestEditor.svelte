@@ -21,10 +21,12 @@
 
   interface Props {
     tab: Tab
+    running: boolean
     onsend: () => void
+    oncancel: () => void
     urlEl?: HTMLInputElement
   }
-  let { tab, onsend, urlEl = $bindable() }: Props = $props()
+  let { tab, running, onsend, oncancel, urlEl = $bindable() }: Props = $props()
 
   // The URL bar keeps its own text while typing (e.g. a trailing `?`); it is rebuilt only when
   // URL or query change from elsewhere (another tab, the Params table).
@@ -84,7 +86,11 @@
 <div class="urlbar">
   <MethodSelect bind:value={tab.draft.method} />
   <VarInput bind:value={text} bind:el={urlEl} placeholder={t('request.urlPlaceholder')} {oninput} {onkeydown} />
-  <Button variant="primary" onclick={onsend} title="Cmd+Enter">{t('request.send')}</Button>
+  {#if running}
+    <Button onclick={oncancel}>{t('request.cancel')}</Button>
+  {:else}
+    <Button variant="primary" onclick={onsend} title="Cmd+Enter">{t('request.send')}</Button>
+  {/if}
 </div>
 
 <nav class="sections">
