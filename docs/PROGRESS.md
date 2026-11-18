@@ -1,8 +1,8 @@
 # Stav projektu
 
 ## Aktuálně
-- **Fáze:** F4, krok 2 hotový.
-- **Další krok:** F4, krok 3 – `internal/prepare`: dědičnost hlaviček (projekt → složky → request, pozdější přepisuje dle názvu case-insensitive) a nastavení (request → projekt → globální), proměnné (`vars`), sestavení URL (`vars.BuildURL`), auth zatím jen `none` → `httpclient.Request`. Bindingy `Send(RunInput) (RunResult, error)`, `Cancel`, `GetRunBody(runID, pretty)` (DTO dle 11.2; `Engine.Close()` při ukončení aplikace). UI: Odeslat/Zrušit, dočasné jednoduché zobrazení (status + raw tělo). Ověřit v `wails dev`.
+- **Fáze:** F4, krok 3 hotový.
+- **Další krok:** F4, krok 4 – cookie jar (`net/http/cookiejar` per projekt, perzistence `cookies/<projectId>.json` po každém odeslání, vypnutelné `cookieJar`; `RunResult.Cookies`), proxy (`none | system | manual`, `system` = `scutil --proxy` při odeslání, bez PAC – nastavení dle kap. 9) a zápis historie (`ListHistory`, `GetHistoryEntry`, `ClearHistory` dle kap. 11; detaily formátu v PLAN – před implementací přečíst kap. o historii). Ověřit „Hotovo“ F4: 7 metod, vynucení HTTP/1.1 vs HTTP/2 v `Proto`, redirect on/off, zrušení.
 - **Prostředí:** Go 1.27.4 darwin/arm64, Node 26, Wails CLI v2.17.1 (`~/go/bin/wails`), gh CLI. Příkazy přes `make dev|build|test|check`.
 
 ## Co existuje (F0)
@@ -57,6 +57,11 @@
 - Metriky (F4/2): `trace.go` – `httptrace` hooky drží stav per skok (reset v `GetConn`), do `Timing` jde poslední skok (`dnsMs connectMs tlsMs ttfbMs downloadMs totalMs`, `reused`), `RemoteAddr/LocalAddr/ResolvedAddrs`, `Sent` (metoda, URL, hlavičky z `WroteHeaderField` v pořadí odeslání, u h2 i pseudo-hlavičky; `BodyPreview` max 64 KiB, u binary souboru prázdný; po 301–303 tělo 0). `Sizes` dle kap. 4 (request line jen u HTTP/1). Při chybě `Do` vrací i částečný `Result` (Sent, Timing, Redirects).
 - Tělo odpovědi (`respbody.go`): auto `Accept-Encoding: gzip, deflate, br, zstd`, dekomprese (deflate: zlib, jinak raw; více kódování v opačném pořadí; neznámé → bajty beze změny), `Body` v paměti do 10 MB, pak temp soubor, oříznutí na `MaxBodyBytes` (výchozí 100 MB) → `Truncated`. `sniff`: `ContentType` (media type), `Charset` (JSON bez charsetu = utf-8, jinak `charset.DetermineEncoding`; výchozí odhad windows-1252 u platného UTF-8 → utf-8), `IsBinary` (netextový typ a vzorek není UTF-8 text). `ToUTF8(b, cs)` pro zobrazení. Engine drží 20 posledních úspěšných výsledků (`Get`, LRU maže temp soubory, `Close()`).
 
+- F4/3: `internal/prepare` – `Prepare(Input) (Prepared, error)`: `Input{Request, Project, Folders []Folder{Rel, Config} (od kořene), Runtime, Env, Globals, Defaults, BaseDir, UserAgent}` → `httpclient.Request` + `Options` + `Unresolved`. Proměnné v pořadí runtime → request → složky (nejbližší první) → prostředí → projekt → globální. Hlavičky projekt → složky → request: název uvedený na nižší úrovni (i vypnutý) odstraní výše zděděné (case-insensitive); vypnutý řádek `User-Agent/Accept/Accept-Encoding/Content-Type` bez zapnutého protějšku → `NoAuto`. Tělo: vyhodnocené proměnné, jen zapnuté form/multipart řádky (i cesty souborů a Content-Type části). Nastavení request → projekt → `settings.DefaultHTTP()`. Auth se zatím ignoruje.
+- `internal/run`: DTO `Input`, `Result`, `Error`, `BodyView`; `ErrorOf` (`KÓD: detail` → kód, jinak `INTERNAL_ERROR`), `FromResult` (nil slice → `[]`), `View` (UTF-8, pretty JSON přes `json.Indent`, max 2 MB → `Partial`, binární bez textu).
+- `app_run.go`: `Send` (chyby přípravy i odeslání v `Result.Error`), `Cancel`, `GetRunBody` (`RUN_NOT_FOUND`); `App.engine` vzniká ve `startup`, `Close()` v `shutdown`. `folderChain` načte `_folder.yaml` nadřazených složek.
+- Frontend: `stores/runs.svelte.ts` (poslední běh per tab v paměti, `send`, `cancel`; runID = `crypto.randomUUID()`), `ResponseView.svelte` (dočasné: status barevně, protokol, čas, velikost, chyba, nevyhodnocené proměnné, `<pre>` s tělem), Odeslat ↔ Zrušit v URL baru, Cmd+Enter/Enter odešle.
+
 ## Log
 | Datum | Fáze | Commit | Poznámka |
 |---|---|---|---|
@@ -81,6 +86,7 @@
 | 2026-11-17 | F3/4 | 96cf3dd | nastavení, dokumentace, dialog zavření okna/projektu, změna na disku |
 | 2026-11-17 | F4/1 | d5efcf7 | jádro httpclient: verze, těla, redirecty, timeout/cancel, chybové kódy |
 | 2026-11-17 | F4/2 | 9b9120a | metriky, dekomprese, charset, limity těla, LRU výsledků |
+| 2026-11-18 | F4/3 | baf2801 | prepare, Send/Cancel/GetRunBody, Odeslat/Zrušit, dočasná odpověď |
 
 ## Rozhodnutí uživatele
 - Wails v2 + Svelte 5, YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
@@ -110,3 +116,4 @@
 - KvEditor: blok „Automatické a zděděné hlavičky“ (kap. 8.3) odložen – potřebuje `prepare`/nastavení složek (F4/F6). Request s `:param` v URL, ale bez `params.path` v YAML, je po otevření hned neuložený (doplní se řádky). V režimu hromadné úpravy se textarea nepřepočítá, když se query změní z URL baru. Datalist (našeptávač) a DnD řádků ověřeny jen v prohlížeči, ne v nativním WKWebView. Při přejmenování `:i` → `:id` během psaní se hodnota path paramu nepřenese.
 - Tělo: drop souboru do multipart/binary zatím není (Wails `OnFileDrop` – doplnit v F13 nebo dle potřeby). Text varování nevalidního JSON je z `JSON.parse` prohlížeče (WebKit má jiné znění a bez pozice). Výběr souboru (nativní dialog) v prohlížeči neověřen, jen v kódu.
 - httpclient: hlavičky odpovědi jsou seřazené podle názvu (net/http nedrží pořadí ze serveru, plán chce „pořadí dle serveru“ – pro HTTP/1 by šlo jen vlastním čtením). Proxy zatím `ProxyFromEnvironment` z klonu `DefaultTransport` (F4/4). Multipart soubory se načítají celé do paměti.
+- F4/3 ověřeno v `wails dev` (prohlížeč) proti lokálnímu serveru: dědičnost hlaviček projekt/složka, vypnutý UA (pošle se prázdný), vypnutá zděděná hlavička, path param s diakritikou, nevyhodnocená proměnná v query (varování), `VAR_UNRESOLVED_HOST`, zrušení tlačítkem, `RUN_NOT_FOUND`. Konfigurace projektu (`minorrest.yaml`) se drží v paměti a změna zvenku se nenačte (až restart) – řešit s bindingy `Get/SaveProjectConfig` v F6 (+ reload z watcheru). Bindingy `Get/SaveFolderConfig`, `Get/SaveProjectConfig` zatím nejsou. Výsledky běhů ve frontendu (`runs`) se při zavření tabu nemažou. Vypnutý řádek `Accept` apod. v requestu vypne i automatickou hlavičku (dle kap. 8.3), i když ho uživatel jen „odškrtl“.
