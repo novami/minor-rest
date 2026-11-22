@@ -2,8 +2,8 @@
 
 ## Aktuálně
 - **Změna zadání (2026-11-22):** aplikace se přepisuje do Swiftu (SwiftUI + AppKit, URLSession, macOS 15+). Plán revize 3 v `docs/PLAN.md`, Go/Wails stav v tagu `go-wails-f4` (lokální, nepushnutý).
-- **Fáze:** F0 hotová (poslední krok F0/3: b116273).
-- **Další krok:** F1, krok 1 – v `Packages/MinorRESTCore/Sources/MinorRESTCore/Model`: Codable typy dle PLAN kap. 2 (`Request`, `FolderConfig`, `ProjectConfig`, `Environment`, `KV` vč. `bare`, `PathParam`, `Var`, `Auth` + bloky, `Body`, `MultipartPart`, `Extract`, `HTTPSettings` s optionals a `over(_:)`, konstanty metod/typů, `TreeNode`, `ProjectInfo`), chybějící `enabled` = true, NFC normalizace vstupů, `ULID`, `slugify` + `uniqueSlug`; `YAML/` – zápis přes `Yams.Node` (odsazení 2, blokový styl, `|` u víceřádkových, vynechání prázdných hodnot, pořadí polí dle struktury), čtení s chybou `YAML_INVALID`; `CoreError` + `ErrorCode`. Testy: roundtrip s diakritikou a víceřádkovým tělem, **bajtová shoda se soubory zapsanými Go verzí** (fixtures vygenerovat z `git show go-wails-f4:internal/model/model_test.go` / Go kódu v tagu), slug tabulka (vč. kolizí a prázdného výsledku). Reference: `git show go-wails-f4:internal/model/{model.go,yaml.go,slug.go}`.
+- **Fáze:** F1, krok 1 hotový (78b228b).
+- **Další krok:** F1, krok 2 – `Storage/` v jádru: `Project` (`create(parentDir:name:)` do `~/Documents/MinorREST/<slug>`, `initProject(at:name:)`, `isProjectDir`, `open`, `config`/`saveConfig` + správa `.gitignore` dle `ignoreResponsesInGit`, `loadTree` (pořadí složky→requesty dle `seq`, pak `name`; nečitelné soubory na konci s `error`; ignorovat `.`/`_` adresáře a `environments`; oprava duplicitních ID dle `creationDate`, při shodě dle `rel`), `createFolder/createRequest`, `loadRequest/saveRequest` (id, name, seq z disku), `loadFolderConfig/saveFolderConfig`, `rename`, `move(rel:to:index:)` (index mezi sourozenci stejného druhu, přečíslování 1..n, zapsat jen změněné), `duplicate(rel:copySuffix:)` (nové ID), `delete` (Koš `FileManager.trashItem` + `.responses/<id>`, pokud ID nemá jiný request), `fileRef(_:)` (symlinky), atomický zápis (`.tmp-*` + rename), ochrana `..`, read-only při vyšší `formatVersion`. Chyby `NOT_FOUND PATH_INVALID NAME_EMPTY PROJECT_READONLY PROJECT_INVALID MOVE_INTO_SELF FS_ERROR TRASH_FAILED`. `ProjectRegistry` (actor: open/add s deduplikací dle ID, get, close, list, paths) a `Workspace` (+ load/save `workspace.yaml`, výchozí rozměry). Reference: `git show go-wails-f4:internal/storage/{project.go,nodes.go,tree.go,registry.go,storage_test.go}` a `internal/settings/workspace.go`. Testy v dočasném adresáři; Koš v testech nahradit přesunem do temp (Go verze měla injektovatelný `trashItem`).
 - **Prostředí:** Xcode 27.2, Swift 6.4.2, XcodeGen 2.48.0 (Homebrew), Yams 6.2.2. Příkazy `make gen|build|run|test|clean`.
 
 ### Co existuje (Swift)
@@ -20,10 +20,14 @@
 ## Otevřené body (Swift)
 - CI (`ci.yml`: `macos-latest`, `setup-xcode` latest-stable, `brew install xcodegen`, `make test`, `make build`) ověřeno jen lokálně od čistého stavu; na GitHubu poběží až po pushi (ten schvaluje uživatel).
 - Ověřování UI: `osascript` přes System Events nemá oprávnění (-1743), `screencapture` nemá oprávnění k nahrávání obrazovky a nástroje computer-use v relaci nejsou → snímky přes `--snapshot` (DebugTools). NavigationSplitView navíc nechává funkční systémovou zkratku ⌥⌘S pro sidebar.
+- YAML: yaml.v3 (Go verze) ztrácí úvodní nový řádek u víceřádkového řetězce (`\nx` → `|2-` bez prázdného řádku); Swift zapisuje správně, jen tento případ se od Go liší.
 - Ověřit v F4/1: vypnutý `User-Agent` přes URLSession, GET s tělem, chování vlastního `Accept-Encoding`; v F7/1 hlavička `Authorization`; v F12/1 Sparkle s ad-hoc podpisem.
 
 ## Go verze – reference (tag `go-wails-f4`)
 Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (kód: `git show go-wails-f4:<cesta>`).
+
+- F1/1: `Model/` – `Model.swift` (všechny typy kap. 2 jako `Hashable, Sendable` struktury, výčtové hodnoty jako `String` + konstanty `HTTPMethod`, `BodyType`, `AuthType`, `ProjectFormat`; `HTTPSettings.over`, `Request.new`; `TreeNode`, `ProjectInfo`), `CoreError`/`ErrorCode` (rozšiřitelný `RawRepresentable`), `Slug.make/unique`, `String.nfc`, `ULID.make`. `YAML/` – `YAML.encode/decode`, protokoly `YAMLEncodable/YAMLDecodable`, `YMap` (vynechávání prázdných = Go `omitempty`), `YAMLObject` (čtení přes `Yams.compose`, výchozí hodnoty, `enabled` chybí = true, NFC, chyby `YAML_INVALID: <cesta>: …`), `YAMLWriter` (vlastní emitor kopírující yaml.v3: dvojité uvozovky pro bool/int/float/null/timestamp-like a staré booly, `'…'` při indikátorech, `|`/`|-`/`|+`/`|2-` literály, escapy, bez zalamování).
+- Testy: `Fixtures/go/*.yaml` + `scalars.json` (~100 hraničních řetězců) vygenerované Go verzí (dočasný program nad `git archive go-wails-f4 internal/model go.mod go.sum`, `model.MarshalYAML`) – Swift zápis je bajtově shodný; roundtrip, výchozí hodnoty, NFC, chyby, slug, ULID.
 
 ### Co existuje (F0)
 - `main.go` (okno 1280×800, HiddenInset titlebar, About), `menu.go` (nativní menu cs/en dle systému, položky emitují `menu:<akce>`), `app.go` (`SetDirty`, `GetVersion`, potvrzení zavření při neuložených změnách).
@@ -111,6 +115,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 | 2026-11-22 | F0/1 (Swift) | a448e3a | xcodegen, MinorRESTCore, odstranění go/svelte |
 | 2026-11-22 | F0/2 (Swift) | e6cab8f | okno, menu, cs/en, fonty, rozvržení, ladicí snímky |
 | 2026-11-22 | F0/3 (Swift) | b116273 | CI pro Swift |
+| 2026-11-22 | F1/1 (Swift) | 78b228b | model, yaml shodný s go, slug, ulid |
 
 ## Rozhodnutí uživatele
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
