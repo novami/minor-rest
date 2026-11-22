@@ -100,6 +100,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
 - Repozitář i releasy jsou veřejné (updater bez tokenu).
 - Ne-retina displej: Menlo 13 (UI i kód). Retina: SF Pro (UI) + SF Mono (kód).
+- Swift verze: editor kódu nativní `NSTextView` (ne CodeMirror), Keychain přes `SecItem` (dotaz na přístup po každé aktualizaci je přijatelný).
 - Kopírování requestu: jen cURL (víceřádkový + jednořádkový), bez bash skriptu.
 
 ## Otevřené body / známé problémy (Go verze, reference)

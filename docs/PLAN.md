@@ -80,7 +80,7 @@ minor-rest/
 2. **Build a spuštění z CLI:** `xcodebuild -project MinorREST.xcodeproj -scheme MinorREST -configuration Debug -derivedDataPath .build/xcode build` → `.build/xcode/Build/Products/Debug/MinorREST.app`; `make run` = build + `open`. Testy jádra: `cd Packages/MinorRESTCore && swift test` (rychlé, bez app cíle).
 3. **ATS:** `Info.plist` → `NSAppTransportSecurity.NSAllowsArbitraryLoads = YES` (REST klient musí umět `http://` i libovolné hosty).
 4. **Local Network privacy (macOS 15):** requesty na adresy v LAN (ne `localhost`) vyvolají systémový dotaz → `NSLocalNetworkUsageDescription` v `Info.plist` (cs/en přes `InfoPlist.xcstrings`).
-5. **Bez App Sandboxu:** projekty jsou libovolné adresáře, Keychain přes `/usr/bin/security`, FSEvents na libovolné cestě.
+5. **Bez App Sandboxu:** projekty jsou libovolné adresáře, FSEvents na libovolné cestě.
 6. **Menu a zkratky – jeden zdroj:** vše přes SwiftUI `Commands` (`CommandGroup`/`CommandMenu`, `.keyboardShortcut`). Akce se do aktivního okna předávají přes `@FocusedValue`/`FocusedValues` (ne NotificationCenter). Cmd+C/V/Z funguje automaticky v textových polích (standardní `CommandGroup(replacing:)` nepoužívat pro Edit).
 7. **Ukončení s neuloženými změnami:** `NSApplicationDelegateAdaptor` → `applicationShouldTerminate` vrátí `.terminateLater`, zobrazí `NSAlert` Uložit / Neukládat / Zrušit, po uložení `reply(toApplicationShouldTerminate:)`. Zavření okna: `NSWindowDelegate.windowShouldClose`. `isDocumentEdited` okna = tečka v zavíracím tlačítku.
 8. **Strom:** `NSOutlineView` (spolehlivý drag & drop, inline přejmenování, kontextové menu, klávesnice, výkon u velkých stromů) – SwiftUI `List`/`OutlineGroup` tohle neumí dobře.
@@ -256,7 +256,7 @@ vars:
 
 ### 2.8 Tajemství
 - `secret: true` lze nastavit u proměnných **prostředí a globálních**. Keychain: služba `MinorREST`, účet `<projectId>/<envId>/<name>` resp. `global/<name>`. Přejmenování proměnné = přesun položky; smazání proměnné/prostředí = smazání položek.
-- Přístup přes `/usr/bin/security` (`Process`; zápis příkazem do stdin `security -i` s hodnotou jako hex `-X`, takže hodnota není v argumentech procesu; čtení `find-generic-password -w`) – stejně jako `go-keyring` v Go verzi, takže položky vytvořené Go verzí zůstanou čitelné a **ad-hoc podepsaná aplikace nedostane po každé aktualizaci dotaz na přístup ke Keychain** (ACL položky patří nástroji `security`, ne podpisu aplikace). Limit hodnoty cca 2,5 kB → `SECRET_TOO_BIG`.
+- Přístup přes **`SecItem` API** (`kSecClassGenericPassword`, legacy file keychain – data protection keychain potřebuje access group a Developer ID). Důsledek ad-hoc podpisu (schváleno uživatelem): po každé aktualizaci aplikace se změní podpis a macOS se jednou zeptá na povolení přístupu („Vždy povolit“). Položky vytvořené Go verzí (přes `security`) vyvolají při prvním čtení stejný dotaz. Limit hodnoty neřešíme (Keychain velké hodnoty unese); chyba zápisu → `SECRET_ERROR`.
 - Auth pole (heslo, token, client secret) jsou obyčejná textová pole ukládaná do YAML. Pokud obsahují literál (ne `{{…}}`), zobrazit u pole varování s akcí **„Převést na tajnou proměnnou“** (vytvoří secret proměnnou v aktivním prostředí a pole nahradí `{{nazev}}`).
 - **Maskování** (uložené odpovědi, historie, volitelně export): hodnoty hlaviček `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, hlavičky/query z apikey auth a všechny výskyty hodnot secret proměnných → `***` (u `Authorization` zachovat schéma: `Bearer ***`).
 
@@ -308,7 +308,7 @@ Nelze: vynutit HTTP/1.1 vs HTTP/2 ani h2c (nastavení `httpVersion` se v UI nezo
 - **oauth2** (vlastní implementace, token endpoint přes stejný engine – stejné TLS/proxy nastavení jako request):
   - `clientAuth`: `header` (Basic `client_id:client_secret`, URL-encoded dle RFC 6749) / `body`.
   - authorization_code: `NWListener` na `127.0.0.1:<redirectPort>`, `state` (náhodných 32 B) + PKCE S256 (`CryptoKit.SHA256`), otevřít prohlížeč (`NSWorkspace.open`), čekat na `/callback` max 5 min (zrušitelné z UI), odpovědět HTML stránkou „Hotovo, okno můžete zavřít“, vyměnit code za token.
-  - Cache: klíč `sha256(tokenUrl|clientId|scope|grantType|username)[:16]`; do Keychain zvlášť `…/oauth/<klíč>/access` a `…/refresh`, expirace a typ do paměti + `workspace.yaml`. Token větší než limit Keychain → jen v paměti.
+  - Cache: klíč `sha256(tokenUrl|clientId|scope|grantType|username)[:16]`; do Keychain zvlášť `…/oauth/<klíč>/access` a `…/refresh`, expirace a typ do paměti + `workspace.yaml`.
   - Před odesláním: platný token použít; expirovaný (rezerva 30 s) → refresh, při neúspěchu u client_credentials/password získat nový automaticky, u authorization_code vrátit `OAUTH_LOGIN_REQUIRED` (UI nabídne „Přihlásit“).
 - Digest = backlog.
 
@@ -496,7 +496,7 @@ struct History { list() -> [HistoryItem]; entry(id) throws -> SavedResponse; cle
 // Proměnné a prostředí (F6)
 Project: listEnvironments(), saveEnvironment(_:), deleteEnvironment(id:)
 Globals: load() / save(_:)
-Secrets: get / set / delete(account:)                                // Keychain přes /usr/bin/security
+Secrets: get / set / delete(account:)                                // Keychain přes SecItem
 Vars.explain(…) -> [VarInfo]; RuntimeVars (per projekt, v paměti)
 
 // Auth (F7)
@@ -641,7 +641,7 @@ Command palette (Cmd+K: requesty napříč projekty + akce), prázdné stavy, uk
 - **Omezení URLSession** (kap. 4.1): bez vynucení HTTP verze, h2c, vlastního `Host`, přesného pořadí odeslaných hlaviček. Pokud bude potřeba, lze později přidat druhý engine (SwiftNIO / AsyncHTTPClient) za stejné rozhraní `HTTPEngine`.
 - **Vypnutý `User-Agent`, GET s tělem, `Authorization`** – chování URLSession ověřit v F4/1 a F7/1, výsledek zapsat sem.
 - **Bez notarizace:** první spuštění vyžaduje ruční povolení (kap. 10). Lze doplnit později (Developer ID + `notarytool`).
-- **Keychain přes `security`:** tajemství může bez dotazu přečíst jakýkoli proces uživatele spuštěním `security`; přijatelné pro dev nástroj, lepší izolace až s Developer ID (pak `SecItem` + access group).
+- **Keychain přes SecItem bez Developer ID:** po každé aktualizaci jeden dotaz na přístup ke Keychainu na položku (ACL vázané na podpis). S Developer ID lze přejít na data protection keychain + access group bez dotazů.
 - **Sparkle s ad-hoc podpisem** – ověřit v F12/1, záloha vlastní updater.
 - **Vlastní editor kódu** (`NSTextView` + jednoduché lexery): bez foldingu; výkon zvýraznění u 5 MB JSON hlídat (zvýrazňovat jen viditelnou oblast).
 - **Literály v auth polích** končí v YAML (a tedy v gitu) – řeší jen varování a převod na secret proměnnou.
