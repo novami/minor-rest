@@ -2,8 +2,8 @@
 
 ## Aktuálně
 - **Změna zadání (2026-11-22):** aplikace se přepisuje do Swiftu (SwiftUI + AppKit, URLSession, macOS 15+). Plán revize 3 v `docs/PLAN.md`, Go/Wails stav v tagu `go-wails-f4` (lokální, nepushnutý).
-- **Fáze:** F2, krok 1 hotový (fc7ca0f).
-- **Další krok:** F2, krok 2 – strom projektu v sidebaru: `App/AppKit/TreeOutlineView` (`NSViewRepresentable` nad `NSOutlineView` v `NSScrollView`, source list styl, jeden sloupec; buňka: ikona složky / badge metody v barvě (PLAN 8.1), název, nečitelný uzel šedě s chybou v tooltipu), `TreeStore` (`@Observable @MainActor`: načtení `Project.loadTree()` pro aktivní projekt, výběr, rozbalení ve `workspace.expanded[projectID]` – obnova po načtení), klávesy (šipky – nativní, Enter = rozbalit/sbalit složku, F2 přejmenovat, Cmd+Backspace smazat), kontextové menu `NSMenu` (na uzlu: Nový request, Nová složka, Přejmenovat, Duplikovat, Zobrazit ve Finderu, Smazat; na prázdné ploše: Nový request, Nová složka), inline přejmenování (editovatelná buňka, Esc zruší), nový request/složka → hned v editaci názvu (výchozí názvy `tree.newRequestName/newFolderName`), duplikace s příponou `tree.copySuffix`, mazání s potvrzením (`NSAlert`, `tree.deleteTitle`, `tree.deleteFolderMessage/deleteRequestMessage`), Zobrazit ve Finderu (`NSWorkspace.activateFileViewerSelecting`). Menu `new-request`/`new-folder`/`duplicate` napojit (cíl = vybraná složka / složka vybraného requestu / kořen). Ověřit `--snapshot` s izolovaným workspace a testovacím projektem (strom se složkami a requesty).
+- **Fáze:** F2, krok 2 hotový (59688ae).
+- **Další krok:** F2, krok 3 – drag & drop a hledání ve stromu (PLAN 8.2, chování jako Go F2/3 níže): `TreeOutline` pasteboard (`pasteboardWriterForItem` s `rel`, `validateDrop` – složka: horní/dolní čtvrtina před/za, střed dovnitř; request nad složkou dovnitř, nad requestem před/za; složka nad requestem do jeho složky; prázdná plocha = kořen; složku ne do sebe; podržení nad sbalenou složkou ji rozbalí – `NSOutlineView` to umí sám přes `autoexpand`), `TreeStore.move(rel, to:, index:)` (index mezi sourozenci stejného druhu bez přetahovaného uzlu, stejné místo nevolat, přepis rozbalených cest jako u přejmenování). Hledání: `SearchField` nad stromem (`tree.search`), filtr `folding(.diacriticInsensitive, .caseInsensitive)` podle názvu/URL/metody, shody s nadřazenými složkami rozbalené (rozbalení workspace během filtru neměnit), u shody složky celý podstrom, prázdný výsledek `tree.noMatches`, Esc vymaže, ↓/Enter fokus do stromu, během filtru DnD vypnutý.
 - **Prostředí:** Xcode 27.2, Swift 6.4.2, XcodeGen 2.48.0 (Homebrew), Yams 6.2.2. Příkazy `make gen|build|run|test|clean`.
 
 ### Co existuje (Swift)
@@ -40,6 +40,10 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 - Model `Environment` přejmenován na `EnvironmentConfig` (kolize se SwiftUI `@Environment`).
 - Ověřeno snímkem v izolovaném workspace: obnova dvou projektů, neexistující cesta vynechána, aktivní projekt zachován, projekt s `formatVersion: 2` jako „jen pro čtení“, výška odpovědi 200 z workspace. **Neověřeno** (chybí nástroje pro klikání): otevření menu přepínače, sheet nového projektu, `NSOpenPanel`/`NSAlert` při otevření adresáře, zavření projektu.
 - `standardizedFileURL` mění `/private/tmp/…` na `/tmp/…` (cesty ve workspace pak mají kratší tvar; funkčně stejné).
+
+- F2/2: `App/AppKit/TreeOutlineView` (`NSViewRepresentable` nad `TreeOutline: NSOutlineView`, source list, buňka `TreeCellView`: ikona složky / badge metody s barvou z assetů `Method<Get…>`, nečitelný uzel šedě + tooltip `errorText(code:)`; `ActionMenuItem` = položka `NSMenu` s closure). `TreeStore` (`load/reload` při změně aktivního projektu, `version` jako signál pro reload view, `selection`, `pendingEdit`, rozbalení ve `workspace.expanded` – při přejmenování/smazání složky se cesty přepíší/odstraní; `createRequest/createFolder(near:)` – cíl složka / složka requestu / kořen, `rename`, `duplicate` s `tree.copySuffix`, `delete` s `NSAlert`, `reveal`). Klávesy: Return/Enter rozbalí/sbalí složku, F2 přejmenuje, ⌘⌫ a Delete smaže. Menu Nový request/složka a Duplikovat napojeno.
+- Ověřeno snímkem a dočasným ladicím háčkem (necommitnut): rozbalení z workspace, přejmenování složky s přepisem `expanded`, duplikace za originál, nový request ve složce vybraného requestu se otevře v editaci názvu (vybraný celý název), potvrzení editace → přejmenování souboru. **Neověřeno** (chybí klikání): kontextové menu, Esc při editaci, klávesy, `NSAlert` mazání, Zobrazit ve Finderu. Výběr řádku na snímku `cacheDisplay` vypadá černě (vibrancy se nevykreslí).
+- Pozor pro F2/4: reload stromu (watcher) během inline editace zahodí field editor a `controlTextDidEndEditing` by přejmenoval na rozepsaný text – při editaci reload odložit.
 
 ### Co existuje (F0)
 - `main.go` (okno 1280×800, HiddenInset titlebar, About), `menu.go` (nativní menu cs/en dle systému, položky emitují `menu:<akce>`), `app.go` (`SetDirty`, `GetVersion`, potvrzení zavření při neuložených změnách).
@@ -131,6 +135,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 | 2026-11-22 | F1/2 (Swift) | 70ac3ed | úložiště, registr, workspace |
 | 2026-11-22 | F1/3 (Swift) | 3bc599e | proměnné, url, formátování json |
 | 2026-11-22 | F2/1 (Swift) | fc7ca0f | workspace, projekty, přepínač, výška odpovědi |
+| 2026-11-22 | F2/2 (Swift) | 59688ae | strom (NSOutlineView), operace nad uzly, kontextové menu |
 
 ## Rozhodnutí uživatele
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
