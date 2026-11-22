@@ -2,8 +2,8 @@
 
 ## Aktuálně
 - **Změna zadání (2026-11-22):** aplikace se přepisuje do Swiftu (SwiftUI + AppKit, URLSession, macOS 15+). Plán revize 3 v `docs/PLAN.md`, Go/Wails stav v tagu `go-wails-f4` (lokální, nepushnutý).
-- **Fáze:** F0, krok 2 hotový (e6cab8f).
-- **Další krok:** F0, krok 3 – `.github/workflows/ci.yml` pro Swift (runner `macos-15` nebo novější s Xcode 16+: `brew install xcodegen`, `make test`, `make build`), odstranit Go/Node kroky. Ověřit lokálně syntaxi (`actionlint`, je-li k dispozici); skutečný běh až po pushi, který musí schválit uživatel. Pak F1/1 (model + YAML).
+- **Fáze:** F0 hotová (poslední krok F0/3: b116273).
+- **Další krok:** F1, krok 1 – v `Packages/MinorRESTCore/Sources/MinorRESTCore/Model`: Codable typy dle PLAN kap. 2 (`Request`, `FolderConfig`, `ProjectConfig`, `Environment`, `KV` vč. `bare`, `PathParam`, `Var`, `Auth` + bloky, `Body`, `MultipartPart`, `Extract`, `HTTPSettings` s optionals a `over(_:)`, konstanty metod/typů, `TreeNode`, `ProjectInfo`), chybějící `enabled` = true, NFC normalizace vstupů, `ULID`, `slugify` + `uniqueSlug`; `YAML/` – zápis přes `Yams.Node` (odsazení 2, blokový styl, `|` u víceřádkových, vynechání prázdných hodnot, pořadí polí dle struktury), čtení s chybou `YAML_INVALID`; `CoreError` + `ErrorCode`. Testy: roundtrip s diakritikou a víceřádkovým tělem, **bajtová shoda se soubory zapsanými Go verzí** (fixtures vygenerovat z `git show go-wails-f4:internal/model/model_test.go` / Go kódu v tagu), slug tabulka (vč. kolizí a prázdného výsledku). Reference: `git show go-wails-f4:internal/model/{model.go,yaml.go,slug.go}`.
 - **Prostředí:** Xcode 27.2, Swift 6.4.2, XcodeGen 2.48.0 (Homebrew), Yams 6.2.2. Příkazy `make gen|build|run|test|clean`.
 
 ### Co existuje (Swift)
@@ -18,7 +18,7 @@
 - Ověřeno snímky (cs, en) na ne-retina displeji v tmavém režimu a výpisem menu. Neověřeno: retina větev fontů, světlý režim, zobrazení toastu (menu nelze z CLI vyvolat), přepnutí jazyka za běhu (UI pro to přijde v F11).
 
 ## Otevřené body (Swift)
-- `.github/workflows/ci.yml` je ještě Go verze → přepsat v F0/3 (před prvním pushem).
+- CI (`ci.yml`: `macos-latest`, `setup-xcode` latest-stable, `brew install xcodegen`, `make test`, `make build`) ověřeno jen lokálně od čistého stavu; na GitHubu poběží až po pushi (ten schvaluje uživatel).
 - Ověřování UI: `osascript` přes System Events nemá oprávnění (-1743), `screencapture` nemá oprávnění k nahrávání obrazovky a nástroje computer-use v relaci nejsou → snímky přes `--snapshot` (DebugTools). NavigationSplitView navíc nechává funkční systémovou zkratku ⌥⌘S pro sidebar.
 - Ověřit v F4/1: vypnutý `User-Agent` přes URLSession, GET s tělem, chování vlastního `Accept-Encoding`; v F7/1 hlavička `Authorization`; v F12/1 Sparkle s ad-hoc podpisem.
 
@@ -110,6 +110,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 | 2026-11-22 | plán rev. 3 | 44ab8ae | přechod na Swift, tag go-wails-f4 |
 | 2026-11-22 | F0/1 (Swift) | a448e3a | xcodegen, MinorRESTCore, odstranění go/svelte |
 | 2026-11-22 | F0/2 (Swift) | e6cab8f | okno, menu, cs/en, fonty, rozvržení, ladicí snímky |
+| 2026-11-22 | F0/3 (Swift) | b116273 | CI pro Swift |
 
 ## Rozhodnutí uživatele
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
