@@ -13,6 +13,10 @@ public struct ErrorCode: RawRepresentable, Hashable, Sendable, CustomStringConve
     public static let moveIntoSelf = ErrorCode(rawValue: "MOVE_INTO_SELF")
     public static let fsError = ErrorCode(rawValue: "FS_ERROR")
     public static let trashFailed = ErrorCode(rawValue: "TRASH_FAILED")
+    public static let varCycle = ErrorCode(rawValue: "VAR_CYCLE")
+    public static let varUnresolvedHost = ErrorCode(rawValue: "VAR_UNRESOLVED_HOST")
+    public static let urlInvalid = ErrorCode(rawValue: "URL_INVALID")
+    public static let jsonInvalid = ErrorCode(rawValue: "JSON_INVALID")
 }
 
 /// Chyba jádra: kód pro UI a technický detail.
