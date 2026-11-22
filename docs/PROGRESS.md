@@ -2,8 +2,8 @@
 
 ## Aktuálně
 - **Změna zadání (2026-11-22):** aplikace se přepisuje do Swiftu (SwiftUI + AppKit, URLSession, macOS 15+). Plán revize 3 v `docs/PLAN.md`, Go/Wails stav v tagu `go-wails-f4` (lokální, nepushnutý).
-- **Fáze:** F1 hotová (poslední krok F1/3: 3bc599e).
-- **Další krok:** F2, krok 1 – v `App/Stores`: `WorkspaceStore` (`@Observable @MainActor`; načtení `Workspace.load(from: Workspace.appDirectory)` při startu, debounced uložení ~0,5 s, šířka sidebaru/výška odpovědi/skrytí sidebaru napojit na `MainView`) a `ProjectsStore` (drží `ProjectRegistry`, seznam `ProjectInfo`, aktivní projekt, `create(name:in:)`, `openDirectory()` přes `NSOpenPanel` – adresář bez `minorrest.yaml` → `NSAlert` „Založit projekt“ s textem `project.initTitle/initMessage`, `close(id)`; při startu znovu otevřít cesty z workspace, nečitelné vynechat + log). UI: přepínač projektů v toolbaru (`Menu`: otevřené projekty se zaškrtnutím aktivního, „Nový projekt…“ = sheet s názvem a volbou umístění – výchozí `Workspace.defaultProjectsDirectory`, „Otevřít adresář…“, „Zavřít projekt“), prázdný stav sidebaru dle aktivního projektu (zatím bez stromu – F2/2). Chyby jádra do toastu přes `t("errors.<kód>")` + detail (helper `errorText(_:)`). Ověřit `--snapshot` (testovací projekt jen ve scratch adresáři; po testu workspace vrátit – přepínač `--workspace-dir <dir>` v DebugTools pro izolaci by to usnadnil).
+- **Fáze:** F2, krok 1 hotový (fc7ca0f).
+- **Další krok:** F2, krok 2 – strom projektu v sidebaru: `App/AppKit/TreeOutlineView` (`NSViewRepresentable` nad `NSOutlineView` v `NSScrollView`, source list styl, jeden sloupec; buňka: ikona složky / badge metody v barvě (PLAN 8.1), název, nečitelný uzel šedě s chybou v tooltipu), `TreeStore` (`@Observable @MainActor`: načtení `Project.loadTree()` pro aktivní projekt, výběr, rozbalení ve `workspace.expanded[projectID]` – obnova po načtení), klávesy (šipky – nativní, Enter = rozbalit/sbalit složku, F2 přejmenovat, Cmd+Backspace smazat), kontextové menu `NSMenu` (na uzlu: Nový request, Nová složka, Přejmenovat, Duplikovat, Zobrazit ve Finderu, Smazat; na prázdné ploše: Nový request, Nová složka), inline přejmenování (editovatelná buňka, Esc zruší), nový request/složka → hned v editaci názvu (výchozí názvy `tree.newRequestName/newFolderName`), duplikace s příponou `tree.copySuffix`, mazání s potvrzením (`NSAlert`, `tree.deleteTitle`, `tree.deleteFolderMessage/deleteRequestMessage`), Zobrazit ve Finderu (`NSWorkspace.activateFileViewerSelecting`). Menu `new-request`/`new-folder`/`duplicate` napojit (cíl = vybraná složka / složka vybraného requestu / kořen). Ověřit `--snapshot` s izolovaným workspace a testovacím projektem (strom se složkami a requesty).
 - **Prostředí:** Xcode 27.2, Swift 6.4.2, XcodeGen 2.48.0 (Homebrew), Yams 6.2.2. Příkazy `make gen|build|run|test|clean`.
 
 ### Co existuje (Swift)
@@ -33,6 +33,13 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 - Testy (port Go `storage_test.go` + kopie složky s novými ID, symlink `/var` v `fileRef`, workspace roundtrip): 20 testů celkem zelených. Skutečný Koš v testech nahrazen přesunem do dočasného adresáře (neověřeno).
 
 - F1/3: `Vars/Resolver` (`VarSource`, `VarScope`, `VarInfo`; vyhodnocení jako Go – `\{{` literál, neznámé ponechá, cache pojmenovaných, časové dynamické jednou na resolver, `VAR_CYCLE` s cestou `a → b → a`, hloubka 10), `Vars/URLBuilder` (`build`, `encodeQuery`, `encodeQueryComponent`, `validate` napodobující Go `url.Parse`, `VAR_UNRESOLVED_HOST`, `URL_INVALID`), `JSON/JSONFormatter` (`format`/`validate`, iterativní tokenizér nad UTF-8 bajty bez rekurze, výstup jako Go `json.Indent`, proměnné jako hodnota i klíč, `\{{…}}` v řetězci, chyby `JSON_INVALID: <řádek>: …`). Testy: port Go `vars_test.go` a `jsonfmt_test.go` + chybové případy, IPv6, ~4 MB JSON. Celkem 29 testů.
+
+- F2/1: `WorkspaceStore` (načtení při startu, `update {}` s uložením po 0,5 s a při ukončení aplikace, logování přes `os.Logger`), `ProjectsStore` (`ProjectRegistry`, `restore()` – nečitelné projekty vynechá a z workspace zmizí, `activate`, `create(name:in:)`, `openDirectory()` – `NSOpenPanel` + `NSAlert` „Založit projekt“ pro adresář bez projektu, `close` – smaže i taby/rozbalení projektu; seznam cest a aktivní projekt zrcadlí do workspace), `errorText(_:)` (lokalizovaná chyba jádra + detail), `ProjectSwitcher` (Menu v toolbaru, titulek okna odstraněn, read-only projekt s příznakem) + `NewProjectSheet` (název, umístění se „Změnit…“). `ResponseSplit` – vlastní svislý split s výškou odpovědi ve workspace. Viditelnost sidebaru ve workspace (`AppModel.columnVisibility`).
+- Šířku sidebaru a rámec okna ukládá AppKit sám (`NSSplitView Subview Frames …`, `NSWindow Frame main` v předvolbách `com.github.novami.minorrest`) – `workspace.sidebarWidth` se nepoužívá, jen zachovává. `VSplitView` uloženou výšku neuplatnil, proto vlastní split.
+- `DebugTools`: nový přepínač `--workspace-dir <adresář>` (izolovaný workspace pro testy UI; enum `DebugTools` je teď i v Release, ladicí funkce jen v DEBUG).
+- Model `Environment` přejmenován na `EnvironmentConfig` (kolize se SwiftUI `@Environment`).
+- Ověřeno snímkem v izolovaném workspace: obnova dvou projektů, neexistující cesta vynechána, aktivní projekt zachován, projekt s `formatVersion: 2` jako „jen pro čtení“, výška odpovědi 200 z workspace. **Neověřeno** (chybí nástroje pro klikání): otevření menu přepínače, sheet nového projektu, `NSOpenPanel`/`NSAlert` při otevření adresáře, zavření projektu.
+- `standardizedFileURL` mění `/private/tmp/…` na `/tmp/…` (cesty ve workspace pak mají kratší tvar; funkčně stejné).
 
 ### Co existuje (F0)
 - `main.go` (okno 1280×800, HiddenInset titlebar, About), `menu.go` (nativní menu cs/en dle systému, položky emitují `menu:<akce>`), `app.go` (`SetDirty`, `GetVersion`, potvrzení zavření při neuložených změnách).
@@ -123,6 +130,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 | 2026-11-22 | F1/1 (Swift) | 78b228b | model, yaml shodný s go, slug, ulid |
 | 2026-11-22 | F1/2 (Swift) | 70ac3ed | úložiště, registr, workspace |
 | 2026-11-22 | F1/3 (Swift) | 3bc599e | proměnné, url, formátování json |
+| 2026-11-22 | F2/1 (Swift) | fc7ca0f | workspace, projekty, přepínač, výška odpovědi |
 
 ## Rozhodnutí uživatele
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
