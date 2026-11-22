@@ -2,8 +2,8 @@
 
 ## Aktuálně
 - **Změna zadání (2026-11-22):** aplikace se přepisuje do Swiftu (SwiftUI + AppKit, URLSession, macOS 15+). Plán revize 3 v `docs/PLAN.md`, Go/Wails stav v tagu `go-wails-f4` (lokální, nepushnutý).
-- **Fáze:** F0, krok 1 hotový (a448e3a).
-- **Další krok:** F0, krok 2 – `MinorRESTApp`: hlavní okno (1280×800, min 900×600, unified toolbar), `Settings` scéna (prázdná), menu dle PLAN 8.7 přes `Commands` (položky zatím toast „Zatím není implementováno“), `L10n` (`t()`) + `Localizable.xcstrings` cs/en (klíče převzít z `git show go-wails-f4:frontend/src/lib/i18n/cs.json`) + `InfoPlist.xcstrings` (`NSLocalNetworkUsageDescription`), fonty dle displeje (PLAN 1.1 bod 11), prázdné rozvržení sidebar / request / odpověď s děliči. Ověřit snímkem obrazovky (computer-use).
+- **Fáze:** F0, krok 2 hotový (e6cab8f).
+- **Další krok:** F0, krok 3 – `.github/workflows/ci.yml` pro Swift (runner `macos-15` nebo novější s Xcode 16+: `brew install xcodegen`, `make test`, `make build`), odstranit Go/Node kroky. Ověřit lokálně syntaxi (`actionlint`, je-li k dispozici); skutečný běh až po pushi, který musí schválit uživatel. Pak F1/1 (model + YAML).
 - **Prostředí:** Xcode 27.2, Swift 6.4.2, XcodeGen 2.48.0 (Homebrew), Yams 6.2.2. Příkazy `make gen|build|run|test|clean`.
 
 ### Co existuje (Swift)
@@ -11,10 +11,15 @@
 - `App/MinorRESTApp.swift` – jediné okno `Window` 1280×800 (min 900×600), zatím prázdné. `App/Resources/Assets.xcassets/AppIcon` (velikosti 16–1024 vygenerované `sips` z `App/Resources/appicon.png`; zdroj `appicon.svg`).
 - `Packages/MinorRESTCore` (Yams, `Package.resolved` commitnutý), zatím jen `ProjectFormat.version` + test (Swift Testing).
 - `make build` → `.build/xcode/Build/Products/Debug/MinorREST.app`; ověřeno spuštění, ikona, podpis adhoc.
+- F0/2: `MinorRESTApp` (`Window` 1280×800, min 900×600, unified toolbar, `Settings` scéna s placeholderem), `AppCommands` – menu dle PLAN 8.7 (Soubor: nový request/složka, uložit, uložit odpověď, zavřít záložku – nahrazuje `.newItem` a `.saveItem`; menu Request: odeslat ⌘↩, zrušit ⌘., cURL ⇧⌘C, duplikovat ⌘D, URL ⌘L, prostředí ⌘E; Zobrazení: sidebar ⌘B, hledat ⌘K). Akce zatím `AppModel.notImplemented` → toast. Konflikt ⌘E s „Use Selection for Find“ nenastal (SwiftUI Find menu nepřidává).
+- `L10n` (`t(key, args)`, `{name}` placeholdery, jazyk `auto|cs|en` přepínatelný za běhu přes `Bundle` z `.lproj`), `Localizable.xcstrings` (147 klíčů převzatých z Go verze + `menu.*`, `quit.*`, `project.init*`, `settings.*`; `extractionState: manual`), `InfoPlist.xcstrings` (`NSLocalNetworkUsageDescription`). Systémové položky menu (O aplikaci, Ukončit…) lokalizuje macOS dle `.lproj`.
+- `AppFonts` (`ui`, `small`, `code`, `codeNSFont`; ne-retina Menlo 13, retina systémový + SF Mono) v `@Environment(\.appFonts)`, `BackingScaleReader` (`viewDidChangeBackingProperties`). `MainView`: `NavigationSplitView` (sidebar 180–600) + `VSplitView` request/odpověď s prázdnými stavy, `ToastStack` dole. `AppModel` (toasty, viditelnost sidebaru).
+- `DebugTools` (jen DEBUG): `--snapshot <png>`, `--dump-menu <txt>`, `--quit-after-debug`; spouštět binárku přímo `.build/xcode/Build/Products/Debug/MinorREST.app/Contents/MacOS/MinorREST …`, jazyk `-AppleLanguages '(en)'`.
+- Ověřeno snímky (cs, en) na ne-retina displeji v tmavém režimu a výpisem menu. Neověřeno: retina větev fontů, světlý režim, zobrazení toastu (menu nelze z CLI vyvolat), přepnutí jazyka za běhu (UI pro to přijde v F11).
 
 ## Otevřené body (Swift)
 - `.github/workflows/ci.yml` je ještě Go verze → přepsat v F0/3 (před prvním pushem).
-- Ověřování UI: `osascript` přes System Events nemá oprávnění (-1743) → snímky obrazovky přes computer-use.
+- Ověřování UI: `osascript` přes System Events nemá oprávnění (-1743), `screencapture` nemá oprávnění k nahrávání obrazovky a nástroje computer-use v relaci nejsou → snímky přes `--snapshot` (DebugTools). NavigationSplitView navíc nechává funkční systémovou zkratku ⌥⌘S pro sidebar.
 - Ověřit v F4/1: vypnutý `User-Agent` přes URLSession, GET s tělem, chování vlastního `Accept-Encoding`; v F7/1 hlavička `Authorization`; v F12/1 Sparkle s ad-hoc podpisem.
 
 ## Go verze – reference (tag `go-wails-f4`)
@@ -104,6 +109,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 | 2026-11-18 | F4/3 | baf2801 | prepare, Send/Cancel/GetRunBody, Odeslat/Zrušit, dočasná odpověď |
 | 2026-11-22 | plán rev. 3 | 44ab8ae | přechod na Swift, tag go-wails-f4 |
 | 2026-11-22 | F0/1 (Swift) | a448e3a | xcodegen, MinorRESTCore, odstranění go/svelte |
+| 2026-11-22 | F0/2 (Swift) | e6cab8f | okno, menu, cs/en, fonty, rozvržení, ladicí snímky |
 
 ## Rozhodnutí uživatele
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
