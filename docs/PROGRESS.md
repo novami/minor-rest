@@ -2,11 +2,19 @@
 
 ## Aktuálně
 - **Změna zadání (2026-11-22):** aplikace se přepisuje do Swiftu (SwiftUI + AppKit, URLSession, macOS 15+). Plán revize 3 v `docs/PLAN.md`, Go/Wails stav v tagu `go-wails-f4` (lokální, nepushnutý).
-- **Fáze:** F0 Swift verze, zatím nic neimplementováno.
-- **Další krok:** F0, krok 1 – po schválení plánu rev. 3: `brew install xcodegen`, odstranit Go/Wails/Svelte soubory (seznam v PLAN F0/1), ikonu přesunout do `App/Resources/`, založit `project.yml`, `Packages/MinorRESTCore` (Yams), `Makefile` (`gen`, `build`, `run`, `test`), `.gitignore` (`MinorREST.xcodeproj`, `.build/`). Hotovo = `make build` vytvoří spustitelnou `MinorREST.app`, `make test` zelený.
-- **Prostředí:** Xcode 27.2, Swift 6.4.2, macOS (Darwin 27). XcodeGen zatím není nainstalovaný.
+- **Fáze:** F0, krok 1 hotový (a448e3a).
+- **Další krok:** F0, krok 2 – `MinorRESTApp`: hlavní okno (1280×800, min 900×600, unified toolbar), `Settings` scéna (prázdná), menu dle PLAN 8.7 přes `Commands` (položky zatím toast „Zatím není implementováno“), `L10n` (`t()`) + `Localizable.xcstrings` cs/en (klíče převzít z `git show go-wails-f4:frontend/src/lib/i18n/cs.json`) + `InfoPlist.xcstrings` (`NSLocalNetworkUsageDescription`), fonty dle displeje (PLAN 1.1 bod 11), prázdné rozvržení sidebar / request / odpověď s děliči. Ověřit snímkem obrazovky (computer-use).
+- **Prostředí:** Xcode 27.2, Swift 6.4.2, XcodeGen 2.48.0 (Homebrew), Yams 6.2.2. Příkazy `make gen|build|run|test|clean`.
+
+### Co existuje (Swift)
+- `project.yml` (XcodeGen): cíl `MinorREST`, macOS 15, arm64, Swift 6 + strict concurrency complete, ad-hoc podpis (`CODE_SIGN_IDENTITY: "-"`), bez hardened runtime a sandboxu, Info.plist generovaný do `App/Info.plist` (v `.gitignore`) s ATS `NSAllowsArbitraryLoads` a `NSLocalNetworkUsageDescription` (zatím jen anglicky).
+- `App/MinorRESTApp.swift` – jediné okno `Window` 1280×800 (min 900×600), zatím prázdné. `App/Resources/Assets.xcassets/AppIcon` (velikosti 16–1024 vygenerované `sips` z `App/Resources/appicon.png`; zdroj `appicon.svg`).
+- `Packages/MinorRESTCore` (Yams, `Package.resolved` commitnutý), zatím jen `ProjectFormat.version` + test (Swift Testing).
+- `make build` → `.build/xcode/Build/Products/Debug/MinorREST.app`; ověřeno spuštění, ikona, podpis adhoc.
 
 ## Otevřené body (Swift)
+- `.github/workflows/ci.yml` je ještě Go verze → přepsat v F0/3 (před prvním pushem).
+- Ověřování UI: `osascript` přes System Events nemá oprávnění (-1743) → snímky obrazovky přes computer-use.
 - Ověřit v F4/1: vypnutý `User-Agent` přes URLSession, GET s tělem, chování vlastního `Accept-Encoding`; v F7/1 hlavička `Authorization`; v F12/1 Sparkle s ad-hoc podpisem.
 
 ## Go verze – reference (tag `go-wails-f4`)
@@ -95,6 +103,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 | 2026-11-17 | F4/2 | 9b9120a | metriky, dekomprese, charset, limity těla, LRU výsledků |
 | 2026-11-18 | F4/3 | baf2801 | prepare, Send/Cancel/GetRunBody, Odeslat/Zrušit, dočasná odpověď |
 | 2026-11-22 | plán rev. 3 | 44ab8ae | přechod na Swift, tag go-wails-f4 |
+| 2026-11-22 | F0/1 (Swift) | a448e3a | xcodegen, MinorRESTCore, odstranění go/svelte |
 
 ## Rozhodnutí uživatele
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
