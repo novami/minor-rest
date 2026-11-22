@@ -1,18 +1,25 @@
 # Stav projektu
 
 ## Aktuálně
-- **Fáze:** F4, krok 3 hotový.
-- **Další krok:** F4, krok 4 – cookie jar (`net/http/cookiejar` per projekt, perzistence `cookies/<projectId>.json` po každém odeslání, vypnutelné `cookieJar`; `RunResult.Cookies`), proxy (`none | system | manual`, `system` = `scutil --proxy` při odeslání, bez PAC – nastavení dle kap. 9) a zápis historie (`ListHistory`, `GetHistoryEntry`, `ClearHistory` dle kap. 11; detaily formátu v PLAN – před implementací přečíst kap. o historii). Ověřit „Hotovo“ F4: 7 metod, vynucení HTTP/1.1 vs HTTP/2 v `Proto`, redirect on/off, zrušení.
-- **Prostředí:** Go 1.27.4 darwin/arm64, Node 26, Wails CLI v2.17.1 (`~/go/bin/wails`), gh CLI. Příkazy přes `make dev|build|test|check`.
+- **Změna zadání (2026-11-22):** aplikace se přepisuje do Swiftu (SwiftUI + AppKit, URLSession, macOS 15+). Plán revize 3 v `docs/PLAN.md`, Go/Wails stav v tagu `go-wails-f4` (lokální, nepushnutý).
+- **Fáze:** F0 Swift verze, zatím nic neimplementováno.
+- **Další krok:** F0, krok 1 – po schválení plánu rev. 3: `brew install xcodegen`, odstranit Go/Wails/Svelte soubory (seznam v PLAN F0/1), ikonu přesunout do `App/Resources/`, založit `project.yml`, `Packages/MinorRESTCore` (Yams), `Makefile` (`gen`, `build`, `run`, `test`), `.gitignore` (`MinorREST.xcodeproj`, `.build/`). Hotovo = `make build` vytvoří spustitelnou `MinorREST.app`, `make test` zelený.
+- **Prostředí:** Xcode 27.2, Swift 6.4.2, macOS (Darwin 27). XcodeGen zatím není nainstalovaný.
 
-## Co existuje (F0)
+## Otevřené body (Swift)
+- Ověřit v F4/1: vypnutý `User-Agent` přes URLSession, GET s tělem, chování vlastního `Accept-Encoding`; v F7/1 hlavička `Authorization`; v F12/1 Sparkle s ad-hoc podpisem.
+
+## Go verze – reference (tag `go-wails-f4`)
+Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (kód: `git show go-wails-f4:<cesta>`).
+
+### Co existuje (F0)
 - `main.go` (okno 1280×800, HiddenInset titlebar, About), `menu.go` (nativní menu cs/en dle systému, položky emitují `menu:<akce>`), `app.go` (`SetDirty`, `GetVersion`, potvrzení zavření při neuložených změnách).
 - Frontend Svelte 5 + Vite 8 + TS: `src/styles/{tokens,fonts,base}.css`, i18n (`src/lib/i18n`), komponenty `Button`, `Modal`, `Toasts`, `Splitter`, util `events.ts`, layout titlebar + sidebar + request/response se splittery. Neimplementované akce menu ukazují toast.
 - Ikona: `build/appicon.svg` (zdroj) → `build/appicon.png` 1024 px (Wails z ní generuje `iconfile.icns`). Render SVG→PNG přes Swift `NSImage` (macOS umí SVG nativně).
 - `Makefile`, `.github/workflows/ci.yml`, bundle ID `com.github.novami.minorrest`, min. macOS 13.
 - Ověřeno: `wails build` → `build/bin/MinorREST.app` se spustí; v `wails dev` (localhost:34115) na ne-retina Menlo 13px, čeština, tmavé téma, binding `GetVersion` funguje.
 
-## Co existuje (F1)
+### Co existuje (F1)
 - `internal/model`: typy `Request`, `FolderConfig`, `ProjectConfig`, `Environment`, `KV`, `PathParam`, `Var`, `Auth` (+bloky), `Body`, `MultipartPart`, `Extract`, `HTTPSettings` (ukazatele = dědičnost), konstanty metod/typů těla/auth/názvů souborů, `NewRequest`.
 - `MarshalYAML` (odsazení 2, víceřádkové řetězce jako `|`), `UnmarshalYAML` (+ NFC normalizace, chyba `YAML_INVALID`), `NormalizeNFC` (reflexe).
 - `Slugify`, `UniqueSlug(slug, taken func(lower string) bool)` – volající předává lowercase sadu existujících jmen.
@@ -21,7 +28,7 @@
 
 - `internal/vars`: `New(scopes...)`, `Resolve` (→ text, nevyhodnocené, `VAR_CYCLE`), `Unresolved()`, `Explain()` (tajné maskované), dynamické `$uuid $ulid $timestamp $timestampMs $isoTimestamp $randomInt $randomString` (časové jednou na resolver = na odeslání), escape `\{{`. `BuildURL` (proměnné → `:param` přes PathEscape → `http://` → query), `EncodeQuery` (prázdná hodnota → jen název), `EncodeQueryComponent` (zachová `%XX`, enkóduje `& = + #`), `URL_INVALID`.
 
-## Co existuje (F2)
+### Co existuje (F2)
 - `internal/settings`: `Workspace` (+ `LoadWorkspace/SaveWorkspace(dir)`, výchozí rozměry), `AppDir()`, `DefaultProjectsDir()`.
 - `internal/storage`: `Registry` (Open/Add s deduplikací podle ID, Get, Close, List, Paths), exportované `WriteFileAtomic`, `Project.Abs`.
 - `app_projects.go`: všechny bindingy F2 z kap. 11.1; při startu `loadWorkspace` znovu otevře projekty (nečitelné vynechá + log). Seznam projektů ve workspace spravuje backend.
@@ -33,7 +40,7 @@
 - `LoadTree` přidělí nové ID requestům se shodným ID (kopie z Finderu); původní zůstane nejdříve vytvořenému souboru (`birthTime`, macOS Birthtimespec). V read-only projektu ne.
 - Frontend: `stores/workspace.svelte.ts` (`ws`, init, debounced `saveWorkspace`, create/open/close/select), `ProjectSwitcher` v titlebaru (+ modál nového projektu), `Tree` (zatím jen zobrazení), `util/errors.ts` (`errorText` → `errors.<CODE>`), i18n sekce `errors`. Rozměry/viditelnost panelů se ukládají.
 
-## Co existuje (F3)
+### Co existuje (F3)
 - Bindingy `GetRequest` (nil slice → `[]` přes `model.FillNilSlices`), `SaveRequest` (`app_requests.go`); `storage.SaveRequest` převezme ID, název a pořadí ze souboru (identitu drží strom – zastaralý tab nepřepíše přejmenování).
 - Workspace: `tabs` (projekt → ID requestů), `activeTab` (projekt → ID); zavřené projekty se z map mažou.
 - `stores/tabs.svelte.ts`: tab = {id (ID requestu), projectID, rel, draft, saved (JSON)}, dirty = porovnání JSON. Taby per projekt, obnova při prvním načtení stromu projektu, po každém načtení stromu sledují přejmenování/přesun (podle ID), smazaný čistý tab se zavře. `workspace.treeLoaded` = háčky po načtení stromu. Uložení → `reloadTree` (metoda/URL ve stromu). `SetDirty` podle libovolného dirty tabu.
@@ -49,7 +56,7 @@
 - Zavření projektu s neuloženými taby (`closeProjectSafe`): modál Uložit vše / Zahodit / Zrušit.
 - Watcher emituje navíc `request:changedOnDisk {projectID, rel}` pro změněné `*.req.yaml`; čistý tab se tiše znovu načte, neuložený ukáže banner „Načíst z disku / Ponechat moje“ (Ponechat = verze z disku se stane základem, tab zůstane neuložený). Funguje i pro taby neaktivních projektů.
 
-## Co existuje (F4)
+### Co existuje (F4)
 - `internal/httpclient`: `Engine` (`New`, `Do(ctx, runID, Request, Options) (*Result, error)`, `Cancel(runID)`), `OptionsFrom(HTTPSettings, userAgent)`. Nový `http.Transport` na odeslání (`Protocols`: auto = h1+h2, http1, http2 / h2c prior knowledge pro `http://`), `DisableCompression`, `InsecureSkipVerify = !VerifyTLS`, vlastní `CheckRedirect` (záznam skoků `{status, method, url, location}`, limit → `REDIRECT_LIMIT`), timeout i zrušení přes context s příčinou (`NET_TIMEOUT` vs `CANCELED`), `TLSInfo` (verze, cipher, SNI, subjekt, vydavatel, expirace).
 - `Request{Method, URL, Headers []KV, Body model.Body, BaseDir, NoAuto []string}` – hlavičky kanonizované (`Add`, opakované se zachovají), `Host` → `req.Host`, `Content-Length` ignorován, auto `User-Agent`/`Accept: */*`/`Content-Type` jen když chybí a nejsou v `NoAuto`; vypnutý UA = prázdný (Go nedoplní vlastní).
 - Těla: raw typy s `; charset=utf-8`, form v pořadí řádků (`url.QueryEscape`, plné kódování), multipart v paměti (UTF-8 `filename`, Content-Type z přípony), binary streamem ze souboru; relativní cesty vůči `BaseDir`; `GetBody` → 307/308 pošle tělo znovu. Uživatelský `multipart/…` Content-Type bez boundary dostane boundary doplněné.
@@ -87,14 +94,15 @@
 | 2026-11-17 | F4/1 | d5efcf7 | jádro httpclient: verze, těla, redirecty, timeout/cancel, chybové kódy |
 | 2026-11-17 | F4/2 | 9b9120a | metriky, dekomprese, charset, limity těla, LRU výsledků |
 | 2026-11-18 | F4/3 | baf2801 | prepare, Send/Cancel/GetRunBody, Odeslat/Zrušit, dočasná odpověď |
+| 2026-11-22 | plán rev. 3 | (tento commit) | přechod na Swift, tag go-wails-f4 |
 
 ## Rozhodnutí uživatele
-- Wails v2 + Svelte 5, YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
+- ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
 - Repozitář i releasy jsou veřejné (updater bez tokenu).
 - Ne-retina displej: Menlo 13 (UI i kód). Retina: SF Pro (UI) + SF Mono (kód).
 - Kopírování requestu: jen cURL (víceřádkový + jednořádkový), bez bash skriptu.
 
-## Otevřené body / známé problémy
+## Otevřené body / známé problémy (Go verze, reference)
 - YAML: chybějící `enabled` u KV/Var/multipart/extract = zapnuto (vlastní `UnmarshalYAML`). Řádky se zapisují blokovým stylem, ne flow `{…}` jako v ukázkách plánu.
 - Storage: složky a requesty sdílí jmenný prostor slugů (kolize case-insensitive); v kořeni je `environments` rezervované. Nečitelné soubory jsou ve stromu na konci s `Error`. `Duplicate(rel, copySuffix)` – binding `DuplicateNode` předá příponu v jazyce UI (prázdná = „ kopie“). Mazání nepřesune do Koše `.responses/<id>`, pokud stejné ID má jiný request.
 - Testy storage nahrazují `trashItem` přesunem do TempDir; skutečný Koš ověřen jednorázově ručně.

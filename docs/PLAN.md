@@ -1,79 +1,99 @@
-# MinorREST – implementační plán (revize 2)
+# MinorREST – implementační plán (revize 3: Swift)
 
 > Implementuje se po fázích F0–F13, každá fáze má očíslované **kroky = commity**. Po každém kroku aktualizuj
-> `docs/PROGRESS.md`. Analýza konkurence: `docs/ANALYZA.md`. Kontrakt backend ↔ frontend: kapitola 11.
+> `docs/PROGRESS.md`. Analýza konkurence: `docs/ANALYZA.md`. API jádra pro UI: kapitola 11.
 > Kde plán říká „přesně“, drž se ho; kde je jen cíl, zvol nejjednodušší řešení.
+>
+> **Revize 3 (2026-11-22):** aplikace se přepisuje z Go + Wails + Svelte do Swiftu. Poslední stav Go verze je
+> v tagu `go-wails-f4` (F0–F4/3 hotovo) – slouží jako **referenční implementace**: testovací případy, edge case
+> a chování (`git show go-wails-f4:internal/vars/vars_test.go` apod.). Formát dat na disku (kap. 2) se nemění –
+> projekty vytvořené Go verzí musí jít otevřít beze změny.
 
 ## 0. Rozhodnutí (schválená uživatelem)
 
 | Oblast | Volba |
 |---|---|
-| Platforma | macOS 13+, pouze Apple Silicon (`darwin/arm64`) |
-| Backend | Go (aktuální stabilní, nyní 1.27) |
-| GUI | **Wails v2** (nejnovější v2.x) + **Svelte 5 + TypeScript + Vite** |
-| Editor kódu | CodeMirror 6 – jen pro víceřádkové editory (body, odpověď, docs, diff) |
-| Úložiště | **YAML soubory** (projekt = adresář), tajné proměnné v **macOS Keychain** |
-| YAML knihovna | `go.yaml.in/yaml/v3` (udržovaný fork `gopkg.in/yaml.v3`, stejné API) |
-| Jazyk UI | čeština + angličtina (i18n, výchozí dle systému) |
-| Podpis | ad-hoc (`codesign -s -`), bez notarizace; auto-update z GitHub Releases ověřený ed25519 |
-| Licence / repo | MIT, https://github.com/novami/minor-rest.git, modul `github.com/novami/minor-rest` |
+| Platforma | **macOS 15+**, pouze Apple Silicon (arm64) |
+| Jazyk | **Swift 6** (strict concurrency), vše ve Swiftu |
+| GUI | **SwiftUI** + AppKit přes `NSViewRepresentable` tam, kde SwiftUI nestačí (strom, jednořádková pole s proměnnými, editor kódu) |
+| HTTP | **URLSession** (omezení viz kap. 4.1) |
+| Projekt | **XcodeGen** (`project.yml` → `MinorREST.xcodeproj`, generovaný, není v gitu) + lokální SwiftPM balíček `MinorRESTCore` s logikou |
+| Úložiště | **YAML soubory** (projekt = adresář, formát beze změny oproti rev. 2), tajné proměnné v **macOS Keychain** |
+| YAML knihovna | [Yams](https://github.com/jpsim/Yams) (SwiftPM) |
+| Jazyk UI | čeština + angličtina (String Catalog `Localizable.xcstrings`, výchozí dle systému, přepnutelné za běhu) |
+| Podpis | ad-hoc (`codesign -s -`), bez notarizace a bez App Sandboxu; auto-update z GitHub Releases ověřený EdDSA |
+| Licence / repo | MIT, https://github.com/novami/minor-rest.git |
 | Bundle ID | `com.github.novami.minorrest` |
+| Kopírování requestu | jen cURL (víceřádkový + jednořádkový) |
+| Fonty | ne-retina Menlo 13 (UI i kód), retina SF Pro (UI) + SF Mono (kód) |
 
 ## 1. Architektura
 
 ```
 minor-rest/
-├── main.go                 # wails.Run, menu, okno, embed frontend/dist
-├── app.go, app_*.go        # App struct = tenké Wails bindingy (rozdělit po oblastech) → volá internal/*
-├── internal/
-│   ├── model/              # datové typy + DTO (yaml i json tagy)
-│   ├── storage/            # YAML čtení/zápis, strom projektu, slugy, řazení, koš, watcher
-│   ├── vars/               # resolver {{x}}, dynamické proměnné, path params
-│   ├── secrets/            # Keychain (github.com/zalando/go-keyring)
-│   ├── httpclient/         # odeslání, HTTP verze, redirecty, timing, IP, velikosti, dekomprese
-│   ├── prepare/            # Request + dědičnost + proměnné + auth → httpclient.PreparedRequest
-│   ├── auth/               # basic, bearer, apikey, oauth2 (golang.org/x/oauth2)
-│   ├── responses/          # uložené odpovědi (verze), historie
-│   ├── export/             # cURL generátor
-│   ├── importer/{openapi,postman,curl}/
-│   ├── settings/           # globální nastavení + workspace
-│   └── updater/
-├── frontend/src/
-│   ├── App.svelte
-│   ├── lib/components/     # Sidebar, Tree, Tabs, VarInput, KvEditor, CodeEditor, ResponsePane…
-│   ├── lib/stores/         # *.svelte.ts (runes)
-│   ├── lib/i18n/           # cs.json, en.json, t()
-│   └── styles/             # tokens.css, fonts.css
-├── frontend/wailsjs/       # generované bindingy (commitovat, needitovat ručně)
-├── build/                  # appicon.png, darwin/Info.plist
-├── scripts/sign-update/    # generování klíče a podpis update balíčku
-└── .github/workflows/      # ci.yml, release.yml
+├── project.yml                     # XcodeGen: cíl MinorREST (app), závislost na Packages/MinorRESTCore
+├── Makefile                        # gen, build, run, test, release
+├── App/                            # cíl aplikace – tenká vrstva nad jádrem
+│   ├── MinorRESTApp.swift          # @main App, scény (hlavní okno, Settings), Commands (menu + zkratky)
+│   ├── Stores/                     # @Observable @MainActor stav UI: Workspace, Projects, Tabs, Runs, Environments…
+│   ├── Views/
+│   │   ├── Sidebar/                # ProjectSwitcher, strom, hledání, historie
+│   │   ├── Request/                # URL bar, KvEditor, BodyEditor, Auth, Settings, Docs
+│   │   ├── Response/               # meta bar, tělo, hlavičky, časování, verze
+│   │   ├── Environment/            # editor prostředí a proměnných
+│   │   ├── Settings/               # okno Nastavení (Cmd+,)
+│   │   └── Common/                 # MethodBadge, StatusBadge, Toast, Banner…
+│   ├── AppKit/                     # NSViewRepresentable: TreeOutlineView, VarField, CodeTextView
+│   ├── Support/                    # L10n (t()), formátování čísel, fonty dle displeje
+│   └── Resources/                  # Localizable.xcstrings, Assets.xcassets (ikona), Info.plist
+├── Packages/MinorRESTCore/         # SwiftPM, bez SwiftUI/AppKit (jen Foundation, Security, CoreServices, Network)
+│   ├── Package.swift               # závislost Yams
+│   ├── Sources/MinorRESTCore/
+│   │   ├── Model/                  # Codable typy (kap. 2), ULID, slug, NFC
+│   │   ├── YAML/                   # kódování/dekódování přes Yams (stabilní pořadí, `|` u víceřádkových)
+│   │   ├── Storage/                # projekt, strom, CRUD, přesun, koš, registr, workspace
+│   │   ├── Watch/                  # FSEvents
+│   │   ├── Vars/                   # resolver {{x}}, dynamické proměnné, URL
+│   │   ├── JSON/                   # formátování (tokenizér, zachová čísla i pořadí), JSONPath
+│   │   ├── HTTP/                   # URLSession engine, metriky, tělo odpovědi, chyby
+│   │   ├── Prepare/                # dědičnost + proměnné + auth → PreparedRequest
+│   │   ├── Auth/                   # basic, bearer, apikey, oauth2
+│   │   ├── Secrets/                # Keychain
+│   │   ├── Responses/              # uložené odpovědi, historie, maskování
+│   │   ├── Export/                 # cURL generátor
+│   │   ├── Import/{Curl,OpenAPI,Postman}/
+│   │   └── Settings/               # globální nastavení
+│   └── Tests/MinorRESTCoreTests/   # Swift Testing (@Test, parametrizované = tabulkové testy)
+├── scripts/                        # release, podpis aktualizace
+├── docs/
+└── .github/workflows/              # ci.yml, release.yml
 ```
 
 **Zásady:**
-- Backend je zdroj pravdy pro disk; frontend drží jen stav UI (otevřené taby, neuložené změny).
-- Logika (resolver, HTTP, export, import, formátování JSON) je v Go s unit testy. Frontend zobrazuje.
-- `internal/*` nesmí importovat Wails → `go test ./internal/...` běží bez sestaveného frontendu.
-- Chyby z backendu: `fmt.Errorf("%s: %w", code, err)` kde `code` je konstanta (`NET_TIMEOUT`…). Frontend vezme text před první `:` jako i18n klíč `errors.<CODE>`, zbytek zobrazí jako detail.
+- Jádro (`MinorRESTCore`) je zdroj pravdy pro disk a veškerou logiku; UI drží jen stav zobrazení (otevřené taby, neuložené změny). Jádro neimportuje SwiftUI ani AppKit → `swift test` běží bez Xcode projektu.
+- Modelové typy jsou `struct … : Codable, Sendable, Equatable`. Služby s měnitelným stavem jsou `actor` (Engine, Registry), čistá logika jsou funkce/`struct`. UI stores jsou `@Observable @MainActor final class`.
+- Chyby: `struct CoreError: Error { let code: ErrorCode; let detail: String }`, `ErrorCode` = `String` enum (`NET_TIMEOUT`…, stejné kódy jako rev. 2). UI zobrazí `t("errors.<CODE>")` + detail. Žádné natvrdo psané texty v jádru.
+- Dlouhé operace (I/O, síť) jsou `async` a neblokují hlavní vlákno; UI volá jádro z `Task {}`.
 
-### 1.1 Wails v2 – úskalí (čti před F0!)
-1. **Edit menu**: bez `menu.EditMenu()` nefunguje Cmd+C/V/X/A/Z ve WebView.
-2. Šablona `svelte-ts` má Svelte 3 → frontend vytvořit znovu (`npm create vite@latest frontend -- --template svelte-ts`), zachovat `wailsjs/`, v `wails.json` nastavit `frontend:install: "npm install"`, `frontend:build: "npm run build"`, `frontend:dev:watcher: "npm run dev"`, `frontend:dev:serverUrl: "auto"`.
-3. `//go:embed all:frontend/dist` – bez existujícího `frontend/dist` selže `go build`/`go vet` hlavního balíčku. Proto: testy a vet jen `./internal/...`; hlavní balíček ověřuje `wails build`.
-4. Bindingy se regenerují při `wails dev`/`wails build` (nebo `wails generate module`) – po každé změně signatur v `app*.go`.
-5. DTO pro bindingy: exportovaná pole s **`json` i `yaml` tagy**; žádné `time.Time` (používat RFC 3339 `string` nebo ms `float64`), žádné `[]byte` pro velká data (jdou jako base64), žádná `interface{}`.
-6. **Jedno okno**: v2 neumí druhé okno → Nastavení, editor prostředí, průvodce importem jsou modální dialogy ve stejném WebView.
-7. Kontextové menu je HTML (nativní není). Výchozí kontextové menu WebView nechat vypnuté.
-8. `OnBeforeClose` → pokud frontend hlásí neuložené změny (binding `SetDirty(bool)`), zobrazit `MessageDialog` Uložit vše / Zahodit / Zrušit.
-9. Drop souboru do okna: `options.App.DragAndDrop{EnableFileDrop: true}` + `runtime.OnFileDrop` (pro import OpenAPI a multipart soubory).
-10. **Zkratky – jeden zdroj:** vše, co je v nativním menu, má akcelerátor tam a menu položka jen emituje event `menu:<akce>`; frontend `keydown` řeší pouze zkratky, které v menu nejsou (Cmd+Enter, Cmd+., Escape). Jinak se akce provede dvakrát.
-11. Okno: 1280×800, min 900×600, `mac.TitleBarHiddenInset()`; tažitelná oblast CSS `--wails-draggable: drag` (interaktivní prvky uvnitř `no-drag`); horní lišta má vlevo 80 px odsazení kvůli „semaforu“.
-12. Schránka `runtime.ClipboardSetText`, prohlížeč `runtime.BrowserOpenURL`, dialogy `runtime.OpenFileDialog/SaveFileDialog/OpenDirectoryDialog/MessageDialog`.
-13. **Ověřování UI:** `wails dev` vystaví aplikaci i na `http://localhost:34115` s funkčními bindingy → spustit na pozadí a ověřovat v prohlížeči (čtení stránky / screenshot), ne slepě.
-14. Vygenerovaný `EventsOn` v `wailsjs/runtime/runtime.js` nevrací odhlašovací funkci → používat helper `onEvent`/`onMenu` z `frontend/src/lib/util/events.ts` (volá `EventsOnMultiple`).
-15. Wails CLI je v `~/go/bin` (není v PATH) → používat `make dev|build|test|check`; Makefile nastavuje i `CGO_*FLAGS=-mmacosx-version-min=13.0` (jinak varování linkeru).
+### 1.1 Swift / SwiftUI – úskalí (čti před F0!)
+1. **XcodeGen:** `brew install xcodegen`; `MinorREST.xcodeproj` je v `.gitignore`, generuje `make gen` (volají ho i `build`/`run`). Nastavení cíle (deployment target 15.0, arm64, Swift 6, `ENABLE_HARDENED_RUNTIME: NO`, bez sandboxu, `CODE_SIGN_IDENTITY: "-"`) patří do `project.yml`, ne do Xcode.
+2. **Build a spuštění z CLI:** `xcodebuild -project MinorREST.xcodeproj -scheme MinorREST -configuration Debug -derivedDataPath .build/xcode build` → `.build/xcode/Build/Products/Debug/MinorREST.app`; `make run` = build + `open`. Testy jádra: `cd Packages/MinorRESTCore && swift test` (rychlé, bez app cíle).
+3. **ATS:** `Info.plist` → `NSAppTransportSecurity.NSAllowsArbitraryLoads = YES` (REST klient musí umět `http://` i libovolné hosty).
+4. **Local Network privacy (macOS 15):** requesty na adresy v LAN (ne `localhost`) vyvolají systémový dotaz → `NSLocalNetworkUsageDescription` v `Info.plist` (cs/en přes `InfoPlist.xcstrings`).
+5. **Bez App Sandboxu:** projekty jsou libovolné adresáře, Keychain přes `/usr/bin/security`, FSEvents na libovolné cestě.
+6. **Menu a zkratky – jeden zdroj:** vše přes SwiftUI `Commands` (`CommandGroup`/`CommandMenu`, `.keyboardShortcut`). Akce se do aktivního okna předávají přes `@FocusedValue`/`FocusedValues` (ne NotificationCenter). Cmd+C/V/Z funguje automaticky v textových polích (standardní `CommandGroup(replacing:)` nepoužívat pro Edit).
+7. **Ukončení s neuloženými změnami:** `NSApplicationDelegateAdaptor` → `applicationShouldTerminate` vrátí `.terminateLater`, zobrazí `NSAlert` Uložit / Neukládat / Zrušit, po uložení `reply(toApplicationShouldTerminate:)`. Zavření okna: `NSWindowDelegate.windowShouldClose`. `isDocumentEdited` okna = tečka v zavíracím tlačítku.
+8. **Strom:** `NSOutlineView` (spolehlivý drag & drop, inline přejmenování, kontextové menu, klávesnice, výkon u velkých stromů) – SwiftUI `List`/`OutlineGroup` tohle neumí dobře.
+9. **Jednořádková pole s proměnnými (`VarField`):** `NSTextField` s vlastním field editorem (`NSTextView`), zvýraznění přes `layoutManager` temporary attributes (nemění text ani undo). Ne `CodeTextView`.
+10. **Editor kódu (`CodeTextView`):** `NSTextView` v `NSScrollView` (TextKit 2), vlastní jednoduché lexery (JSON, XML/HTML, markdown, text), hledání přes vestavěný `NSTextFinder` (Cmd+F), `allowsUndo`. Velké texty: zvýraznění jen viditelné oblasti / do limitu, vypnout automatické nahrazování (uvozovky, pomlčky, kontrola pravopisu) – **všude** v textových polích s kódem a URL.
+11. **Fonty dle displeje:** `NSWindow.backingScaleFactor` (sledovat `NSWindow.didChangeBackingPropertiesNotification` a `didChangeScreenNotification`) → `@Environment` hodnota s fonty UI/kódu.
+12. **i18n:** String Catalog; jazyk `auto | cs | en` za běhu: helper `t(_ key: String, _ args…)` hledá v `Bundle` pro zvolené `.lproj`. Nativní menu se překreslí samo (SwiftUI). Klíče stejné jako v rev. 2 (`errors.NET_DNS`, `request.send`…) – lze převzít z `git show go-wails-f4:frontend/src/lib/i18n/cs.json`.
+13. **Ověřování UI:** spustit `make run` a kontrolovat snímky obrazovky (computer-use), u stavu raději přes ladicí výpisy / testy jádra. Testovací projekty zakládat ve scratch adresáři a po testu je zavřít (workspace je ve skutečném `~/Library/Application Support/MinorREST/`).
+14. **Swift 6 concurrency:** URLSession delegate je `final class … : NSObject, URLSessionDataDelegate, @unchecked Sendable` se stavem chráněným `Mutex`/`OSAllocatedUnfairLock`; ven publikovat přes `async` API (`withCheckedThrowingContinuation`).
 
 ## 2. Datový model a formát na disku
+
+Beze změny oproti rev. 2 (kompatibilita s projekty z Go verze). Implementační poznámky pro Swift jsou u jednotlivých bodů.
 
 ### 2.1 Umístění
 - `~/Library/Application Support/MinorREST/`
@@ -98,18 +118,19 @@ muj-projekt/
 ```
 - **Složka** = adresář obsahující `_folder.yaml`. Adresáře bez něj, začínající `.` nebo `_`, a `environments` se ve stromu ignorují.
 - **Request** = soubor `*.req.yaml`.
-- **Adresace ve všech API:** `projectId` + `rel` (relativní cesta od kořene projektu s `/`, kořen = `""`). `Request.id` (ULID) slouží pro `.responses/`, otevřené taby a historii – přežije přejmenování i přesun.
-- **Slug:** NFC → NFD → odstranit znaky kategorie `Mn` → mapa nerozložitelných (`ł→l, đ→d, ß→ss, ø→o, æ→ae`) → lowercase → vše mimo `[a-z0-9]` na `-` → sloučit a oříznout `-` → max 60 znaků. Prázdný výsledek → `polozka`. Kolize (case-insensitive) → `-2`, `-3`. Příklad: `Příliš žluťoučký kůň` → `prilis-zlutoucky-kun`.
+- **Adresace ve všech API:** `projectID` + `rel` (relativní cesta od kořene projektu s `/`, kořen = `""`). `Request.id` (ULID) slouží pro `.responses/`, otevřené taby a historii – přežije přejmenování i přesun.
+- **Slug:** NFC → NFD → odstranit znaky kategorie `Mn` → mapa nerozložitelných (`ł→l, đ→d, ß→ss, ø→o, æ→ae`) → lowercase → vše mimo `[a-z0-9]` na `-` → sloučit a oříznout `-` → max 60 znaků. Prázdný výsledek → `polozka`. Kolize (case-insensitive) → `-2`, `-3`. Příklad: `Příliš žluťoučký kůň` → `prilis-zlutoucky-kun`. Složky a requesty sdílí jmenný prostor slugů; v kořeni je `environments` rezervované.
 - Přejmenování = změna `name` + přejmenování souboru/adresáře na nový slug.
-- Zápis atomicky (temp soubor ve stejném adresáři + `os.Rename`). Všechny vstupní řetězce normalizovat do NFC (`golang.org/x/text/unicode/norm`).
-- Mazání = přesun do Koše přes cgo `NSFileManager trashItemAtURL` (`internal/storage/trash_darwin.go`), nikdy `os.RemoveAll`. Při smazání requestu přesunout do Koše i jeho `.responses/<id>/`.
+- Zápis atomicky (temp soubor `.tmp-*` ve stejném adresáři + `rename(2)`). Všechny vstupní řetězce normalizovat do NFC (`precomposedStringWithCanonicalMapping`).
+- Mazání = `FileManager.trashItem` (Koš), nikdy `removeItem`. Při smazání requestu přesunout do Koše i jeho `.responses/<id>/` (pokud stejné ID nemá jiný request).
 - **Pořadí:** `seq` (int) u složek i requestů; ve stromu nejdřív složky, pak requesty, obojí dle `seq`, při shodě dle `name`. Po přesunu/vložení přečíslovat sourozence 1..n a zapsat jen změněné.
+- **Duplicitní ID** (kopie souboru ve Finderu): při načtení stromu dostanou requesty se shodným ID nové ID; původní zůstane nejdříve vytvořenému souboru (`creationDate`), při shodě dle `rel`. V read-only projektu ne.
 - **formatVersion:** projekt s vyšší verzí, než aplikace zná, otevřít jen pro čtení (banner „Aktualizujte MinorREST“).
 
 ### 2.3 `minorrest.yaml`
 ```yaml
 formatVersion: 1
-id: 01JCX6...                  # ULID (github.com/oklog/ulid/v2); klíč pro Keychain a cookies
+id: 01JCX6...                  # ULID; klíč pro Keychain a cookies
 name: Můj projekt
 description: ""
 vars:
@@ -118,7 +139,7 @@ headers:                       # dědí se do všech requestů
   - { name: Accept, value: application/json, enabled: true }
 auth: { type: none }
 settings:                      # chybějící položka = globální výchozí z nastavení aplikace
-  httpVersion: auto            # auto | http1 | http2
+  httpVersion: auto            # v Swift verzi jen čteno a zachováno, neuplatňuje se (kap. 4.1)
   followRedirects: true
   maxRedirects: 10
   timeoutMs: 30000
@@ -163,13 +184,14 @@ body:
 vars: []                    # proměnné requestu
 extract:                    # po odpovědi → runtime proměnná (F8)
   - { name: token, from: body, path: "$.data.token", enabled: true }   # from: body (JSONPath) | header (název)
-settings: {}                # jen přepsané položky; chybějící = zděděno (Go: ukazatele + omitempty)
+settings: {}                # jen přepsané položky; chybějící = zděděno (Swift: optionals)
 docs: ""
 ```
-- **Zdroj pravdy pro query je `params.query`**, `url` na disku query neobsahuje. URL bar zobrazuje `url + "?" + zapnuté parametry` (bez kódování, tak jak je uživatel napsal); při editaci URL baru se text za prvním `?` rozparsuje zpět do `params.query` (vypnuté řádky zůstávají na svých pozicích). Parametr bez `=` (`?wsdl`) dostane `bare: true` a odešle se bez `=`; `?flag=` i nový prázdný řádek se odešlou jako `flag=`. Parsování dělat ručně (split `&`, `=`), ne přes `URL` API – nesmí se rozbít `{{proměnné}}`.
-- `:nazev` v cestě (segment začínající `:`, ne port) → automaticky řádek v `params.path`; zmizí-li z URL, řádek odstranit.
-- Cesty k souborům (`multipart.path`, `binaryPath`): pokud leží uvnitř projektu, ukládat relativně ke kořeni projektu, jinak absolutně.
-- Prázdné sekce se nezapisují (`omitempty`), pořadí klíčů dle struktury → stabilní diffy v gitu.
+- **Zdroj pravdy pro query je `params.query`**, `url` na disku query neobsahuje. URL bar zobrazuje `url + "?" + zapnuté parametry` (bez kódování); při editaci se text za prvním `?` rozparsuje zpět do `params.query` (zapnuté řádky se nahradí v pořadí, popisy zůstanou, vypnuté řádky zůstávají na svých pozicích). Parametr bez `=` (`?wsdl`) dostane `bare: true` a odešle se bez `=`; `?flag=` i nový prázdný řádek se odešlou jako `flag=`. Parsování ručně (split `&`, `=`), ne přes `URLComponents` – nesmí se rozbít `{{proměnné}}`.
+- `:nazev` v cestě (segment začínající `:`, ne port) → automaticky řádek v `params.path`; zmizí-li z URL, řádek odstranit (hodnoty se drží podle názvu).
+- Cesty k souborům (`multipart.path`, `binaryPath`): uvnitř projektu relativně ke kořeni (s `/`), jinak absolutně; symlinky rozvinout (`/var` → `/private/var`).
+- Chybějící `enabled` u KV/Var/multipart/extract = zapnuto.
+- **YAML zápis:** prázdné sekce se nezapisují, pořadí klíčů dle struktury, odsazení 2, víceřádkové řetězce jako blokový literál `|`, řádky blokovým stylem → stabilní diffy v gitu. Implementace: `Encodable` → vlastní stavba `Yams.Node` (kvůli stylům a vynechání prázdných hodnot), ne výchozí `YAMLEncoder`. Neplatný YAML → `YAML_INVALID`.
 
 Auth bloky:
 ```yaml
@@ -196,12 +218,12 @@ auth:
 ```
 
 ### 2.6 Uložené odpovědi (verzování)
-`.responses/<requestId>/v0001.yaml` (metadata) + `v0001.body` (**tělo vždy v samostatném souboru**, přesné dekomprimované bajty v původním kódování – žádné vkládání do YAML).
+`.responses/<requestId>/v0001.yaml` (metadata) + `v0001.body` (**tělo vždy v samostatném souboru**, dekomprimované bajty v původním kódování).
 ```yaml
 version: 3
 savedAt: "2026-11-16T15:04:05+01:00"
 label: ""
-request:                         # snímek skutečně odeslaného requestu
+request:                         # snímek odeslaného requestu
   method: POST
   url: https://api.example.com/users?page=2
   headers: [{ name: Authorization, value: "Bearer ***" }]   # maskování viz 2.8
@@ -210,7 +232,7 @@ request:                         # snímek skutečně odeslaného requestu
 response:
   status: 201
   statusText: Created
-  proto: HTTP/2.0
+  proto: HTTP/2
   remoteAddr: "93.184.216.34:443"
   localAddr: "192.168.1.10:53122"
   tls: { version: "TLS 1.3", cipher: TLS_AES_128_GCM_SHA256, serverName: api.example.com, certSubject: "CN=…", certExpires: "2027-01-01T00:00:00Z" }
@@ -221,7 +243,7 @@ response:
   contentType: application/json
   charset: utf-8
 ```
-Číslo verze = nejvyšší existující + 1 (smazané se nerecyklují). Historie (2.1) používá stejný formát.
+Číslo verze = nejvyšší existující + 1 (smazané se nerecyklují). Historie (2.1) používá stejný formát. Časy jako RFC 3339 řetězce.
 
 ### 2.7 Prostředí `environments/<slug>.yaml`
 ```yaml
@@ -234,7 +256,7 @@ vars:
 
 ### 2.8 Tajemství
 - `secret: true` lze nastavit u proměnných **prostředí a globálních**. Keychain: služba `MinorREST`, účet `<projectId>/<envId>/<name>` resp. `global/<name>`. Přejmenování proměnné = přesun položky; smazání proměnné/prostředí = smazání položek.
-- `go-keyring` na macOS volá `/usr/bin/security` → žádné dialogy oprávnění ani po aktualizaci ad-hoc podepsané aplikace. Limit hodnoty cca 2,5 kB → chybu `SECRET_TOO_BIG` zobrazit uživateli.
+- Přístup přes `/usr/bin/security` (`Process`; zápis příkazem do stdin `security -i` s hodnotou jako hex `-X`, takže hodnota není v argumentech procesu; čtení `find-generic-password -w`) – stejně jako `go-keyring` v Go verzi, takže položky vytvořené Go verzí zůstanou čitelné a **ad-hoc podepsaná aplikace nedostane po každé aktualizaci dotaz na přístup ke Keychain** (ACL položky patří nástroji `security`, ne podpisu aplikace). Limit hodnoty cca 2,5 kB → `SECRET_TOO_BIG`.
 - Auth pole (heslo, token, client secret) jsou obyčejná textová pole ukládaná do YAML. Pokud obsahují literál (ne `{{…}}`), zobrazit u pole varování s akcí **„Převést na tajnou proměnnou“** (vytvoří secret proměnnou v aktivním prostředí a pole nahradí `{{nazev}}`).
 - **Maskování** (uložené odpovědi, historie, volitelně export): hodnoty hlaviček `Authorization`, `Proxy-Authorization`, `Cookie`, `Set-Cookie`, hlavičky/query z apikey auth a všechny výskyty hodnot secret proměnných → `***` (u `Authorization` zachovat schéma: `Bearer ***`).
 
@@ -242,99 +264,98 @@ vars:
 
 - Syntaxe `{{nazev}}`, název `[A-Za-z0-9_.-]+`, mezery uvnitř závorek tolerovat. `\{{` = literál `{{`.
 - **Priorita (vyšší vyhrává):** runtime → request → složky (nejbližší první) → prostředí → projekt → globální. Vypnuté (`enabled: false`) se ignorují.
-- **Runtime proměnné:** jen v paměti, per projekt (mapa v App), plní je `extract` a zobrazují se v přehledu „oko“ (lze je tam smazat). Po restartu prázdné.
+- **Runtime proměnné:** jen v paměti, per projekt, plní je `extract` a zobrazují se v přehledu „oko“ (lze je tam smazat). Po restartu prázdné.
 - Dynamické: `{{$uuid}}`, `{{$ulid}}`, `{{$timestamp}}`, `{{$timestampMs}}`, `{{$isoTimestamp}}`, `{{$randomInt}}` (0–1000), `{{$randomString}}` (16 znaků). Každý **výskyt** se vyhodnotí zvlášť, kromě `$timestamp*` (jedna hodnota na odeslání). Pojmenovaná proměnná má v rámci odeslání jednu hodnotu (`id: "{{$uuid}}"` → `{{id}}` všude stejné).
 - Rekurze: hodnota může obsahovat proměnné, max hloubka 10, cyklus → chyba `VAR_CYCLE`.
-- Neznámá proměnná: ponechat literál `{{x}}`, vrátit v seznamu `unresolved`; UI před odesláním zobrazí nemodální varování (odeslání neblokuje). Výjimka: nevyhodnocená proměnná v hostu → chyba `VAR_UNRESOLVED_HOST` (detail = názvy; UI napoví vybrat prostředí).
-- Platí v: URL, query, path, headers (název i hodnota), body raw/form/multipart text, cesty souborů, všechna auth pole.
-- **Sestavení URL při odeslání** (`internal/prepare`): vyhodnotit proměnné v `url` → nahradit `:param` (hodnota po vyhodnocení, `url.PathEscape`) → pokud chybí schéma, doplnit `http://` → připojit zapnuté query parametry kódované funkcí `encodeQuery` (percent-encode UTF-8, mezera jako `%20`, **existující platné `%XX` sekvence zachovat**) → `url.Parse` (chyba → `URL_INVALID`).
-- API (`internal/vars`): `New(scopes ...Scope)` (pořadí = priorita), `Resolve(s string) (string, []string /*unresolved*/, error /*VAR_CYCLE*/)`, `Unresolved()`, `Explain() []VarInfo{Name, Value, Resolved, Source, Ref, Secret}` pro UI – tajné hodnoty se nevrací a v `Resolved` se maskují `***`. Sestavení URL: `vars.BuildURL(url, path, query, resolver)`, `EncodeQuery`, `EncodeQueryComponent`; `internal/prepare` je jen volá.
+- Neznámá proměnná: ponechat literál `{{x}}`, vrátit v seznamu `unresolved`; UI zobrazí nemodální varování (odeslání neblokuje). Výjimka: nevyhodnocená proměnná v hostu → chyba `VAR_UNRESOLVED_HOST` (detail = názvy; UI napoví vybrat prostředí).
+- Platí v: URL, query, path, headers (název i hodnota), body raw/form/multipart (text, cesta, Content-Type části), binary cesta, všechna auth pole.
+- **Sestavení URL při odeslání:** vyhodnotit proměnné v `url` → pokud chybí schéma, doplnit `http://` → nahradit `:param` (hodnota po vyhodnocení, percent-encoding pro segment cesty) → připojit zapnuté query parametry kódované `encodeQuery` (percent-encode UTF-8, mezera jako `%20`, `& = + #` kódovat, **existující platné `%XX` sekvence zachovat**, prázdná hodnota → `name=`, `bare` → `name`) → `URL(string:)` + kontrola hostu (chyba → `URL_INVALID`).
+- API (`Vars`): `Resolver(scopes: [Scope])` (pořadí = priorita), `resolve(_ s: String) throws -> (String, unresolved: [String])`, `unresolved`, `explain() -> [VarInfo{name, value, resolved, source, ref, secret}]` pro UI – tajné hodnoty se v `resolved` maskují `***`. `buildURL(_ url:, path:, query:, resolver:) throws -> String`, `encodeQuery`, `encodeQueryComponent`.
 
-## 4. HTTP engine (`internal/httpclient`)
+## 4. HTTP engine (`HTTP/`)
 
-Vstup `PreparedRequest{Method, URL, Headers []KV (pořadí zachovat), Body io.Reader/bytes, BodySize}` + `Options{HTTPVersion, FollowRedirects, MaxRedirects, Timeout, VerifyTLS, Proxy, Jar, MaxBodyBytes}`. Výstup `Result` (viz 11.2).
+Vstup `PreparedRequest{method, url, headers [KV] (pořadí), body, baseDir, noAuto}` + `Options{followRedirects, maxRedirects, timeout, verifyTLS, userAgent, proxy, cookieJar, maxBodyBytes}`. Výstup `RunResult` (kap. 11).
 
-- **Nový `http.Transport` pro každé odeslání** (žádné sdílení spojení mezi běhy → kompletní a opakovatelné časování), po dokončení `CloseIdleConnections()`.
-- **HTTP verze** (`http.Protocols`, Go ≥ 1.24, nastavit `Transport.Protocols`):
-  - `auto`: HTTP1 + HTTP2 (ALPN rozhodne); pro `http://` jen HTTP/1.1,
-  - `http1`: jen `SetHTTP1(true)`,
-  - `http2`: jen `SetHTTP2(true)`; pro `http://` navíc `SetUnencryptedHTTP2(true)` (h2c prior knowledge).
-  - Skutečnou verzi brát z `resp.Proto`. Server bez h2 při `http2` → chyba `HTTP2_UNSUPPORTED`.
-- **TLS:** `TLSClientConfig{InsecureSkipVerify: !VerifyTLS}`; z `resp.TLS` verze, cipher, SNI, subjekt a expirace leaf certifikátu.
-- **Redirecty:** vlastní `CheckRedirect` – při `FollowRedirects=false` vrací `http.ErrUseLastResponse`; jinak limit `MaxRedirects` (překročení → `REDIRECT_LIMIT`). Každý skok zaznamenat `{status, method, url, location}`.
-- **Timing** (`net/http/httptrace`): hooky se volají pro každý skok → držet stav per skok; do `timing` jde **poslední skok** (dns, connect, tls, ttfb, download), `totalMs` = od začátku prvního do konce čtení těla posledního. `ttfbMs` = WroteRequest → GotFirstResponseByte. Z `DNSDone` uložit všechny vrácené adresy (`resolvedAddrs`).
-- **IP adresy:** `GotConnInfo.Conn.RemoteAddr()/LocalAddr()` posledního skoku.
-- **Skutečně odeslané hlavičky:** hook `WroteHeaderField(key, values)` posledního skoku → záložka „Odesláno“ a `sizes.reqHeaders` (u HTTP/2 obsahuje i pseudo-hlavičky `:method`, `:path`, `:authority` – zobrazit).
-- **Hlavičky requestu:** `Host` z uživatelských hlaviček → nastavit `req.Host` (ne do `Header`); `Content-Length` určuje délka těla (uživatelskou hodnotu ignorovat). Automatické hlavičky, pokud je uživatel nezadal: `User-Agent: MinorREST/<verze>`, `Accept: */*`, `Accept-Encoding: gzip, deflate, br, zstd`, `Content-Type` dle typu body. V UI jsou šedě a jdou vypnout (kromě `Host` a `Content-Length`); vypnutý `User-Agent` = `req.Header.Set("User-Agent", "")`.
-- **Komprese:** `DisableCompression: true`; tělo číst přes počítající reader (`bodyWire`) a dekódovat dle `Content-Encoding` (`compress/gzip`, `compress/flate` – zkusit zlib, pak raw; `github.com/andybalholm/brotli`; `github.com/klauspost/compress/zstd`). Neznámé kódování → ponechat bajty.
-- **Velikosti:** `reqHeaders` = request line + `Name: value\r\n` + `\r\n`; `reqBody`; `headers` = status line + hlavičky + `\r\n`; `bodyWire`; `bodyDecoded`. (HTTP/2: nekomprimovaná velikost – uvést v tooltipu.)
-- **Tělo odpovědi – limity:** do 10 MB v paměti; větší se streamuje do temp souboru (`os.CreateTemp`) až do `MaxBodyBytes` (výchozí 100 MB, pak oříznout a `truncated: true`). Engine drží posledních 20 výsledků v paměti (mapa `runId → Result`, LRU), temp soubory mazat při vyřazení a při ukončení.
-- **Kódování textu:** `charset` z `Content-Type`, jinak detekce (`golang.org/x/net/html/charset`); pro zobrazení převést do UTF-8 (důležité pro `windows-1250` / `iso-8859-2`). Uložené tělo zůstává v původních bajtech. Binární obsah (není text dle Content-Type ani validní po dekódování) → `isBinary: true`.
-- **Tělo requestu:** JSON/XML/text/HTML jako UTF-8, `Content-Type` s `; charset=utf-8` (jen pokud ho doplňujeme automaticky). Form-urlencoded: `url.Values`-like encoder se zachováním pořadí. Multipart: `mime/multipart`, název souboru s diakritikou → `filename="…"` v UTF-8 (jak to dělají prohlížeče), `Content-Type` části z přípony, pokud není zadán. Chybějící soubor → `FILE_NOT_FOUND`.
-- **Zrušení/timeout:** `context.WithTimeout` přes celé odeslání včetně čtení těla; `Cancel(runId)` volá cancel → chyba `CANCELED`.
-- **Mapování chyb:** DNS → `NET_DNS`, connection refused → `NET_REFUSED`, timeout/deadline → `NET_TIMEOUT`, x509 → `TLS_VERIFY`, ostatní TLS → `TLS_ERROR`, jinak `NET_ERROR` (+ původní text jako detail).
-- **Cookies:** `net/http/cookiejar` per projekt, perzistence do `cookies/<projectId>.json` po každém odeslání; vypnutelné (`cookieJar`).
-- **Proxy:** `none | system | manual`; `system` = `scutil --proxy` (HTTPEnable/HTTPProxy/HTTPPort, HTTPS…, ExceptionsList) čtené při odeslání; PAC nepodporujeme.
-- Testy (`httptest`): h1, h2 (`NewUnstartedServer` + `EnableHTTP2` + `StartTLS`), vynucení verze, řetěz redirectů on/off/limit, gzip + br velikosti, windows-1250 → UTF-8, timeout, cancel, odeslané hlavičky.
+- **Nová `URLSession` pro každé odeslání** (`URLSessionConfiguration.ephemeral`, vlastní delegát, `urlCache = nil`, `httpCookieStorage = nil`, `httpShouldSetCookies = false`, `requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData`) → žádné sdílení spojení mezi běhy, kompletní časování; po dokončení `finishTasksAndInvalidate()`.
+- **HTTP verze:** vyjedná URLSession (ALPN: HTTP/1.1 / HTTP/2 / případně HTTP/3). Skutečná verze z `URLSessionTaskTransactionMetrics.networkProtocolName` (`http/1.1`, `h2`, `h3`) → `proto` `HTTP/1.1` / `HTTP/2` / `HTTP/3`.
+- **TLS:** ověřování vypnuté (`verifyTLS = false`) → v `urlSession(_:didReceive:completionHandler:)` pro `NSURLAuthenticationMethodServerTrust` vrátit `URLCredential(trust:)`. Info z metrik (`negotiatedTLSProtocolVersion`, `negotiatedTLSCipherSuite`) + z `SecTrust` leaf certifikátu (subjekt, vydavatel, expirace přes `SecCertificateCopyValues`), SNI = host.
+- **Redirecty:** `urlSession(_:task:willPerformHTTPRedirection:newRequest:)` – při `followRedirects = false` vrátit `nil` (odpovědí je 3xx); jinak limit `maxRedirects` (překročení → zrušit s `REDIRECT_LIMIT`). Každý skok `{status, method, url, location}`. Nový request po 307/308 zachová metodu a tělo, po 301–303 URLSession přepne na GET (zaznamenat). Uživatelské hlavičky přenést do nového requestu (kromě `Authorization` při změně hostu); cookie jar doplní cookies pro nový host.
+- **Timing:** `urlSession(_:task:didFinishCollecting:)` → `transactionMetrics` (jedna transakce na skok); do `timing` jde **poslední skok**: `dnsMs` (domainLookupStart→End), `connectMs` (connectStart→End bez TLS), `tlsMs` (secureConnectionStart→End), `ttfbMs` (requestEnd→responseStart), `downloadMs` (responseStart→responseEnd), `totalMs` = `taskInterval` (+ čtení těla); `reused` = `isReusedConnection`.
+- **IP adresy:** `remoteAddress`/`remotePort`, `localAddress`/`localPort` posledního skoku. `resolvedAddrs` (všechny adresy z DNS) URLSession nedává → vypuštěno.
+- **Odeslané hlavičky:** `task.currentRequest?.allHTTPHeaderFields` + hlavičky, které doplní systém a lze je odvodit (`Host`, `Content-Length`, `Accept-Encoding`, `Accept-Language`, `Connection`). Pořadí odeslání ani HTTP/2 pseudo-hlavičky nejsou dostupné → záložka „Odesláno“ to uvádí poznámkou. Velikosti hlaviček z metrik (`countOfRequestHeaderBytesSent`).
+- **Hlavičky requestu:** `Host` a `Content-Length` nelze nastavit (URLSession je určuje sám; uživatelskou hodnotu ignorovat s varováním v UI). Automatické hlavičky, pokud je uživatel nezadal: `User-Agent: MinorREST/<verze>`, `Accept: */*`, `Content-Type` dle typu body; `Accept-Encoding` doplňuje URLSession (`gzip, deflate, br`). V UI šedě a jdou vypnout (`User-Agent`, `Accept`, `Content-Type`; vypnutí = řádek se stejným názvem a `enabled: false`); vypnutý `User-Agent` = prázdná hodnota (jinak by systém doplnil vlastní) – **ověřit v F4/1**.
+- **Komprese:** URLSession dekóduje `gzip`, `deflate`, `br` automaticky (vypnout nejde). Velikosti: `bodyWire` = `countOfResponseBodyBytesReceived`, `bodyDecoded` = `countOfResponseBodyBytesAfterDecoding`. Neznámé kódování (např. `zstd`) zůstane nedekódované.
+- **Velikosti:** `reqHeaders` = `countOfRequestHeaderBytesSent`, `reqBody` = `countOfRequestBodyBytesSent`, `headers` = `countOfResponseHeaderBytesReceived`, `bodyWire`, `bodyDecoded` (HTTP/2: komprimované HPACK hodnoty dle systému – uvést v tooltipu).
+- **Tělo odpovědi – limity:** `dataTask` s delegátem, `didReceive data` → do 10 MB v paměti, pak temp soubor (`FileManager.temporaryDirectory`), nad `maxBodyBytes` (výchozí 100 MB) zrušit čtení a `truncated: true` (odpověď platí). Engine drží posledních 20 výsledků (LRU, `runID → Result`), temp soubory maže při vyřazení a ukončení.
+- **Kódování textu:** `charset` z `Content-Type` (`CFStringConvertIANACharSetNameToEncoding`), JSON bez charsetu = UTF-8, jinak odhad (platné UTF-8 → utf-8, jinak `NSString.stringEncoding(for:…)`); pro zobrazení převést do UTF-8 (`windows-1250`, `iso-8859-2`). Uložené tělo zůstává v původních bajtech. Binární obsah (netextový Content-Type a vzorek není text) → `isBinary: true`.
+- **Tělo requestu:** JSON/XML/text/HTML jako UTF-8, `Content-Type` s `; charset=utf-8` (jen pokud ho doplňujeme). Form-urlencoded: vlastní encoder se zachováním pořadí (plné kódování). Multipart: vlastní builder (boundary, `filename="…"` v UTF-8, `Content-Type` části z přípony přes `UTType`), soubory streamem (`httpBodyStream` / `uploadTask(fromFile:)` pro binary). Uživatelský `multipart/…` Content-Type bez boundary → boundary doplnit. Relativní cesty vůči `baseDir`. Chybějící soubor → `FILE_NOT_FOUND`. GET/HEAD s tělem: ověřit chování URLSession v F4/1 (případně chyba `BODY_NOT_ALLOWED`).
+- **Zrušení/timeout:** celkový timeout přes vlastní `Task` s limitem (ne `timeoutIntervalForRequest`, ten je jen na nečinnost) → `task.cancel()` s příčinou; `cancel(runID)` → `CANCELED`, vypršení → `NET_TIMEOUT`. Při chybě vrátit i částečný výsledek (odeslané, timing, redirecty).
+- **Mapování chyb (`URLError.Code`):** `.cannotFindHost`, `.dnsLookupFailed` → `NET_DNS`; `.cannotConnectToHost` → `NET_REFUSED`; `.timedOut` → `NET_TIMEOUT`; `.serverCertificate*`, `.clientCertificate*` → `TLS_VERIFY`; `.secureConnectionFailed` → `TLS_ERROR`; `.cancelled` → `CANCELED` (dle příčiny); `.httpTooManyRedirects` → `REDIRECT_LIMIT`; `.badURL`, `.unsupportedURL` → `URL_INVALID`; jinak `NET_ERROR` (+ `localizedDescription` jako detail).
+- **Cookies:** vlastní jar per projekt (`[HTTPCookie]` + `HTTPCookie.cookies(withResponseHeaderFields:for:)` / `requestHeaderFields(with:)`), uplatnit i na skoky redirectu, perzistence `cookies/<projectId>.json` po každém odeslání; vypnutelné (`cookieJar`).
+- **Proxy:** `system` (výchozí – URLSession použije systémové nastavení **včetně PAC**), `none` (`connectionProxyDictionary = [:]`), `manual` (HTTP/HTTPS proxy host:port).
 
-## 5. Autorizace (`internal/auth`)
+### 4.1 Omezení URLSession oproti rev. 2 (schváleno volbou URLSession)
+Nelze: vynutit HTTP/1.1 vs HTTP/2 ani h2c (nastavení `httpVersion` se v UI nezobrazuje, z YAML se jen zachová), nastavit vlastní `Host`, vypnout automatickou dekompresi a `Accept-Encoding`, zjistit přesné pořadí odeslaných hlaviček a HTTP/2 pseudo-hlavičky, seznam všech DNS adres. Export cURL proto nevypisuje `--http1.1`/`--http2`.
 
-`Apply(ctx, pr *PreparedRequest, cfg model.Auth, deps) error` – volá se v `prepare` po vyhodnocení proměnných v polích auth.
-- **inherit:** od requestu přes složky nahoru k projektu, první ne-`inherit` vyhrává; projekt s `inherit` = `none`. `prepare` vrací i `AuthSource` (odkud se zdědilo) pro UI.
+- Testy: lokální testovací HTTP/1.1 server v testech (`Network.framework` `NWListener`, malý parser requestu) – metody, hlavičky, těla, redirect on/off/limit, gzip velikosti, windows-1250 → UTF-8, timeout, cancel, chyby (DNS na `.invalid`, refused na volném portu). HTTP/2 a TLS ověřit ručně proti veřejnému HTTPS serveru (QA checklist).
+
+## 5. Autorizace (`Auth/`)
+
+`apply(to: inout PreparedRequest, auth: Auth, deps) async throws` – volá se v `prepare` po vyhodnocení proměnných v polích auth.
+- **inherit:** od requestu přes složky nahoru k projektu, první ne-`inherit` vyhrává; projekt s `inherit` = `none`. `prepare` vrací i `authSource` (odkud se zdědilo) pro UI.
 - **basic:** `base64(utf8(user + ":" + pass))`. **bearer:** `Authorization: <prefix> <token>`. **apikey:** hlavička nebo query parametr.
-- Uživatelem ručně zadaná hlavička `Authorization` má přednost před auth (v UI varování).
-- **oauth2** (`golang.org/x/oauth2`, `clientcredentials`):
-  - HTTP klient pro token endpoint předat přes `context.WithValue(ctx, oauth2.HTTPClient, client)` – stejné TLS/proxy nastavení jako request.
-  - `clientAuth` → `oauth2.AuthStyleInHeader` / `AuthStyleInParams`.
-  - authorization_code: listener na `127.0.0.1:<redirectPort>`, `state` (náhodných 32 B) + PKCE S256 (`oauth2.GenerateVerifier`, `S256ChallengeOption`), otevřít prohlížeč, čekat na `/callback` max 5 min (zrušitelné z UI), odpovědět HTML stránkou „Hotovo, okno můžete zavřít“, vyměnit code za token.
-  - Cache: klíč `sha256(tokenUrl|clientId|scope|grantType|username)[:16]`; do Keychain zvlášť `…/oauth/<klíč>/access` a `…/refresh`, expirace a typ do paměti + `workspace.yaml`. Token větší než limit Keychain → jen v paměti (bez chyby).
+- Uživatelem ručně zadaná hlavička `Authorization` má přednost před auth (v UI varování). (`Authorization` je v URLSession „reserved“ hlavička, ale nastavená na `URLRequest` se odešle – ověřit v F7/1.)
+- **oauth2** (vlastní implementace, token endpoint přes stejný engine – stejné TLS/proxy nastavení jako request):
+  - `clientAuth`: `header` (Basic `client_id:client_secret`, URL-encoded dle RFC 6749) / `body`.
+  - authorization_code: `NWListener` na `127.0.0.1:<redirectPort>`, `state` (náhodných 32 B) + PKCE S256 (`CryptoKit.SHA256`), otevřít prohlížeč (`NSWorkspace.open`), čekat na `/callback` max 5 min (zrušitelné z UI), odpovědět HTML stránkou „Hotovo, okno můžete zavřít“, vyměnit code za token.
+  - Cache: klíč `sha256(tokenUrl|clientId|scope|grantType|username)[:16]`; do Keychain zvlášť `…/oauth/<klíč>/access` a `…/refresh`, expirace a typ do paměti + `workspace.yaml`. Token větší než limit Keychain → jen v paměti.
   - Před odesláním: platný token použít; expirovaný (rezerva 30 s) → refresh, při neúspěchu u client_credentials/password získat nový automaticky, u authorization_code vrátit `OAUTH_LOGIN_REQUIRED` (UI nabídne „Přihlásit“).
 - Digest = backlog.
 
-## 6. Export – kopírování jedním klikem (`internal/export`)
+## 6. Export – kopírování jedním klikem (`Export/`)
 
-Ikona ⧉ vedle „Odeslat“: klik = zkopíruje v naposledy zvoleném formátu + toast; šipka = výběr (jen cURL, potvrzeno uživatelem):
+Ikona ⧉ vedle „Odeslat“: klik = zkopíruje v naposledy zvoleném formátu + toast; šipka = výběr:
 1. **cURL – víceřádkový** (výchozí; ` \` + odsazení 2 mezery, jeden flag na řádek)
 2. **cURL – jeden řádek**
 
-Vstup je stejný `PreparedRequest` jako pro odeslání (tj. vyhodnocené proměnné, auth, path params, query), takže export = přesně to, co by se odeslalo. OAuth2: použít token z cache, bez tokenu → chyba `OAUTH_LOGIN_REQUIRED`.
+Vstup je stejný `PreparedRequest` jako pro odeslání (vyhodnocené proměnné, auth, path params, query) → export = přesně to, co by se odeslalo. OAuth2: token z cache, bez tokenu → `OAUTH_LOGIN_REQUIRED`.
 
 Pravidla cURL:
 - Quoting: vše v single quotes; `'` uvnitř → `'\''`. Diakritika zůstává UTF-8. Žádné `$'…'`.
-- Metoda: GET bez těla → nic; **HEAD → `--head`** (ne `-X HEAD`, to čeká na tělo); jinak `-X METHOD`.
-- `-H 'Name: value'` pro uživatelské/zděděné/auth hlavičky a automatický `Content-Type`; nevypisovat automatické `User-Agent`, `Accept`, `Accept-Encoding`, `Host`, `Content-Length`. Pokud je automatický `Accept-Encoding` zapnutý → `--compressed`.
-- Tělo: raw → `--data-raw '…'` (newlines ponechat uvnitř quotes); form → `--data-urlencode 'name=value'` za každé pole; multipart → `-F 'name=value'` / `-F 'name=@/abs/cesta;type=…'`; binary → `--data-binary '@/abs/cesta'`.
-- Volby: `--http1.1` / `--http2` (https) / `--http2-prior-knowledge` (http) – jen pokud není `auto`; `-L --max-redirs N` pokud follow; `-k` pokud verifyTls=false; `--max-time <s>`.
+- Metoda: GET bez těla → nic; **HEAD → `--head`**; jinak `-X METHOD`.
+- `-H 'Name: value'` pro uživatelské/zděděné/auth hlavičky a automatický `Content-Type`; nevypisovat automatické `User-Agent`, `Accept`, `Host`, `Content-Length`. Vždy `--compressed` (URLSession dekomprimuje vždy).
+- Tělo: raw → `--data-raw '…'`; form → `--data-urlencode 'name=value'` za každé pole; multipart → `-F 'name=value'` / `-F 'name=@/abs/cesta;type=…'`; binary → `--data-binary '@/abs/cesta'`.
+- Volby: `-L --max-redirs N` pokud follow; `-k` pokud verifyTls=false; `--max-time <s>`.
 - Přepínač „Maskovat tajné hodnoty“ (výchozí vypnuto) – pravidla 2.8.
 
-Testy: tabulkové („golden“) – diakritika (`Příliš žluťoučký kůň úpěl ďábelské ódy`), apostrof, `$HOME`, `!`, zpětné lomítko, víceřádkové JSON, multipart se souborem, HEAD, všechny volby.
+Testy: parametrizované („golden“) – diakritika (`Příliš žluťoučký kůň úpěl ďábelské ódy`), apostrof, `$HOME`, `!`, zpětné lomítko, víceřádkový JSON, multipart se souborem, HEAD, všechny volby.
 
-**Import cURL** (`internal/importer/curl`): tokenizace shellu (`github.com/google/shlex`; předtím odstranit `\`+newline), flagy `-X/--request, -H, -d/--data/--data-raw/--data-binary/--data-urlencode, -F/--form, -u, --url, -L, -k, -I/--head, --http1.1, --http2, --compressed, -b, -A`; neznámé flagy ignorovat a vrátit v `warnings`. `-d` bez `-X` → POST; JSON tělo → `body.type: json`; `-u` → basic auth; query z URL → `params.query`.
+**Import cURL** (`Import/Curl`): vlastní shell tokenizér (single/double quotes, `\` escape, předtím odstranit `\`+newline), flagy `-X/--request, -H, -d/--data/--data-raw/--data-binary/--data-urlencode, -F/--form, -u, --url, -L, -k, -I/--head, --compressed, -b, -A` (`--http1.1/--http2` přijmout a ignorovat); neznámé flagy ignorovat a vrátit ve `warnings`. `-d` bez `-X` → POST; JSON tělo → `body.type: json`; `-u` → basic auth; query z URL → `params.query`.
 
-## 7. Import OpenAPI / Swagger (`internal/importer/openapi`)
+## 7. Import OpenAPI / Swagger (`Import/OpenAPI`)
 
-- `github.com/pb33f/libopenapi`: `NewDocument(bytes)` → dle verze `BuildV3Model()` (3.0/3.1) nebo `BuildV2Model()` (Swagger 2.0). JSON i YAML. Zdroj: soubor nebo URL.
-- **Dva kroky:** (1) oba modely převést na vlastní neutrální strukturu `Spec{Title, Description, Servers []string, Security…, Operations []Operation{Method, Path, Tag, Summary, Description, Params, Body}}`; (2) jeden generátor `Spec` → projekt/složky/requesty. Testuje se hlavně krok 2.
+- Vlastní `Decodable` model jen potřebné podmnožiny (paths, operations, parameters, requestBody, components/definitions, securitySchemes, servers / host+basePath+schemes, tags) pro **Swagger 2.0 i OpenAPI 3.0/3.1**, JSON i YAML (Yams). Vlastní resolver `$ref` (lokální `#/…`) s detekcí cyklu. Zdroj: soubor nebo URL. (Knihovna OpenAPIKit neumí 2.0 → nepoužívat.)
+- **Dva kroky:** (1) obě verze převést na neutrální `Spec{title, description, servers, security…, operations [Operation{method, path, tag, summary, description, params, body}]}`; (2) jeden generátor `Spec` → projekt/složky/requesty. Testuje se hlavně krok 2.
 - Mapování:
   - `info.title` → název projektu; alternativně import do existujícího projektu jako nová složka,
   - první tag operace → složka (název tagu), bez tagu → „Ostatní“ / „Other“; alternativa seskupení dle prvního segmentu cesty,
   - název requestu: `summary` → `operationId` → `METHOD /path`; `description` → `docs`; `seq` dle pořadí ve specifikaci,
-  - servery (3.x `servers[].url` s dosazenými default proměnnými / 2.0 `schemes://host/basePath`) → proměnná `baseUrl`; první server = prostředí „Default“, další servery = další prostředí; `url` requestu = `{{baseUrl}}/path`,
+  - servery (3.x `servers[].url` s dosazenými default proměnnými / 2.0 `schemes://host/basePath`) → proměnná `baseUrl`; první server = prostředí „Default“, další = další prostředí; `url` requestu = `{{baseUrl}}/path`,
   - `{id}` → `:id` + `params.path` (hodnota z `example`/`default`),
   - query a header parametry → `params.query` / `headers` (required → zapnuté, ostatní vypnuté; hodnota z example/default/enum[0]),
-  - tělo: preferovat `application/json` → `example` → první z `examples` → vygenerovat ze schématu (object rekurzivně, array s 1 prvkem, enum[0], default, dle `format`: date-time/date/uuid/email/uri → ukázka, string → `"string"`, number → `0`, boolean → `false`; `allOf` sloučit, `oneOf/anyOf` první; **max hloubka 6 a detekce cyklických `$ref`**); form typy → `form` / `multipart` pole,
+  - tělo: preferovat `application/json` → `example` → první z `examples` → vygenerovat ze schématu (object rekurzivně, array s 1 prvkem, enum[0], default, dle `format`: date-time/date/uuid/email/uri → ukázka, string → `"string"`, number → `0`, boolean → `false`; `allOf` sloučit, `oneOf/anyOf` první; **max hloubka 6 a detekce cyklických `$ref`**); form typy → `form` / `multipart`,
   - `securitySchemes` + globální `security` → auth projektu: http basic → basic `{{username}}/{{password}}`; http bearer → bearer `{{token}}`; apiKey → apikey `{{apiKey}}`; oauth2 → oauth2 (první flow, URL, scopes); odpovídající prázdné proměnné založit v projektu. Requesty mají `inherit`; operace se `security: []` → `none`.
-- Průvodce (modál): zdroj (soubor / URL / drop) → náhled (název, počty složek a requestů, varování) → cíl (nový projekt / existující) a seskupení → Import.
+- Průvodce (sheet): zdroj (soubor / URL / drop) → náhled (název, počty složek a requestů, varování) → cíl (nový projekt / existující) a seskupení → Import.
 - Testy: fixtures Petstore 2.0, Petstore 3.0, malá 3.1 s `$ref` cyklem.
 
-Postman Collection v2.1 (`internal/importer/postman`, volitelné v F10): item/folder → strom, `request` (method, url.raw, header, body modes raw/urlencoded/formdata), `auth` (basic/bearer/apikey/oauth2), `variable` → proměnné projektu; skripty ignorovat s varováním.
+Postman Collection v2.1 (`Import/Postman`, volitelné v F10): item/folder → strom, `request` (method, url.raw, header, body modes raw/urlencoded/formdata), `auth` (basic/bearer/apikey/oauth2), `variable` → proměnné projektu; skripty ignorovat s varováním.
 
 ## 8. UI / UX
 
 ### 8.1 Rozvržení
 ```
 ┌───────────────────────────────────────────────────────────────────────────────┐
-│ ● ● ●  [Projekt ▾]                         [Prostředí: Vývoj ▾] [👁] [⚙]      │
+│ ● ● ●  [Projekt ▾]                         [Prostředí: Vývoj ▾] [👁] [⚙]      │  ← unified toolbar
 ├──────────────┬────────────────────────────────────────────────────────────────┤
 │ Projekt|Historie│ [GET Seznam ×][POST Login ●][+]                              │
 │ 🔍 Hledat…   │ [GET ▾] [{{baseUrl}}/users?page=2            ] [⧉▾] [Odeslat ▸] │
@@ -348,73 +369,66 @@ Postman Collection v2.1 (`internal/importer/postman`, volitelné v F10): item/fo
 │              │ [Pretty|Raw|Náhled]  🔍  JSONPath filtr                          │
 └──────────────┴────────────────────────────────────────────────────────────────┘
 ```
-- Sidebar: měnitelná šířka, skrytelný (Cmd+B). Split request/odpověď: dole (výchozí) nebo vpravo. Vše ukládat do workspace.
-- Barvy metod: GET zelená, POST oranžová, PUT modrá, PATCH fialová, DELETE červená, HEAD šedá, OPTIONS tyrkysová.
-- **Status badge:** 1xx šedá, 2xx zelená, 3xx modrá, 4xx oranžová, 5xx červená; text `201 Created`; tooltip = lokalizovaný popis kódu (i18n tabulka `status.<kód>` pro všechny registrované kódy IANA). Chyba sítě = červený panel s lokalizovanou chybou + detail.
-- Tooltip času: vodopád DNS / TCP / TLS / TTFB / Download. Tooltip velikosti: odpověď hlavičky / tělo (přenesené → dekomprimované), request hlavičky / tělo.
-- Čísla formátovat přes `Intl.NumberFormat` dle jazyka UI (cs: `6,4 kB`, `1 234 ms`); jednotky B / kB / MB (1 kB = 1000 B), čas ms do 1000, pak s.
+- `NavigationSplitView` (sidebar skrytelný Cmd+B, šířka se pamatuje) + `VSplitView`/`HSplitView` request/odpověď (dole výchozí, nebo vpravo). Rozměry do workspace.
+- Barvy metod: GET zelená, POST oranžová, PUT modrá, PATCH fialová, DELETE červená, HEAD šedá, OPTIONS tyrkysová (asset barvy se světlou/tmavou variantou, hodnoty jako rev. 2).
+- **Status badge:** 1xx šedá, 2xx zelená, 3xx modrá, 4xx oranžová, 5xx červená; text `201 Created`; tooltip = lokalizovaný popis kódu (`status.<kód>`). Chyba sítě = červený panel s lokalizovanou chybou + detail.
+- Popover času: vodopád DNS / TCP / TLS / TTFB / Download. Popover velikosti: odpověď hlavičky / tělo (přenesené → dekomprimované), request hlavičky / tělo.
+- Čísla přes `FormatStyle` dle jazyka UI (cs: `6,4 kB`, `1 234 ms`); jednotky B / kB / MB (1 kB = 1000 B), čas ms do 1000, pak s.
 
 ### 8.2 Sidebar
 - Záložky **Projekt** (strom) a **Historie** (posledních N odeslání: čas, metoda, URL, status; klik otevře detail odpovědi jen pro čtení + „Otevřít request“).
-- Přepínač projektů: seznam otevřených + „Nový projekt…“, „Otevřít adresář…“, „Importovat OpenAPI…“, „Nastavení projektu“, „Zavřít projekt“.
-- Strom: složky rozbalitelné (stav ve workspace), requesty s badge metody. Dvojklik/Enter = otevřít v tabu.
-- Kontextové menu: Nový request, Nová složka, Přejmenovat, Duplikovat, Kopírovat jako cURL, Nastavení složky, Zobrazit ve Finderu, Smazat (potvrzení → Koš).
+- Přepínač projektů (toolbar menu): seznam otevřených + „Nový projekt…“, „Otevřít adresář…“ (adresář bez projektu → nabídnout založení, název = název adresáře), „Importovat OpenAPI…“, „Nastavení projektu“, „Zavřít projekt“.
+- Strom (`NSOutlineView`): složky rozbalitelné (stav ve workspace), requesty s badge metody. Dvojklik/Enter = otevřít v tabu, F2 = přejmenovat, Cmd+Backspace = smazat.
+- Kontextové menu (nativní `NSMenu`): Nový request, Nová složka, Přejmenovat, Duplikovat, Kopírovat jako cURL, Nastavení složky, Zobrazit ve Finderu, Smazat (potvrzení → Koš). Na prázdné ploše: Nový request, Nová složka.
 - **Nový request** se hned vytvoří na disku s názvem „Nový request“ (GET, prázdná URL), otevře se v tabu a název je v inline editaci. Žádné „koncepty jen v paměti“.
-- Drag & drop (HTML5 DnD; kdyby ve WKWebView zlobil, pointer events): přesun mezi složkami + pořadí, indikátor místa vložení; složku nelze vložit do sebe sama.
-- Hledání: filtr podle názvu, URL a metody (podřetězec bez ohledu na diakritiku a velikost písmen); zobrazí shody včetně nadřazených složek.
-- **Watcher** (`internal/watch`: FSEvents přes `github.com/fsnotify/fsevents` – jeden rekurzivní stream na projekt, bez limitu deskriptorů jako u kqueue/fsnotify; ignorovat skryté položky `.git`, `.responses`, `.tmp-*`; latence 300 ms): po změně emit `tree:changed`. Vlastní zápisy potlačí příznak `IgnoreSelf` (změny vlastního procesu se nehlásí). Při načtení stromu dostanou requesty se shodným ID (kopie z Finderu) nové ID; původní zůstane nejdříve vytvořenému souboru. Otevřený tab: bez lokálních změn → tiše znovu načíst; s lokálními změnami → banner „Změněno na disku: Načíst z disku / Ponechat moje“.
+- Drag & drop (`NSOutlineView` pasteboard): přesun mezi složkami + pořadí, indikátor místa vložení; složku nelze vložit do sebe sama; podržení nad sbalenou složkou ji rozbalí.
+- Hledání: filtr podle názvu, URL a metody (bez ohledu na diakritiku a velikost písmen – `folding(options: [.diacriticInsensitive, .caseInsensitive])`); zobrazí shody včetně nadřazených složek, u shody složky celý podstrom. Během filtru DnD vypnutý.
+- **Watcher** (`Watch/`: `FSEventStreamCreate` s `kFSEventStreamCreateFlagFileEvents | IgnoreSelf | NoDefer`, latence 0,3 s, jeden stream na projekt; ignorovat `.git`, `.responses`, `.tmp-*`): po změně znovu načíst strom; změněné `*.req.yaml` → otevřený tab bez lokálních změn tiše znovu načíst, s lokálními změnami banner „Změněno na disku: Načíst z disku / Ponechat moje“. Změna `minorrest.yaml`, `_folder.yaml` a prostředí → znovu načíst konfiguraci.
 
 ### 8.3 Editor requestu
-- **`VarInput`** – jednořádkové pole se zvýrazněním proměnných, použité všude (URL bar, buňky KvEditoru, auth pole): `<input>` s průhledným textem nad zrcadlovým `<div>` s obarvenými tokeny (stejný font a padding, synchronizovaný scroll). Zvýraznění: známá proměnná zeleně, neznámá červeně, dynamická `$` modře. Hover nad tokenem → popover s hodnotou a zdrojem (secret jako `••••`). Po napsání `{{` našeptávač. **Ne** CodeMirror na jednořádková pole.
+- **`VarField`** – jednořádkové pole se zvýrazněním proměnných, použité všude (URL bar, buňky KvEditoru, auth pole): známá proměnná zeleně, neznámá červeně, dynamická `$` modře, `\{{` jako text. Hover nad tokenem → popover s hodnotou a zdrojem (secret jako `••••`). Po napsání `{{` našeptávač.
 - URL bar: Enter = odeslat; vložení textu začínajícího `curl ` → nabídka „Importovat cURL do tohoto requestu“.
-- **`KvEditor`** (query, path, headers, form, multipart, vars, extract): checkbox, klíč, hodnota (`VarInput`), popis, smazat; psaní do posledního prázdného řádku vytvoří nový; přetažení pořadí; **Bulk edit** (textarea, řádek `klíč: hodnota`, prefix `//` = vypnutý; popis se v bulk režimu zachová podle klíče). U headers našeptávač názvů a běžných hodnot; nad tabulkou sbalitelný blok „Automatické a zděděné hlavičky“ (šedě, se zdrojem, s možností vypnout – vypnutí = řádek se stejným názvem a `enabled: false` v requestu).
-- Body: přepínač typu. Raw = CodeMirror (jazyk dle typu), tlačítko „Formátovat“ a validace jen jako varování. **Formátování JSON dělá backend** (`FormatJSON`): `json.Indent` (2 mezery) – nikdy `JSON.parse/stringify` (ztrácí přesnost velkých čísel a mění formát). Kvůli proměnným mimo řetězce (`{"id": {{id}}}`) před formátováním nahradit `{{…}}` zástupnými tokeny a po něm vrátit.
-- Form/multipart = KvEditor (multipart: přepínač text/soubor, výběr souboru dialogem nebo dropem). Binary = výběr souboru.
-- Auth: výběr typu + formulář; u `inherit` řádek „Zděděno z: Složka X → Basic“. OAuth2 panel: stav tokenu, expirace, tlačítka Získat token / Obnovit / Smazat.
-- Nastavení: HTTP verze, redirecty, max redirectů, timeout, TLS – každé s volbou „Zdědit (aktuálně: …)“.
-- Dokumentace: CodeMirror markdown, bez náhledu (backlog).
-- Taby: tečka = neuložené změny; Cmd+S uloží; zavření neuloženého → dialog Uložit / Zahodit / Zrušit. **Odeslat funguje i bez uložení** (odesílá se stav tabu). Otevřené taby se obnoví po restartu.
+- **`KvEditor`** (query, path, headers, form, multipart, vars, extract): checkbox, klíč, hodnota (`VarField`), popis, smazat; psaní do posledního prázdného („duch“) řádku vytvoří nový bez ztráty fokusu; přetažení pořadí; **Bulk edit** (textová plocha, řádek `klíč: hodnota`, prefix `//` = vypnutý; popis se zachová podle klíče). U headers našeptávač názvů a běžných hodnot; nad tabulkou sbalitelný blok „Automatické a zděděné hlavičky“ (šedě, se zdrojem, s možností vypnout).
+- Body: přepínač typu (data ostatních typů se zachovají). Raw = `CodeTextView` (jazyk dle typu), „Formátovat“ (jádro `JSONFormatter`) a validace jen jako varování. **Formátování JSON dělá vlastní tokenizér v jádře** (odsazení 2 mezery, zachová přesný text čísel a pořadí klíčů) – nikdy `JSONSerialization`. Proměnné mimo řetězce (`{"id": {{id}}}`) tokenizér bere jako hodnotu. Chyba → `JSON_INVALID: <řádek>: …`.
+- Form/multipart = KvEditor (multipart: text/soubor, výběr souboru `NSOpenPanel` nebo drop, sloupec Content-Type). Binary = výběr souboru.
+- Auth: výběr typu + formulář; u `inherit` řádek „Zděděno z: Složka X → Basic“. OAuth2 panel: stav tokenu, expirace, Získat token / Obnovit / Smazat.
+- Nastavení: redirecty, max redirectů, timeout, TLS – každé „Zdědit (aktuálně: …)“ / vlastní hodnota.
+- Dokumentace: `CodeTextView` markdown, bez náhledu (backlog).
+- Taby (vlastní lišta): tečka = neuložené změny; Cmd+S uloží; zavření neuloženého → Uložit / Zahodit / Zrušit. **Odeslat funguje i bez uložení** (odesílá se stav tabu). Otevřené taby se obnoví po restartu, sledují přejmenování/přesun (podle ID). Uložení nepřepíše ID, název a `seq` (patří stromu).
 
 ### 8.4 Odpověď
-- **Tělo:** Pretty (JSON přes backend `json.Indent`; XML/HTML odsazení ve frontendu; CodeMirror read-only, obarvení, folding, Cmd+F), Raw (text v UTF-8 bez úprav), Náhled (HTML: `<iframe sandbox="" srcdoc>`; obrázky: `<img>` z data URL do 10 MB). Výchozí pohled dle Content-Type.
+- **Tělo:** Pretty (JSON přes `JSONFormatter`, XML/HTML odsazení v jádře; `CodeTextView` read-only, obarvení, Cmd+F), Raw (text v UTF-8 bez úprav), Náhled (HTML: `WKWebView` s vypnutým JavaScriptem a bez síťových požadavků; obrázky: `NSImage` do 10 MB). Výchozí pohled dle Content-Type.
 - Binární nebo oříznuté tělo → informační panel (typ, velikost) + „Uložit do souboru“.
-- Tělo > 5 MB: Pretty se nespouští automaticky (tlačítko „Přesto formátovat“). Tělo > 10 MB: zobrazit první 1 MB + „Uložit do souboru“.
-- JSONPath filtr (pole nad tělem, `github.com/ohler55/ojg/jp` v backendu, výsledek jako formátovaný JSON; chybný výraz → červený rámeček).
-- Hlavičky (tabulka, kopírování hodnoty), Cookies (z `Set-Cookie`), Časování (vodopád, IP vzdálená/lokální, DNS adresy, protokol, TLS detail), Odesláno (skutečné hlavičky + tělo requestu), Redirecty (jen pokud nějaké byly), Verze.
-- Akce: **Uložit odpověď** (Cmd+Shift+S, volitelný popisek), Kopírovat tělo, Uložit tělo do souboru.
+- Tělo > 5 MB: Pretty se nespouští automaticky („Přesto formátovat“). Tělo > 10 MB: zobrazit první 1 MB + „Uložit do souboru“.
+- JSONPath filtr (vlastní implementace podmnožiny: `$`, `.key`, `['key']`, `[n]`, `[*]`, `..key`, `[start:end]`, filtry `?(@.x == …)` – rozsah upřesnit v F5/3; výsledek jako formátovaný JSON; chybný výraz → červený rámeček).
+- Hlavičky (tabulka, kopírování hodnoty), Cookies (z `Set-Cookie`), Časování (vodopád, IP vzdálená/lokální, protokol, TLS detail), Odesláno (hlavičky + tělo requestu, poznámka o omezení 4.1), Redirecty (jen pokud byly), Verze.
+- Akce: **Uložit odpověď** (Cmd+Shift+S, volitelný popisek), Kopírovat tělo, Uložit tělo do souboru (`NSSavePanel`).
 - Stavy panelu: prázdný (nápověda Cmd+Enter), odesílání (spinner, uplynulý čas, Zrušit), odpověď, chyba.
 
 ### 8.5 Prostředí a proměnné
-- Dropdown prostředí v titlebaru („Žádné“ + seznam + „Spravovat…“), Cmd+E.
+- Výběr prostředí v toolbaru („Žádné“ + seznam + „Spravovat…“), Cmd+E.
 - „Oko“: popover se všemi platnými proměnnými pro aktivní tab (název, hodnota, zdroj), runtime proměnné lze smazat.
-- Modál „Prostředí“: seznam vlevo (přidat, duplikovat, přejmenovat, smazat), KvEditor vpravo se sloupcem 🔒 (secret; hodnota `••••` + tlačítko zobrazit). Záložky modálu: Prostředí | Proměnné projektu | Globální.
-- Proměnné, hlavičky a auth složky: modál „Nastavení složky“; totéž pro projekt („Nastavení projektu“ + HTTP nastavení + `ignoreResponsesInGit`).
+- Okno/sheet „Prostředí“: seznam vlevo (přidat, duplikovat, přejmenovat, smazat), KvEditor vpravo se sloupcem 🔒 (secret; hodnota `••••` + zobrazit). Záložky: Prostředí | Proměnné projektu | Globální.
+- Proměnné, hlavičky a auth složky: sheet „Nastavení složky“; totéž pro projekt („Nastavení projektu“ + HTTP nastavení + `ignoreResponsesInGit`).
 
 ### 8.6 Fonty a vzhled
-```css
-:root { --font-ui: Menlo, monospace; --font-code: Menlo, monospace; --font-size: 13px; }
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx) {
-  :root { --font-ui: -apple-system, BlinkMacSystemFont, sans-serif;
-          --font-code: ui-monospace, "SF Mono", Menlo, monospace; }
-}
-```
-- Media query se přepočítá i při přesunu okna mezi monitory. Nastavení může přepsat (inline styl na `:root`): Automaticky / vlastní rodina + velikost zvlášť pro UI a kód.
-- Téma Systém / Světlé / Tmavé: CSS proměnné v `tokens.css`, `data-theme` na `<html>`; CodeMirror téma postavené na stejných proměnných.
-- Bez UI knihovny; vlastní malé komponenty (Button, Modal, Dropdown, Tabs, Toast, Popover, ContextMenu).
+- Ne-retina (`backingScaleFactor < 2`): Menlo 13 pro UI i kód. Retina: systémový font (SF Pro) pro UI, `.monospaced` (SF Mono) pro kód. Přepočet při přesunu okna mezi monitory. Nastavení může přepsat: Automaticky / vlastní rodina + velikost zvlášť pro UI a kód.
+- Téma Systém / Světlé / Tmavé (`preferredColorScheme` + `NSApp.appearance`); barvy jako asset/semantické barvy, `CodeTextView` téma ze stejných barev.
+- Nativní ovládací prvky SwiftUI/AppKit; vlastní jen MethodBadge, StatusBadge, TabBar, Toast, Banner.
 
 ### 8.7 Zkratky
-V menu (akcelerátor → event `menu:*`): Cmd+N nový request, Cmd+Shift+N nová složka, Cmd+S uložit, Cmd+Shift+S uložit odpověď, Cmd+W zavřít tab, Cmd+K paleta, Cmd+E prostředí, Cmd+B sidebar, Cmd+, nastavení, Cmd+Shift+C kopírovat jako cURL, Cmd+L fokus URL, Cmd+D duplikovat.
-Jen ve frontendu: Cmd+Enter odeslat, Cmd+. zrušit, Escape zavřít modál/popover, F2 přejmenovat ve stromu.
+V menu (`Commands`): Cmd+N nový request, Cmd+Shift+N nová složka, Cmd+S uložit, Cmd+Shift+S uložit odpověď, Cmd+W zavřít tab, Cmd+K paleta, Cmd+E prostředí, Cmd+B sidebar, Cmd+, nastavení (scéna `Settings`), Cmd+Shift+C kopírovat jako cURL, Cmd+L fokus URL, Cmd+D duplikovat, Cmd+Enter odeslat, Cmd+. zrušit.
+Jen lokálně: Escape zavřít popover/sheet, F2 přejmenovat ve stromu, Enter v URL baru odeslat.
 
 ### 8.8 i18n
-- `cs.json`, `en.json` (ploché klíče s tečkami), `t(key, params)`, jazyk `auto | cs | en` (`auto` = `navigator.language`). Žádný natvrdo psaný text v komponentách.
-- Nativní menu: mapa překladů v Go, při změně jazyka menu přestavět (`runtime.MenuSetApplicationMenu` + `MenuUpdateApplicationMenu`).
+- `Localizable.xcstrings` (cs, en), ploché klíče s tečkami, `t(key, args…)`, jazyk `auto | cs | en` (`auto` = preferovaný jazyk systému). Žádný natvrdo psaný text ve views. Kontrola úplnosti: skript porovná klíče obou jazyků (F11).
+- Menu i `Info.plist` texty lokalizované stejným mechanismem; přepnutí jazyka za běhu překreslí UI i menu.
 
-## 9. Nastavení aplikace (`settings.yaml`, modál Cmd+,)
+## 9. Nastavení aplikace (`settings.yaml`, okno Cmd+,)
 - **Obecné:** jazyk, téma, výchozí adresář projektů, obnovit projekty a taby při startu.
 - **Vzhled:** font UI a kódu (Automaticky dle displeje / vlastní), velikost, poloha panelu odpovědi.
-- **Requesty (výchozí):** HTTP verze, redirecty + max, timeout, ověřování TLS, User-Agent, cookie jar.
-- **Proxy:** žádná / systémová / ruční URL.
+- **Requesty (výchozí):** redirecty + max, timeout, ověřování TLS, User-Agent, cookie jar.
+- **Proxy:** systémová (výchozí) / žádná / ruční.
 - **Odpovědi:** max velikost těla, délka historie, práh automatického Pretty.
 - **Kopírování:** výchozí formát, maskovat tajné hodnoty.
 - **Aktualizace:** automaticky kontrolovat a stahovat (výchozí **zapnuto**), „Zkontrolovat nyní“, aktuální verze.
@@ -422,161 +436,142 @@ Změny se projeví ihned bez restartu. Priorita HTTP nastavení: request → pro
 
 ## 10. Automatické aktualizace a release
 
-Repozitář a releasy jsou veřejné (potvrzeno uživatelem) → updater nepotřebuje token.
+Repozitář a releasy jsou veřejné → updater nepotřebuje token.
 
-- Verze: `-ldflags "-X main.version=v1.2.3"`, vývojový build `dev` (kontrola aktualizací vypnutá). Porovnání `golang.org/x/mod/semver`; nikdy neinstalovat nižší ani stejnou verzi; prerelease přeskočit.
-- Kontrola: 10 s po startu a pak každých 24 h → `GET https://api.github.com/repos/novami/minor-rest/releases/latest` (`User-Agent: MinorREST/<verze>`, `If-None-Match` s uloženým ETag). Chyby sítě tiše logovat.
-- Assety: `MinorREST-<verze>-darwin-arm64.zip`, `….zip.sig` (base64 ed25519 podpis celého zipu), `MinorREST-<verze>-darwin-arm64.dmg` (ruční instalace).
-- Ověření: veřejný klíč v `internal/updater/pubkey.go`; privátní jen v GitHub Secret `UPDATE_SIGNING_KEY`. Bez platného podpisu neinstalovat (`UPDATE_BAD_SIGNATURE`).
-- Průběh: při nalezení verze stáhnout na pozadí do `~/Library/Caches/MinorREST/update/`, ověřit podpis, rozbalit `ditto -x -k`, zkontrolovat `CFBundleIdentifier` (`/usr/libexec/PlistBuddy`) → toast „Verze X je připravena: Restartovat nyní / Později“ (+ odkaz na poznámky k vydání). „Později“ = instalace při ukončení aplikace.
-- Instalace: cesta bundlu = `os.Executable()` → nahoru k `*.app`; přejmenovat starý na `MinorREST.app.old`, přesunout nový, smazat starý, `open -n <cesta>`, ukončit. Selhání → vrátit původní.
-- Nelze aktualizovat, pokud: cesta obsahuje `/AppTranslocation/` (aplikace spuštěná z karantény – vyzvat k přesunu do `/Applications`), bundle není zapisovatelný, nebo jde o `dev` build → nabídnout odkaz na ruční stažení.
-- **První ruční instalace (README):** aplikace není notarizovaná → po přetažení do `/Applications` buď `xattr -dr com.apple.quarantine /Applications/MinorREST.app`, nebo Nastavení systému → Soukromí a zabezpečení → „Přesto otevřít“ (na macOS 15+ už pravý klik → Otevřít nefunguje). Aktualizace stažené aplikací karanténu nemají.
-- **`ci.yml`** (push/PR, `macos-latest`): `go vet ./internal/... && go test ./internal/...`; ve `frontend`: `npm ci && npm run check && npm run build`.
-- **`release.yml`** (tag `v*`, `permissions: contents: write`): setup Go + Node, instalace Wails CLI, zapsat verzi do `wails.json` (`info.productVersion`, bez `v`), `wails build -platform darwin/arm64 -clean -ldflags "-X main.version=$TAG"`, `codesign --force --deep -s - build/bin/MinorREST.app`, `ditto -c -k --keepParent` → zip, `hdiutil create -volname MinorREST -srcfolder … -format UDZO` → dmg, `go run ./scripts/sign-update -file <zip>` (klíč z env), `gh release create "$TAG" --generate-notes <assety>`.
-- `scripts/sign-update`: `-gen` vypíše nový pár klíčů (base64), `-file` podepíše soubor klíčem z `UPDATE_SIGNING_KEY`.
-- `Info.plist`: `LSMinimumSystemVersion` 13.0, `CFBundleIdentifier` viz kap. 0.
+- Verze: `CFBundleShortVersionString` z tagu (`MARKETING_VERSION` při buildu), vývojový build `dev` (kontrola aktualizací vypnutá).
+- **Sparkle 2** (SwiftPM): appcast `appcast.xml` jako asset posledního releasu (`SUFeedURL` = `https://github.com/novami/minor-rest/releases/latest/download/appcast.xml`), EdDSA podpis (`generate_keys`, `sign_update`; veřejný klíč `SUPublicEDKey` v `Info.plist`, privátní v GitHub Secret `SPARKLE_ED_KEY`). Automatická kontrola a stažení dle nastavení, „Zkontrolovat nyní“ v menu i Nastavení.
+- **Ověřit v F12/1 s ad-hoc podpisem** (Sparkle u aplikací bez Developer ID spoléhá jen na EdDSA). Pokud nebude fungovat, záložní varianta = vlastní updater dle rev. 2 kap. 10 (`git show go-wails-f4:docs/PLAN.md`).
+- Nelze aktualizovat z translokované cesty (`/AppTranslocation/`) → vyzvat k přesunu do `/Applications`.
+- **První ruční instalace (README):** aplikace není notarizovaná → po přetažení do `/Applications` buď `xattr -dr com.apple.quarantine /Applications/MinorREST.app`, nebo Nastavení systému → Soukromí a zabezpečení → „Přesto otevřít“.
+- **`ci.yml`** (push/PR, `macos-15`+): `swift test` v `Packages/MinorRESTCore`; `brew install xcodegen && make build`.
+- **`release.yml`** (tag `v*`, `permissions: contents: write`): `make release VERSION=$TAG` (xcodegen, `xcodebuild -configuration Release`, `codesign --force --deep -s -`, `ditto -c -k --keepParent` → zip, `hdiutil … -format UDZO` → dmg, `sign_update` → appcast), `gh release create "$TAG" --generate-notes <zip dmg appcast.xml>`.
+- `Info.plist`: `LSMinimumSystemVersion` 15.0, `CFBundleIdentifier` viz kap. 0.
 
-## 11. Kontrakt backend ↔ frontend
+## 11. API jádra pro UI (`MinorRESTCore`)
 
-Názvy jsou závazné; drobné úpravy signatur jsou v pořádku, ale zapiš je sem.
+Názvy jsou závazné (odpovídají bindingům rev. 2); drobné úpravy signatur jsou v pořádku, ale zapiš je sem. Všechny chyby jsou `CoreError`.
 
-### 11.1 Bindingy (`App` metody)
-```go
-// Projekty a strom (F2)
-ListProjects() []ProjectInfo                       // {ID, Name, Path, ReadOnly}
-CreateProject(name, parentDir string) (ProjectInfo, error)
-OpenProjectDialog() (*ProjectInfo, error)          // nil = zrušeno
-CloseProject(projectID string) error
-GetTree(projectID string) (TreeNode, error)        // {Kind: "folder"|"request", Rel, Name, Seq, ID, Method, URL, Children}
-CreateFolder(projectID, parentRel, name string) (TreeNode, error)
-CreateRequest(projectID, parentRel, name string) (TreeNode, error)
-RenameNode(projectID, rel, newName string) (TreeNode, error)   // vrací nový Rel
-MoveNode(projectID, rel, targetParentRel string, index int) (TreeNode, error)
-DuplicateNode(projectID, rel, copySuffix string) (TreeNode, error)   // přípona v jazyce UI, "" = „ kopie“
-DeleteNode(projectID, rel string) error
-RevealInFinder(projectID, rel string) error
-GetWorkspace() Workspace;  SaveWorkspace(w Workspace) error;  SetDirty(dirty bool)
-// Workspace {Projects (spravuje backend, ze SaveWorkspace se ignoruje), ActiveProject, Expanded map[projectID][]rel,
-//            Tabs map[projectID][]requestID, ActiveTab map[projectID]requestID,
-//            SidebarHidden, SidebarWidth, ResponseHeight}; další pole (prostředí) přibudou v F6
-// CreateProject: parentDir "" = ~/Documents/MinorREST; OpenProjectDialog nabídne založit projekt v adresáři bez minorrest.yaml
-PickDirectory(defaultDir string) (string, error);  DefaultProjectsDir() string
+### 11.1 Služby
+```swift
+// Projekty a strom (F1, F2)
+actor ProjectRegistry {
+  func list() -> [ProjectInfo]                                   // {id, name, path, readOnly}
+  func create(name: String, parentDir: URL?) throws -> ProjectInfo  // nil = ~/Documents/MinorREST
+  func open(_ root: URL) throws -> ProjectInfo; func initProject(at: URL, name: String) throws -> ProjectInfo
+  func close(_ id: String); func project(_ id: String) throws -> Project
+}
+final class Project: @unchecked Sendable {                       // operace serializované zámkem
+  var info: ProjectInfo; var config: ProjectConfig; func saveConfig(_:) throws; func reloadConfig() throws
+  func loadTree() throws -> TreeNode                             // {kind, rel, name, seq, id, method, url, children, error}
+  func createFolder(parent: String, name: String) throws -> TreeNode
+  func createRequest(parent: String, name: String) throws -> TreeNode
+  func rename(_ rel: String, to: String) throws -> TreeNode      // vrací nový rel
+  func move(_ rel: String, to parent: String, index: Int) throws -> TreeNode
+  func duplicate(_ rel: String, copySuffix: String) throws -> TreeNode
+  func delete(_ rel: String) throws                              // Koš
+  func loadRequest(_ rel: String) throws -> Request
+  func saveRequest(_ rel: String, _ r: Request) throws           // id, name, seq se převezmou z disku
+  func loadFolderConfig(_ rel: String) throws -> FolderConfig; func saveFolderConfig(_ rel: String, _: FolderConfig) throws
+  func fileRef(_ url: URL) -> String                             // uvnitř projektu relativní (s /), jinak absolutní
+}
+struct Workspace: Codable { projects, activeProject, expanded [projectID: [rel]], tabs [projectID: [requestID]],
+                            activeTab [projectID: requestID], activeEnvironment [projectID: envID],
+                            sidebarHidden, sidebarWidth, responseHeight }   // load/save do workspace.yaml
+final class ProjectWatcher { init(onChange: @Sendable (projectID, [rel]?) -> Void); add(id, root); remove(id) }
 
-// Requesty a konfigurace (F3)
-GetRequest(projectID, rel string) (Request, error)
-SaveRequest(projectID, rel string, r Request) error   // ID, Name, Seq se převezmou z disku (patří stromu)
-GetFolderConfig / SaveFolderConfig(projectID, rel string, …)
-GetProjectConfig / SaveProjectConfig(projectID string, …)
-FormatJSON(text string) (string, error)
-PickFile(projectID string) (string, error)        // uvnitř projektu relativní cesta (s `/`), jinak absolutní; "" = zrušeno
-GetInheritedSettings(projectID string) (HTTPSettings, error)  // co request zdědí: projekt → globální výchozí (záložka Nastavení)
-Quit()                                             // ukončí bez dotazu (po „Uložit“ v dialogu zavření a uložení tabů)
+// JSON (F1/F3)
+enum JSONFormatter { static func format(_ text: String) throws -> String; static func validate(_:) -> CoreError? }
 
 // Odeslání (F4, F5)
-Send(in RunInput) (RunResult, error)               // blokuje do konce; runID generuje frontend
-Cancel(runID string)
-GetRunBody(runID string, pretty bool) (BodyView, error)
-FilterRunBody(runID, jsonPath string) (string, error)
-SaveRunBodyToFile(runID string) error              // SaveFileDialog
-ListHistory() []HistoryItem;  GetHistoryEntry(id string) (SavedResponse, error);  ClearHistory() error
+actor HTTPEngine {
+  func send(runID: String, _ r: PreparedRequest, _ o: Options) async -> RunResult   // chyby v RunResult.error
+  func cancel(runID: String)
+  func body(runID: String, pretty: Bool) throws -> BodyView                         // RUN_NOT_FOUND
+  func filter(runID: String, jsonPath: String) throws -> String
+  func saveBody(runID: String, to: URL) throws
+}
+enum Prepare { static func prepare(_ in: PrepareInput) async throws -> Prepared }   // {request, options, unresolved, authSource}
+struct History { list() -> [HistoryItem]; entry(id) throws -> SavedResponse; clear() throws }
 
 // Proměnné a prostředí (F6)
-ListEnvironments(projectID string) ([]Environment, error)
-SaveEnvironment / DeleteEnvironment / SetActiveEnvironment
-GetGlobals() / SaveGlobals(…)
-RevealSecret(projectID, envID, name string) (string, error)
-ExplainVars(projectID, rel string, draft []KV) ([]VarInfo, error)   // pro highlight, hover, „oko“
-ClearRuntimeVar(projectID, name string)
+Project: listEnvironments(), saveEnvironment(_:), deleteEnvironment(id:)
+Globals: load() / save(_:)
+Secrets: get / set / delete(account:)                                // Keychain přes /usr/bin/security
+Vars.explain(…) -> [VarInfo]; RuntimeVars (per projekt, v paměti)
 
 // Auth (F7)
-OAuthFetchToken(in RunInput) (TokenInfo, error);  OAuthCancel();  OAuthClearToken(in RunInput) error;  OAuthTokenInfo(in RunInput) (TokenInfo, error)
-ConvertToSecret(projectID, name, value string) error
+OAuth: fetchToken(…) async throws -> TokenInfo; cancel(); clearToken(…); tokenInfo(…)
 
 // Uložené odpovědi (F8)
-SaveResponse(runID, label string) (SavedInfo, error)
-ListSaved(projectID, requestID string) ([]SavedInfo, error)
-GetSaved(projectID, requestID string, version int) (SavedResponse, error)
-GetSavedBody(projectID, requestID string, version int, pretty bool) (BodyView, error)
-SetSavedLabel / DeleteSaved
+Responses: save(runID:label:) -> SavedInfo; list(requestID:) ; get(requestID:version:) ; body(…pretty:) -> BodyView ; setLabel ; delete
 
 // Export / import (F9, F10)
-ExportSnippet(in RunInput, format string, mask bool) (string, error)   // "curl" | "curl-oneline"
-ParseCurl(text string) (CurlImport, error)         // {Request, Warnings}
-PreviewOpenAPI(source string) (ImportPreview, error)
-ImportOpenAPI(source string, opts ImportOptions) (ProjectInfo, error)
+Export.curl(_ p: PreparedRequest, multiline: Bool, mask: Bool) -> String
+CurlImport.parse(_ text: String) throws -> (Request, warnings: [String])
+OpenAPIImport.preview(source:) async throws -> ImportPreview; importProject(source:options:) async throws -> ProjectInfo
 
-// Nastavení a aktualizace (F11, F12)
-GetSettings() Settings;  SaveSettings(s Settings) error
-GetVersion() string;  CheckForUpdate() (UpdateInfo, error);  InstallUpdateAndRestart() error
+// Nastavení (F11)
+AppSettings: load() / save(_:)
 ```
 
 ### 11.2 Klíčová DTO
-```go
-type RunInput struct {
-    RunID, ProjectID, Rel string
-    Request model.Request      // aktuální (i neuložený) stav tabu
+```swift
+struct RunResult: Sendable {
+  let runID: String
+  var error: CoreError?          // pak ostatní pole prázdná (kromě sent, timing, redirects pokud jsou)
+  var status: Int; var statusText: String; var proto: String
+  var remoteAddr: String; var localAddr: String
+  var tls: TLSInfo?
+  var headers: [KV]              // jak je vrátí HTTPURLResponse (pořadí serveru nedostupné), opakované jako samostatné řádky
+  var cookies: [Cookie]
+  var sizes: Sizes; var timing: Timing
+  var redirects: [Redirect]
+  var sent: SentRequest          // {method, url, headers [KV], bodyPreview, bodySize}
+  var contentType: String; var charset: String
+  var isBinary: Bool; var truncated: Bool
+  var unresolved: [String]       // nevyhodnocené proměnné
+  var extracted: [KV]            // nastavené runtime proměnné (F8)
+  var authSource: String         // (F7)
 }
-type RunResult struct {
-    RunID string
-    Error *RunError            // {Code, Detail}; pak ostatní pole prázdná (kromě Sent, Timing pokud jsou)
-    Status int; StatusText, Proto string
-    RemoteAddr, LocalAddr string; ResolvedAddrs []string
-    TLS *TLSInfo
-    Headers []KV               // pořadí dle serveru, opakované názvy jako samostatné řádky
-    Cookies []Cookie
-    Sizes Sizes; Timing Timing
-    Redirects []Redirect
-    Sent SentRequest           // {Method, URL, Headers []KV, BodyPreview string, BodySize int64}
-    ContentType, Charset string
-    IsBinary, Truncated bool
-    Unresolved []string        // nevyhodnocené proměnné
-    Extracted []KV             // nastavené runtime proměnné
-    AuthSource string
-}
-type BodyView struct { Text string; Lang string /* json|xml|html|text */; Size int64; Partial bool; DataURL string /* obrázky */ }
+struct BodyView: Sendable { var text: String; var lang: String /* json|xml|html|text */; var size: Int64; var partial: Bool; var image: Data? }
 ```
-`RunResult` záměrně **neobsahuje tělo** – to si frontend vyžádá přes `GetRunBody` (umožní líné načtení a Pretty/Raw bez opakovaného přenosu metadat).
-DTO jsou v `internal/run` (`run.Input`, `run.Result`, `run.Error`, `run.BodyView`); `Cookies`, `Extracted`, `AuthSource` přibudou ve fázích, které je plní (F4/4, F8, F7). Chyby přípravy (`VAR_*`, `URL_INVALID`, `NOT_FOUND`…) jsou v `RunResult.Error`, Go chyba jen u neznámého projektu. `GetRunBody` vrací max. 2 MB textu (`Partial`), u vyřazeného výsledku `RUN_NOT_FOUND`.
-
-### 11.3 Události (backend → frontend)
-`tree:changed {projectID}` · `request:changedOnDisk {projectID, rel}` · `app:saveAndQuit` · `menu:<akce>` · `oauth:waiting` / `oauth:done` · `update:ready {version, notesURL}` · `update:error {code}` · `file:dropped {paths}`
+`RunResult` záměrně **neobsahuje tělo** – UI si ho vyžádá přes `HTTPEngine.body` (líné načtení, Pretty/Raw bez kopírování metadat). `body` vrací max. 2 MB textu (`partial`).
 
 ## 12. Fáze implementace
 
-Postup v každém kroku: implementace → `go vet ./internal/... && go test ./internal/...` (+ `npm run check`) → ověření v `wails dev` (prohlížeč na `localhost:34115`) → commit → `docs/PROGRESS.md`.
-Testy: hlavní cesta + nejdůležitější edge case. Texty UI rovnou přes `t()` v obou jazycích.
+Postup v každém kroku: implementace → `make test` (jádro) a `make build` → ověření v běžící aplikaci (`make run`, snímky obrazovky) → commit → `docs/PROGRESS.md`.
+Testy: hlavní cesta + nejdůležitější edge case, parametrizované `@Test(arguments:)`. Testovací případy převzít z Go verze (tag `go-wails-f4`), kde existují. Texty UI rovnou přes `t()` v obou jazycích.
 
 ### F0 – Bootstrap
-1. Wails CLI (`go install github.com/wailsapp/wails/v2/cmd/wails@latest`, `wails doctor`). `wails init -n minor-rest -t svelte-ts` v dočasném adresáři → přenést do repa (nepřepsat `docs/`, `CLAUDE.md`, `README.md`, `LICENSE`, `.gitignore`); frontend nahradit čistým Vite + Svelte 5 + TS; `go.mod` modul, `wails.json` (name `MinorREST`, outputfilename `MinorREST`, info, bundle ID). **Hotovo:** `wails build` vytvoří `build/bin/MinorREST.app`, která se spustí.
-2. `main.go`: okno a menu dle 1.1 (App, Soubor, Úpravy = EditMenu, Request, Zobrazení, Okno, Nápověda; položky zatím jen emitují `menu:*`). Frontend: `tokens.css`, `fonts.css`, i18n helper + oba JSON, základní komponenty (Button, Modal, Toast), prázdný layout se třemi panely a měnitelnými děliči. **Hotovo:** Cmd+C/V funguje v inputu; světlé/tmavé téma dle systému; na ne-retina Menlo 13, na retina systémový font.
-3. `Makefile` (`dev`, `build`, `test`, `check`), `ci.yml`. **Hotovo:** `make test` a `make check` zelené.
+1. Odstranit Go/Wails/Svelte (`main.go`, `app*.go`, `menu.go`, `go.mod`, `go.sum`, `internal/`, `frontend/`, `wails.json`, `build/darwin`, `build/bin`); ikonu (`build/appicon.svg`, `.png`) přesunout do `App/Resources/` (zdroj) + `Assets.xcassets`. `project.yml`, `Packages/MinorRESTCore` (prázdná knihovna + 1 test), `Makefile` (`gen`, `build`, `run`, `test`), `.gitignore`. **Hotovo:** `make build` vytvoří `MinorREST.app`, která se spustí; `make test` zelený.
+2. `MinorRESTApp`: hlavní okno (1280×800, min 900×600, unified toolbar), `Settings` scéna (prázdná), menu dle 8.7 (položky zatím zobrazí toast „Zatím není implementováno“), `L10n` + `Localizable.xcstrings` (cs/en), fonty dle displeje, prázdné rozvržení sidebar / request / odpověď s děliči. **Hotovo:** cs/en dle systému; světlé/tmavé téma; ne-retina Menlo 13.
+3. `ci.yml`. **Hotovo:** CI zelené (ověřit po pushi – push jen na pokyn uživatele).
 
-### F1 – Model, úložiště, proměnné (jen Go, bez UI)
-1. `internal/model` (kap. 2, yaml + json tagy, `omitempty`, ukazatele u dědičných nastavení), slugify, YAML roundtrip. Testy: roundtrip requestu s diakritikou a víceřádkovým tělem; slugify tabulka (vč. kolizí a prázdného výsledku).
-2. `internal/storage`: `CreateProject`, `OpenProject`, `LoadTree`, `CreateFolder`, `CreateRequest`, `LoadRequest`, `SaveRequest`, `Rename`, `Move`, `Duplicate` (nové ID, název „… kopie“), `Delete` (Koš), folder/project config, atomický zápis, přečíslování `seq`. Testy v `t.TempDir()`: vytvoření → strom, přejmenování s diakritikou, přesun + pořadí, duplikace.
-3. `internal/vars` (kap. 3) + `encodeQuery` + sestavení URL. Testy: priorita scope, rekurze a cyklus, neznámá proměnná, path params, zachování `%XX`, diakritika v query.
+### F1 – Jádro: model, YAML, úložiště, proměnné (bez UI)
+1. `Model` (kap. 2, Codable, optionals u dědičných nastavení), ULID, slug, NFC, YAML kódování (`Yams.Node`, styly dle 2.5). Testy: roundtrip requestu s diakritikou a víceřádkovým tělem, **čtení souborů zapsaných Go verzí** (fixtures z tagu), slug tabulka.
+2. `Storage`: `Project` (create/open/init, strom, CRUD, přesun + přečíslování, duplikace, koš, `fileRef`, read-only dle formatVersion, oprava duplicitních ID), `ProjectRegistry`, `Workspace`. Testy v dočasném adresáři.
+3. `Vars` (kap. 3) + `encodeQuery` + `buildURL`; `JSONFormatter`. Testy: priorita scope, rekurze a cyklus, neznámá proměnná, `VAR_UNRESOLVED_HOST`, path params, zachování `%XX`, diakritika v query; formátování s proměnnými mimo řetězce, velká čísla, chyba s řádkem.
 
 ### F2 – Sidebar a projekty
-1. `internal/settings` (workspace), bindingy projektů a stromu (11.1), `ProjectSwitcher`, načtení stromu, obnovení projektů po startu.
-2. `Tree`/`TreeNode`: rozbalování, výběr, kontextové menu, inline přejmenování, vytvoření/duplikace/smazání, Zobrazit ve Finderu.
+1. Stores `WorkspaceStore`, `ProjectsStore`; přepínač projektů (nový – sheet s volbou umístění, otevřít adresář, zavřít), obnova projektů po startu.
+2. `TreeOutlineView`: rozbalování (do workspace), výběr, klávesy, kontextové menu, inline přejmenování, vytvoření/duplikace/smazání, Zobrazit ve Finderu.
 3. Drag & drop + hledání.
-4. Watcher + `tree:changed`.
+4. `ProjectWatcher` (FSEvents) + reload stromu a konfigurace.
 **Hotovo:** vnořené složky a requesty lze vytvořit, přejmenovat (s diakritikou), přesunout, smazat do Koše; změna ve Finderu se do 1 s projeví.
 
 ### F3 – Editor requestu
-1. Store tabů (otevřít, zavřít, dirty, obnovení ze workspace), načtení/uložení requestu, `MethodSelect`, `VarInput` (zatím jen syntaktické zvýraznění `{{}}`), URL bar.
-2. `KvEditor` + Bulk edit; záložka Params (query ↔ URL, path params), Headers s našeptávačem.
-3. Body: `CodeEditor` (CodeMirror wrapper: json/xml/html/markdown/text, read-only režim, téma), všechny typy těla, `FormatJSON`, výběr souborů.
-4. Záložky Nastavení a Dokumentace, dialog neuložených změn (tab i `OnBeforeClose`), reakce na `request:changedOnDisk`.
-**Hotovo:** request jde kompletně upravit, uložit a po restartu je identický; YAML na disku odpovídá 2.5.
+1. `TabsStore` (otevřít, zavřít, dirty, obnovení ze workspace, sledování přejmenování), TabBar, načtení/uložení, `MethodPicker`, `VarField` (zatím jen syntaktické zvýraznění), URL bar ↔ query.
+2. `KvEditor` + Bulk edit; Params (query ↔ URL, path params), Headers s našeptávačem.
+3. Body: `CodeTextView` (lexery, read-only, téma, NSTextFinder), všechny typy těla, Formátovat, výběr souborů.
+4. Nastavení a Dokumentace, dialogy neuložených změn (tab, zavření okna, Cmd+Q), změna na disku.
+**Hotovo:** request jde kompletně upravit, uložit a po restartu je identický; YAML odpovídá 2.5 a je bajtově shodný s tím, co by zapsala Go verze.
 
 ### F4 – HTTP engine a odeslání
-1. `internal/httpclient` jádro: metody, hlavičky, těla (raw, form, multipart, binary), HTTP verze, TLS, redirecty, timeout/cancel, chybové kódy + testy.
-2. Metriky: timing, adresy, odeslané hlavičky, velikosti, dekomprese, charset, limity těla + testy.
-3. `internal/prepare`: dědičnost (hlavičky projekt → složky → request, pozdější přepisuje dle názvu case-insensitive; nastavení request → projekt → globální), proměnné, sestavení URL; auth zatím jen `none` (ostatní typy ignorovat). Bindingy `Send`, `Cancel`, `GetRunBody`. UI: Odeslat/Zrušit, dočasné jednoduché zobrazení (status + raw tělo).
+1. `HTTPEngine` jádro: metody, hlavičky, těla (raw, form, multipart, binary), TLS (vypnuté ověření), redirecty, timeout/cancel, chybové kódy + testovací server a testy. Ověřit body z 4.1 (vypnutý UA, GET s tělem, Authorization).
+2. Metriky: timing, adresy, odeslané hlavičky, velikosti, charset, limity těla, LRU výsledků + testy.
+3. `Prepare` (dědičnost hlaviček projekt → složky → request – název na nižší úrovni, i vypnutý, odstraní zděděný case-insensitive; vypnutý řádek automatické hlavičky → `noAuto`; nastavení request → projekt → globální; proměnné; URL; auth zatím jen `none`). UI: Odeslat/Zrušit (Cmd+Enter, Cmd+.), dočasné jednoduché zobrazení (status + raw tělo).
 4. Cookie jar, proxy, zápis historie.
-**Hotovo:** všech 7 metod proti lokálnímu testovacímu serveru; vynucení HTTP/1.1 vs HTTP/2 je vidět v `Proto`; redirect on/off; zrušení funguje.
+**Hotovo:** všech 7 metod proti lokálnímu testovacímu serveru; `Proto` ukazuje HTTP/2 u HTTPS serveru s h2; redirect on/off; zrušení funguje.
 
 ### F5 – Zobrazení odpovědi
 1. Meta bar (status badge + tooltip, čas + vodopád, velikost + rozpad, protokol, IP), záložka Tělo (Pretty/Raw/Náhled, hledání), stavy panelu.
@@ -585,27 +580,27 @@ Testy: hlavní cesta + nejdůležitější edge case. Texty UI rovnou přes `t()
 **Hotovo:** 5 MB JSON se zobrazí bez zamrznutí; odpověď ve windows-1250 má správnou diakritiku; chyba DNS/timeout je srozumitelná.
 
 ### F6 – Prostředí, proměnné, tajemství
-1. `internal/secrets`, CRUD prostředí a globálních, výběr prostředí, zapojení do `prepare`.
-2. Modál Prostředí / Proměnné projektu / Globální; nastavení složky a projektu (vars, headers, HTTP nastavení).
-3. `ExplainVars` → `VarInput`: známá/neznámá, hover, našeptávač; „oko“; varování nevyhodnocených.
+1. `Secrets`, CRUD prostředí a globálních, výběr prostředí, zapojení do `Prepare`.
+2. Okno Prostředí / Proměnné projektu / Globální; nastavení složky a projektu (vars, headers, HTTP nastavení).
+3. `explain` → `VarField`: známá/neznámá, hover, našeptávač; „oko“; varování nevyhodnocených.
 **Hotovo:** přepnutí prostředí změní `{{baseUrl}}`; secret není v YAML (`grep`), je v Keychain (`security find-generic-password -s MinorREST`).
 
 ### F7 – Autorizace
-1. `internal/auth`: inherit, none, basic, bearer, apikey + záložka Auth (request, složka, projekt), zdroj zdědění, varování na literál + „Převést na tajnou proměnnou“.
-2. OAuth2 client_credentials a password + cache a refresh + panel tokenu. Testy proti `httptest` token serveru.
+1. `Auth`: inherit, none, basic, bearer, apikey + záložka Auth (request, složka, projekt), zdroj zdědění, varování na literál + „Převést na tajnou proměnnou“.
+2. OAuth2 client_credentials a password + cache a refresh + panel tokenu. Testy proti testovacímu token serveru.
 3. OAuth2 authorization_code + PKCE (listener, prohlížeč, zrušení).
-**Hotovo:** každý typ pošle správnou hlavičku (ověřit v „Odesláno“); expirovaný token se obnoví sám.
+**Hotovo:** každý typ pošle správnou hlavičku (ověřit v „Odesláno“ a na testovacím serveru); expirovaný token se obnoví sám.
 
 ### F8 – Ukládání odpovědí, verze, historie
-1. `internal/responses` (uložit, seznam, načíst, popisek, smazat, maskování), tlačítko Uložit odpověď, záložka Verze, otevření uložené verze, `.gitignore` projektu.
-2. Diff dvou verzí (`@codemirror/merge`: tělo; hlavičky jako text `Name: value`).
-3. `extract` (JSONPath / hlavička → runtime proměnná, běží po **každé** úspěšné odpovědi), editor v záložce „Proměnné“ requestu.
+1. `Responses` (uložit, seznam, načíst, popisek, smazat, maskování), Uložit odpověď, záložka Verze, otevření uložené verze, `.gitignore` projektu.
+2. Diff dvou verzí (vlastní řádkový diff – Myers – zobrazený v `CodeTextView`; hlavičky jako text `Name: value`).
+3. `extract` (JSONPath / hlavička → runtime proměnná po **každé** úspěšné odpovědi), editor v záložce „Proměnné“ requestu.
 4. Záložka Historie v sidebaru.
 **Hotovo:** tři uložení = `v0001`–`v0003` s úplnými metadaty; diff ukáže změny; login → token → další request funguje přes `extract`.
 
 ### F9 – Kopírování jako cURL, import cURL
-1. `internal/export` + golden testy; tlačítko ⧉ s výběrem formátu, kontextové menu stromu, uložené verze.
-2. `internal/importer/curl` + nabídka v URL baru.
+1. `Export` + golden testy; tlačítko ⧉ s výběrem formátu, kontextové menu stromu, uložené verze.
+2. `CurlImport` + nabídka v URL baru.
 **Hotovo:** zkopírovaný příkaz spuštěný v zsh i bash proti testovacímu serveru doručí bajtově stejné tělo a hlavičky jako aplikace (včetně diakritiky).
 
 ### F10 – Import OpenAPI / Swagger
@@ -615,21 +610,21 @@ Testy: hlavní cesta + nejdůležitější edge case. Texty UI rovnou přes `t()
 **Hotovo:** Petstore 2.0 i 3.0 → složky dle tagů, `baseUrl` v prostředí, ukázková těla, auth projektu.
 
 ### F11 – Nastavení a i18n
-1. Modál Nastavení (kap. 9), okamžitá aplikace, napojení globálních výchozích do `prepare`.
-2. Kontrola úplnosti překladů (skript porovná klíče cs/en), překlad nativního menu, přepnutí jazyka za běhu.
+1. Okno Nastavení (kap. 9), okamžitá aplikace, napojení globálních výchozích do `Prepare`.
+2. Kontrola úplnosti překladů, přepnutí jazyka za běhu (UI i menu).
 
 ### F12 – Auto-update a release
-1. `internal/updater` + testy (porovnání verzí, platný/neplatný podpis, parsování odpovědi API z fixture, detekce translokace).
-2. UI (toast, sekce v Nastavení).
-3. `scripts/sign-update`, `release.yml`, README (instalace, první spuštění, build ze zdrojů).
-**Vyžaduje uživatele:** vygenerovat klíč (`go run ./scripts/sign-update -gen`), privátní vložit do GitHub Secrets, veřejný do `pubkey.go`; schválit push a tag. **Hotovo:** lokální build s nižší verzí najde release, ověří, nainstaluje a restartuje se.
+1. Sparkle + ověření s ad-hoc podpisem (jinak vlastní updater, viz kap. 10).
+2. UI (menu „Zkontrolovat aktualizace…“, sekce v Nastavení).
+3. `scripts/release.sh`, `release.yml`, README (instalace, první spuštění, build ze zdrojů).
+**Vyžaduje uživatele:** vygenerovat EdDSA klíč (`generate_keys`), privátní do GitHub Secrets, veřejný do `Info.plist`; schválit push a tag. **Hotovo:** lokální build s nižší verzí najde release, ověří, nainstaluje a restartuje se.
 
 ### F13 – Dotažení
-Command palette (Cmd+K: requesty napříč projekty + akce), prázdné stavy, ukázkový projekt při prvním spuštění, ikona aplikace, a11y (fokus, aria), virtualizace stromu nad 500 položek, QA checklist.
+Command palette (Cmd+K: requesty napříč projekty + akce), prázdné stavy, ukázkový projekt při prvním spuštění, a11y (VoiceOver popisky, fokus), výkon stromu nad 500 položek, QA checklist.
 
 ## 13. QA checklist (před v1.0)
 - [ ] 7 metod, všechny typy těla, multipart se souborem s diakritikou v názvu.
-- [ ] HTTP/1.1, HTTP/2 (TLS), h2c; redirect on/off/limit; timeout; zrušení; self-signed s vypnutým ověřením.
+- [ ] HTTP/1.1 i HTTP/2 (HTTPS) – zobrazení protokolu; redirect on/off/limit; timeout; zrušení; self-signed s vypnutým ověřením.
 - [ ] Metriky: součet fází ≈ total, IP správná, velikosti sedí s `curl -w '%{size_header} %{size_download}'`.
 - [ ] Proměnné ve všech polích, priorita, secret v Keychain, runtime z `extract`.
 - [ ] Auth: basic, bearer, apikey (header/query), OAuth2 tři granty + refresh.
@@ -639,14 +634,16 @@ Command palette (Cmd+K: requesty napříč projekty + akce), prázdné stavy, uk
 - [ ] Ne-retina: Menlo 13; retina: systémový font; přesun okna mezi monitory.
 - [ ] Světlý/tmavý režim, cs/en včetně menu.
 - [ ] Auto-update end-to-end.
-- [ ] Změna souborů přes `git pull`/Finder se projeví.
+- [ ] Změna souborů přes `git pull`/Finder se projeví; projekt z Go verze se otevře a uloží beze změn diffu.
+- [ ] Systémová proxy (i PAC) a dotaz Local Network u LAN adresy.
 
 ## 14. Rizika a otevřené body
-- **Fonty:** ne-retina = Menlo 13 všude (potvrzeno). Retina = SF Pro pro UI, SF Mono pro kód; pokud má být i kód proporcionálně, změnit `--font-code`.
+- **Omezení URLSession** (kap. 4.1): bez vynucení HTTP verze, h2c, vlastního `Host`, přesného pořadí odeslaných hlaviček. Pokud bude potřeba, lze později přidat druhý engine (SwiftNIO / AsyncHTTPClient) za stejné rozhraní `HTTPEngine`.
+- **Vypnutý `User-Agent`, GET s tělem, `Authorization`** – chování URLSession ověřit v F4/1 a F7/1, výsledek zapsat sem.
 - **Bez notarizace:** první spuštění vyžaduje ruční povolení (kap. 10). Lze doplnit později (Developer ID + `notarytool`).
-- **Keychain přes `security`:** tajemství může bez dotazu přečíst jakýkoli proces uživatele spuštěním `security`; přijatelné pro dev nástroj, lepší izolace až s Developer ID.
+- **Keychain přes `security`:** tajemství může bez dotazu přečíst jakýkoli proces uživatele spuštěním `security`; přijatelné pro dev nástroj, lepší izolace až s Developer ID (pak `SecItem` + access group).
+- **Sparkle s ad-hoc podpisem** – ověřit v F12/1, záloha vlastní updater.
+- **Vlastní editor kódu** (`NSTextView` + jednoduché lexery): bez foldingu; výkon zvýraznění u 5 MB JSON hlídat (zvýrazňovat jen viditelnou oblast).
 - **Literály v auth polích** končí v YAML (a tedy v gitu) – řeší jen varování a převod na secret proměnnou.
-- **Wails v2 vs v3:** logika je v `internal/`, případná migrace se týká jen `main.go`, `app*.go` a bindingů.
 - **OAuth2 authorization code:** servery vyžadující přesnou redirect URI → pole `redirectPort`.
-- **HTTP/2 hlavičky:** zobrazujeme nekomprimovanou velikost (na drátě HPACK).
-- **Mimo rozsah v1:** skripty, testy/asserty, runner, mock server, WebSocket/GraphQL/gRPC, mTLS, Digest, PAC proxy, markdown náhled.
+- **Mimo rozsah v1:** skripty, testy/asserty, runner, mock server, WebSocket/GraphQL/gRPC, mTLS, Digest, markdown náhled, folding v editoru.
