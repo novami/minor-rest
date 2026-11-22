@@ -94,7 +94,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 | 2026-11-17 | F4/1 | d5efcf7 | jádro httpclient: verze, těla, redirecty, timeout/cancel, chybové kódy |
 | 2026-11-17 | F4/2 | 9b9120a | metriky, dekomprese, charset, limity těla, LRU výsledků |
 | 2026-11-18 | F4/3 | baf2801 | prepare, Send/Cancel/GetRunBody, Odeslat/Zrušit, dočasná odpověď |
-| 2026-11-22 | plán rev. 3 | (tento commit) | přechod na Swift, tag go-wails-f4 |
+| 2026-11-22 | plán rev. 3 | 44ab8ae | přechod na Swift, tag go-wails-f4 |
 
 ## Rozhodnutí uživatele
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
