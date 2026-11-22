@@ -1,21 +1,20 @@
-export PATH := $(HOME)/go/bin:$(PATH)
-export CGO_CFLAGS := -mmacosx-version-min=13.0
-export CGO_LDFLAGS := -mmacosx-version-min=13.0
+DERIVED := .build/xcode
+APP := $(DERIVED)/Build/Products/Debug/MinorREST.app
 
-VERSION ?= dev
-LDFLAGS := -X main.version=$(VERSION)
+.PHONY: gen build run test clean
 
-.PHONY: dev build test check
+gen:
+	xcodegen generate --quiet
 
-dev:
-	wails dev
+build: gen
+	xcodebuild -project MinorREST.xcodeproj -scheme MinorREST -configuration Debug \
+		-derivedDataPath $(DERIVED) -quiet build
 
-build:
-	wails build -platform darwin/arm64 -clean -ldflags "$(LDFLAGS)"
+run: build
+	open $(APP)
 
 test:
-	go vet ./internal/...
-	go test ./internal/...
+	cd Packages/MinorRESTCore && swift test
 
-check:
-	cd frontend && npm run check
+clean:
+	rm -rf .build MinorREST.xcodeproj App/Info.plist Packages/MinorRESTCore/.build
