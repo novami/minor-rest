@@ -16,6 +16,10 @@ struct AppFonts: Equatable, Sendable {
             : NSFont(name: "Menlo", size: size) ?? .monospacedSystemFont(ofSize: size, weight: .regular)
     }
 
+    @MainActor var uiNSFont: NSFont {
+        isRetina ? .systemFont(ofSize: size) : NSFont(name: "Menlo", size: size) ?? .systemFont(ofSize: size)
+    }
+
     private func uiFont(_ size: CGFloat) -> Font {
         isRetina ? .system(size: size) : .custom("Menlo", size: size)
     }

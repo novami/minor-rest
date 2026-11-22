@@ -7,9 +7,11 @@ final class AppModel {
     let toasts = ToastCenter()
     let workspace = WorkspaceStore()
     let projects: ProjectsStore
+    let tree: TreeStore
 
     init() {
         projects = ProjectsStore(workspace: workspace, toasts: toasts)
+        tree = TreeStore(workspace: workspace, projects: projects, toasts: toasts)
     }
 
     /// Viditelnost sidebaru (uložená ve workspace).

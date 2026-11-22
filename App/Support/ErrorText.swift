@@ -9,3 +9,10 @@ func errorText(_ error: Error) -> String {
     if message == key { return e.description }
     return e.detail.isEmpty ? message : "\(message) (\(e.detail))"
 }
+
+/// Lokalizovaný text chybového kódu (např. `TreeNode.error`).
+@MainActor
+func errorText(code: String) -> String {
+    let message = t("errors.\(code)")
+    return message == "errors.\(code)" ? code : message
+}

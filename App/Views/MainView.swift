@@ -40,9 +40,10 @@ struct MainView: View {
     }
 
     @ViewBuilder private var sidebar: some View {
-        if let project = model.projects.active {
-            // strom projektu přibude v F2/2
-            EmptyState(title: project.name, hint: project.path)
+        if model.projects.active != nil {
+            TreeOutlineView(store: model.tree, version: model.tree.version, pendingEdit: model.tree.pendingEdit,
+                            font: AppFonts.forScale(scale).uiNSFont)
+                .task(id: model.projects.activeID) { await model.tree.load(model.projects.activeID) }
         } else if model.projects.restored {
             EmptyState(title: t("sidebar.noProject"))
         } else {

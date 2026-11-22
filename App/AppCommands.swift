@@ -6,8 +6,10 @@ struct AppCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
-            item("menu.newRequest", "n")
-            item("menu.newFolder", "n", [.command, .shift])
+            Button(t("menu.newRequest")) { Task { await model.tree.createRequest(near: nil) } }
+                .keyboardShortcut("n")
+            Button(t("menu.newFolder")) { Task { await model.tree.createFolder(near: nil) } }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
         }
         CommandGroup(replacing: .saveItem) {
             item("menu.save", "s")
@@ -20,7 +22,8 @@ struct AppCommands: Commands {
             item("menu.cancel", ".")
             Divider()
             item("menu.copyCurl", "c", [.command, .shift])
-            item("menu.duplicate", "d")
+            Button(t("menu.duplicate")) { Task { await model.tree.duplicate(model.tree.selection) } }
+                .keyboardShortcut("d")
             item("menu.focusUrl", "l")
             Divider()
             item("menu.environment", "e")
