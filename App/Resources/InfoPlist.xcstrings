@@ -1,0 +1,23 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSLocalNetworkUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MinorREST odesílá HTTP requesty na servery ve vaší místní síti."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MinorREST sends HTTP requests to servers on your local network."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

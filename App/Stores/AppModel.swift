@@ -1,0 +1,38 @@
+import Observation
+import SwiftUI
+
+/// Sdílený stav okna (aplikace má jedno hlavní okno, menu volá akce přímo).
+@MainActor @Observable
+final class AppModel {
+    let toasts = ToastCenter()
+    var columnVisibility: NavigationSplitViewVisibility = .all
+
+    func toggleSidebar() {
+        columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+    }
+
+    /// Dočasně pro akce menu, které ještě nejsou implementované.
+    func notImplemented(_ labelKey: String) {
+        toasts.show(t("toast.notImplemented", ["action": t(labelKey)]))
+    }
+}
+
+@MainActor @Observable
+final class ToastCenter {
+    struct Toast: Identifiable {
+        let id = UUID()
+        let text: String
+        let isError: Bool
+    }
+
+    private(set) var items: [Toast] = []
+
+    func show(_ text: String, isError: Bool = false, seconds: Double = 3) {
+        let toast = Toast(text: text, isError: isError)
+        items.append(toast)
+        Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            items.removeAll { $0.id == toast.id }
+        }
+    }
+}
