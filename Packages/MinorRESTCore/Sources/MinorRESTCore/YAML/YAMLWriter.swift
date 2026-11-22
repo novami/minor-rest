@@ -21,7 +21,8 @@ public struct YMap {
 
     public var node: YNode { .map(entries) }
 
-    public mutating func add(_ key: String, _ value: String) { entries.append(YEntry(key: key, value: .string(value))) }
+    /// Řetězce se zapisují v NFC.
+    public mutating func add(_ key: String, _ value: String) { entries.append(YEntry(key: key, value: .string(value.nfc))) }
     public mutating func add(_ key: String, _ value: Int) { entries.append(YEntry(key: key, value: .int(value))) }
     public mutating func add(_ key: String, _ value: Bool) { entries.append(YEntry(key: key, value: .bool(value))) }
     public mutating func add(_ key: String, _ node: YNode) { entries.append(YEntry(key: key, value: node)) }

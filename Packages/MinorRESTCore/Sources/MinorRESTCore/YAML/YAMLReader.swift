@@ -89,6 +89,36 @@ public struct YAMLObject {
         }
     }
 
+    public func stringList(_ key: String) throws -> [String] {
+        guard let v = try value(key) else { return [] }
+        guard case .sequence(let seq) = v else { throw invalid(keyPath(key), "expected list") }
+        return try seq.map { item in
+            guard let s = item.scalar else { throw invalid(keyPath(key), "expected string") }
+            return s.string.nfc
+        }
+    }
+
+    /// Mapa s libovolnými klíči a hodnotami-řetězci.
+    public func stringMap(_ key: String) throws -> [String: String] {
+        try entries(key).reduce(into: [:]) { out, e in
+            guard let s = e.value.scalar else { throw invalid("\(keyPath(key)).\(e.key)", "expected string") }
+            out[e.key] = s.string.nfc
+        }
+    }
+
+    /// Mapa s libovolnými klíči a hodnotami-seznamy řetězců.
+    public func stringListMap(_ key: String) throws -> [String: [String]] {
+        guard let v = try value(key) else { return [:] }
+        let inner = YAMLObject(node: v, path: keyPath(key))
+        return try entries(key).reduce(into: [:]) { out, e in out[e.key] = try inner.stringList(e.key) }
+    }
+
+    private func entries(_ key: String) throws -> [(key: String, value: Node)] {
+        guard let v = try value(key) else { return [] }
+        guard case .mapping(let m) = v else { throw invalid(keyPath(key), "expected mapping") }
+        return m.compactMap { k, v in k.scalar.map { ($0.string.nfc, v) } }
+    }
+
     public func object<T: YAMLDecodable>(_ key: String) throws -> T? {
         guard let v = try value(key) else { return nil }
         guard case .mapping = v else { throw invalid(keyPath(key), "expected mapping") }

@@ -454,29 +454,33 @@ Názvy jsou závazné (odpovídají bindingům rev. 2); drobné úpravy signatur
 ### 11.1 Služby
 ```swift
 // Projekty a strom (F1, F2)
-actor ProjectRegistry {
-  func list() -> [ProjectInfo]                                   // {id, name, path, readOnly}
-  func create(name: String, parentDir: URL?) throws -> ProjectInfo  // nil = ~/Documents/MinorREST
-  func open(_ root: URL) throws -> ProjectInfo; func initProject(at: URL, name: String) throws -> ProjectInfo
-  func close(_ id: String); func project(_ id: String) throws -> Project
+actor ProjectRegistry {                                          // init(trash:) – Koš lze v testech nahradit
+  func open(_ root: URL) throws -> Project                       // stejné ID → už otevřená instance
+  func add(_ p: Project) -> Project; func project(_ id: String) throws -> Project
+  func close(_ id: String) throws; func list() -> [ProjectInfo]; func paths() -> [String]
 }
 final class Project: @unchecked Sendable {                       // operace serializované zámkem
-  var info: ProjectInfo; var config: ProjectConfig; func saveConfig(_:) throws; func reloadConfig() throws
-  func loadTree() throws -> TreeNode                             // {kind, rel, name, seq, id, method, url, children, error}
+  static func create(name: String, in parentDir: URL, trash:) throws -> Project   // podadresář <slug>
+  static func initProject(at: URL, name: String, trash:) throws -> Project; static func isProjectDir(_:) -> Bool
+  static func open(_ root: URL, trash:) throws -> Project
+  let root: URL; let readOnly: Bool; var info: ProjectInfo; var config: ProjectConfig
+  func saveConfig(_:) throws; func reloadConfig() throws
+  func loadTree() throws -> TreeNode                             // {kind, rel, name, seq, id, method, url, error, children}
   func createFolder(parent: String, name: String) throws -> TreeNode
   func createRequest(parent: String, name: String) throws -> TreeNode
   func rename(_ rel: String, to: String) throws -> TreeNode      // vrací nový rel
   func move(_ rel: String, to parent: String, index: Int) throws -> TreeNode
-  func duplicate(_ rel: String, copySuffix: String) throws -> TreeNode
+  func duplicate(_ rel: String, copySuffix: String = "") throws -> TreeNode   // "" = „ kopie“
   func delete(_ rel: String) throws                              // Koš
   func loadRequest(_ rel: String) throws -> Request
   func saveRequest(_ rel: String, _ r: Request) throws           // id, name, seq se převezmou z disku
   func loadFolderConfig(_ rel: String) throws -> FolderConfig; func saveFolderConfig(_ rel: String, _: FolderConfig) throws
-  func fileRef(_ url: URL) -> String                             // uvnitř projektu relativní (s /), jinak absolutní
+  func fileRef(_ path: String) -> String                         // uvnitř projektu relativní (s /), jinak absolutní
+  func absoluteURL(_ rel: String) throws -> URL
 }
-struct Workspace: Codable { projects, activeProject, expanded [projectID: [rel]], tabs [projectID: [requestID]],
-                            activeTab [projectID: requestID], activeEnvironment [projectID: envID],
-                            sidebarHidden, sidebarWidth, responseHeight }   // load/save do workspace.yaml
+struct Workspace { projects, activeProject, expanded [projectID: [rel]], tabs [projectID: [requestID]],
+                   activeTab [projectID: requestID], sidebarHidden, sidebarWidth, responseHeight }  // activeEnvironment přibude v F6
+  // static load(from: URL) throws, save(to: URL) throws, appDirectory, defaultProjectsDirectory
 final class ProjectWatcher { init(onChange: @Sendable (projectID, [rel]?) -> Void); add(id, root); remove(id) }
 
 // JSON (F1/F3)
