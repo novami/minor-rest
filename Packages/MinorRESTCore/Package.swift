@@ -12,6 +12,6 @@ let package = Package(
     ],
     targets: [
         .target(name: "MinorRESTCore", dependencies: ["Yams"]),
-        .testTarget(name: "MinorRESTCoreTests", dependencies: ["MinorRESTCore"]),
+        .testTarget(name: "MinorRESTCoreTests", dependencies: ["MinorRESTCore"], resources: [.copy("Fixtures")]),
     ]
 )

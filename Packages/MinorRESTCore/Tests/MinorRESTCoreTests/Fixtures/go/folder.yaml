@@ -1,0 +1,12 @@
+name: Uživatelé
+seq: 1
+vars:
+  - name: a
+    value: "1"
+    enabled: true
+headers:
+  - name: X-Folder
+    value: "yes"
+    enabled: true
+auth:
+  type: inherit

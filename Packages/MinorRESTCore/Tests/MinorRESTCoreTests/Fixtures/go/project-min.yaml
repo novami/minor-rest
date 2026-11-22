@@ -1,0 +1,6 @@
+formatVersion: 1
+id: 01JCX6BBBBBBBBBBBBBBBBBBBB
+name: Prázdný
+auth:
+  type: none
+ignoreResponsesInGit: false

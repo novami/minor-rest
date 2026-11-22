@@ -1,0 +1,27 @@
+id: 01JCX7CCCCCCCCCCCCCCCCCCCC
+name: OAuth
+seq: 0
+method: GET
+url: ""
+auth:
+  type: oauth2
+  oauth2:
+    grantType: client_credentials
+    authUrl: ""
+    tokenUrl: '{{baseUrl}}/oauth/token'
+    clientId: '{{clientId}}'
+    clientSecret: '{{clientSecret}}'
+    scope: read write
+    usePkce: true
+    redirectPort: 0
+    username: ""
+    password: ""
+    clientAuth: header
+    tokenPlacement: header
+    headerPrefix: Bearer
+    autoRefresh: true
+body:
+  type: text
+  raw: |2-
+      odsazený začátek
+    konec bez nového řádku

@@ -1,0 +1,406 @@
+[
+  {
+    "in": "",
+    "yaml": "v: \"\"\n"
+  },
+  {
+    "in": "a",
+    "yaml": "v: a\n"
+  },
+  {
+    "in": "Kůň",
+    "yaml": "v: Kůň\n"
+  },
+  {
+    "in": "true",
+    "yaml": "v: \"true\"\n"
+  },
+  {
+    "in": "false",
+    "yaml": "v: \"false\"\n"
+  },
+  {
+    "in": "True",
+    "yaml": "v: \"True\"\n"
+  },
+  {
+    "in": "TRUE",
+    "yaml": "v: \"TRUE\"\n"
+  },
+  {
+    "in": "yes",
+    "yaml": "v: \"yes\"\n"
+  },
+  {
+    "in": "no",
+    "yaml": "v: \"no\"\n"
+  },
+  {
+    "in": "on",
+    "yaml": "v: \"on\"\n"
+  },
+  {
+    "in": "off",
+    "yaml": "v: \"off\"\n"
+  },
+  {
+    "in": "y",
+    "yaml": "v: \"y\"\n"
+  },
+  {
+    "in": "n",
+    "yaml": "v: \"n\"\n"
+  },
+  {
+    "in": "Y",
+    "yaml": "v: \"Y\"\n"
+  },
+  {
+    "in": "null",
+    "yaml": "v: \"null\"\n"
+  },
+  {
+    "in": "Null",
+    "yaml": "v: \"Null\"\n"
+  },
+  {
+    "in": "~",
+    "yaml": "v: \"~\"\n"
+  },
+  {
+    "in": "1",
+    "yaml": "v: \"1\"\n"
+  },
+  {
+    "in": "-1",
+    "yaml": "v: \"-1\"\n"
+  },
+  {
+    "in": "+1",
+    "yaml": "v: \"+1\"\n"
+  },
+  {
+    "in": "007",
+    "yaml": "v: \"007\"\n"
+  },
+  {
+    "in": "1.5",
+    "yaml": "v: \"1.5\"\n"
+  },
+  {
+    "in": ".5",
+    "yaml": "v: \".5\"\n"
+  },
+  {
+    "in": "1e3",
+    "yaml": "v: \"1e3\"\n"
+  },
+  {
+    "in": "0x1F",
+    "yaml": "v: \"0x1F\"\n"
+  },
+  {
+    "in": "0o17",
+    "yaml": "v: \"0o17\"\n"
+  },
+  {
+    "in": "0b101",
+    "yaml": "v: \"0b101\"\n"
+  },
+  {
+    "in": ".inf",
+    "yaml": "v: \".inf\"\n"
+  },
+  {
+    "in": "-.Inf",
+    "yaml": "v: \"-.Inf\"\n"
+  },
+  {
+    "in": ".nan",
+    "yaml": "v: \".nan\"\n"
+  },
+  {
+    "in": "1:20",
+    "yaml": "v: \"1:20\"\n"
+  },
+  {
+    "in": "1_000",
+    "yaml": "v: \"1_000\"\n"
+  },
+  {
+    "in": "2026-11-16",
+    "yaml": "v: \"2026-11-16\"\n"
+  },
+  {
+    "in": "2026-11-16T15:04:05Z",
+    "yaml": "v: \"2026-11-16T15:04:05Z\"\n"
+  },
+  {
+    "in": "{{x}}",
+    "yaml": "v: '{{x}}'\n"
+  },
+  {
+    "in": "{{baseUrl}}/users",
+    "yaml": "v: '{{baseUrl}}/users'\n"
+  },
+  {
+    "in": "x{{a}}",
+    "yaml": "v: x{{a}}\n"
+  },
+  {
+    "in": "[a]",
+    "yaml": "v: '[a]'\n"
+  },
+  {
+    "in": "a]",
+    "yaml": "v: a]\n"
+  },
+  {
+    "in": "a,b",
+    "yaml": "v: a,b\n"
+  },
+  {
+    "in": "a, b",
+    "yaml": "v: a, b\n"
+  },
+  {
+    "in": "{a}",
+    "yaml": "v: '{a}'\n"
+  },
+  {
+    "in": "a: b",
+    "yaml": "v: 'a: b'\n"
+  },
+  {
+    "in": "a:b",
+    "yaml": "v: a:b\n"
+  },
+  {
+    "in": "a:",
+    "yaml": "v: 'a:'\n"
+  },
+  {
+    "in": "key:",
+    "yaml": "v: 'key:'\n"
+  },
+  {
+    "in": ":a",
+    "yaml": "v: :a\n"
+  },
+  {
+    "in": "a #b",
+    "yaml": "v: 'a #b'\n"
+  },
+  {
+    "in": "a#b",
+    "yaml": "v: a#b\n"
+  },
+  {
+    "in": "#a",
+    "yaml": "v: '#a'\n"
+  },
+  {
+    "in": "- a",
+    "yaml": "v: '- a'\n"
+  },
+  {
+    "in": "-a",
+    "yaml": "v: -a\n"
+  },
+  {
+    "in": "-",
+    "yaml": "v: '-'\n"
+  },
+  {
+    "in": "--",
+    "yaml": "v: --\n"
+  },
+  {
+    "in": "---",
+    "yaml": "v: '---'\n"
+  },
+  {
+    "in": "--- a",
+    "yaml": "v: '--- a'\n"
+  },
+  {
+    "in": "...",
+    "yaml": "v: '...'\n"
+  },
+  {
+    "in": "? a",
+    "yaml": "v: '? a'\n"
+  },
+  {
+    "in": "?a",
+    "yaml": "v: ?a\n"
+  },
+  {
+    "in": "@a",
+    "yaml": "v: '@a'\n"
+  },
+  {
+    "in": "`a",
+    "yaml": "v: '`a'\n"
+  },
+  {
+    "in": "\u0026a",
+    "yaml": "v: '\u0026a'\n"
+  },
+  {
+    "in": "*a",
+    "yaml": "v: '*a'\n"
+  },
+  {
+    "in": "!a",
+    "yaml": "v: '!a'\n"
+  },
+  {
+    "in": "%a",
+    "yaml": "v: '%a'\n"
+  },
+  {
+    "in": "|a",
+    "yaml": "v: '|a'\n"
+  },
+  {
+    "in": "\u003ea",
+    "yaml": "v: '\u003ea'\n"
+  },
+  {
+    "in": "'a",
+    "yaml": "v: '''a'\n"
+  },
+  {
+    "in": "\"a",
+    "yaml": "v: '\"a'\n"
+  },
+  {
+    "in": "a'b",
+    "yaml": "v: a'b\n"
+  },
+  {
+    "in": "a\"b",
+    "yaml": "v: a\"b\n"
+  },
+  {
+    "in": "a\\b",
+    "yaml": "v: a\\b\n"
+  },
+  {
+    "in": " lead",
+    "yaml": "v: ' lead'\n"
+  },
+  {
+    "in": "trail ",
+    "yaml": "v: 'trail '\n"
+  },
+  {
+    "in": " ",
+    "yaml": "v: ' '\n"
+  },
+  {
+    "in": "  ",
+    "yaml": "v: '  '\n"
+  },
+  {
+    "in": "a  b",
+    "yaml": "v: a  b\n"
+  },
+  {
+    "in": "tab\tx",
+    "yaml": "v: \"tab\\tx\"\n"
+  },
+  {
+    "in": "\ttab",
+    "yaml": "v: \"\\ttab\"\n"
+  },
+  {
+    "in": "x\ny",
+    "yaml": "v: |-\n  x\n  y\n"
+  },
+  {
+    "in": "x\n",
+    "yaml": "v: |\n  x\n"
+  },
+  {
+    "in": "x\n\n",
+    "yaml": "v: |+\n  x\n\n"
+  },
+  {
+    "in": "\nx",
+    "yaml": "v: |2-\n  x\n"
+  },
+  {
+    "in": "  x\ny",
+    "yaml": "v: |2-\n    x\n  y\n"
+  },
+  {
+    "in": "x \ny",
+    "yaml": "v: \"x \\ny\"\n"
+  },
+  {
+    "in": "x\n y",
+    "yaml": "v: |-\n  x\n   y\n"
+  },
+  {
+    "in": "line\r\nwin",
+    "yaml": "v: \"line\\r\\nwin\"\n"
+  },
+  {
+    "in": "bell\u0007",
+    "yaml": "v: \"bell\\a\"\n"
+  },
+  {
+    "in": "nbsp x",
+    "yaml": "v: nbsp x\n"
+  },
+  {
+    "in": "zw​x",
+    "yaml": "v: zw​x\n"
+  },
+  {
+    "in": "bom﻿x",
+    "yaml": "v: \"bom\\uFEFFx\"\n"
+  },
+  {
+    "in": "emoji 😀",
+    "yaml": "v: \"emoji \\U0001F600\"\n"
+  },
+  {
+    "in": "https://api.example.com/x?y=1\u0026z=2#f",
+    "yaml": "v: https://api.example.com/x?y=1\u0026z=2#f\n"
+  },
+  {
+    "in": "$.data.token",
+    "yaml": "v: $.data.token\n"
+  },
+  {
+    "in": "application/json; charset=utf-8",
+    "yaml": "v: application/json; charset=utf-8\n"
+  },
+  {
+    "in": "Bearer ***",
+    "yaml": "v: Bearer ***\n"
+  },
+  {
+    "in": "*/*",
+    "yaml": "v: '*/*'\n"
+  },
+  {
+    "in": "=a",
+    "yaml": "v: =a\n"
+  },
+  {
+    "in": "a=b",
+    "yaml": "v: a=b\n"
+  },
+  {
+    "in": "slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo konec",
+    "yaml": "v: slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo slovo konec\n"
+  },
+  {
+    "in": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "yaml": "v: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n"
+  }
+]

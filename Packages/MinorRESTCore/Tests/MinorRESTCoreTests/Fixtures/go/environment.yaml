@@ -1,0 +1,9 @@
+id: 01JCX8AAAAAAAAAAAAAAAAAAAA
+name: Vývoj
+vars:
+  - name: baseUrl
+    value: http://localhost:8080
+    enabled: true
+  - name: apiKey
+    secret: true
+    enabled: true

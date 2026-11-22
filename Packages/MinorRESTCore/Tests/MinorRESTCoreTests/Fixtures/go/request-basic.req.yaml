@@ -1,0 +1,21 @@
+id: 01JCX7DDDDDDDDDDDDDDDDDDDD
+name: Basic & API key
+seq: 0
+method: GET
+url: ""
+auth:
+  type: basic
+  basic:
+    username: '{{user}}'
+    password: 'tajné: heslo'
+  apikey:
+    key: X-API-Key
+    value: '{{apiKey}}'
+    in: header
+body:
+  type: text
+  raw: |+
+    řádek
+
+    prázdný řádek výše
+

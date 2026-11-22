@@ -1,0 +1,17 @@
+formatVersion: 1
+id: 01JCX6AAAAAAAAAAAAAAAAAAAA
+name: Můj projekt
+description: 'Popis: s dvojtečkou'
+vars:
+  - name: baseUrl
+    value: https://api.example.com
+    enabled: true
+headers:
+  - name: Accept
+    value: application/json
+    enabled: true
+auth:
+  type: none
+settings:
+  timeoutMs: 5000
+ignoreResponsesInGit: true

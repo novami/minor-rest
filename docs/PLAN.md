@@ -191,7 +191,7 @@ docs: ""
 - `:nazev` v cestě (segment začínající `:`, ne port) → automaticky řádek v `params.path`; zmizí-li z URL, řádek odstranit (hodnoty se drží podle názvu).
 - Cesty k souborům (`multipart.path`, `binaryPath`): uvnitř projektu relativně ke kořeni (s `/`), jinak absolutně; symlinky rozvinout (`/var` → `/private/var`).
 - Chybějící `enabled` u KV/Var/multipart/extract = zapnuto.
-- **YAML zápis:** prázdné sekce se nezapisují, pořadí klíčů dle struktury, odsazení 2, víceřádkové řetězce jako blokový literál `|`, řádky blokovým stylem → stabilní diffy v gitu. Implementace: `Encodable` → vlastní stavba `Yams.Node` (kvůli stylům a vynechání prázdných hodnot), ne výchozí `YAMLEncoder`. Neplatný YAML → `YAML_INVALID`.
+- **YAML zápis:** prázdné sekce se nezapisují, pořadí klíčů dle struktury, odsazení 2, víceřádkové řetězce jako blokový literál `|`, řádky blokovým stylem → stabilní diffy v gitu. Implementace: čtení přes Yams (`compose` → vlastní `YAMLObject` s výchozími hodnotami), zápis **vlastním emitorem** `YAMLWriter` (kopie pravidel yaml.v3/libyaml pro volbu stylu řetězce – plain / `'…'` / `"…"` / `|`), protože Yams neodsazuje sekvence jako Go. Testy porovnávají bajtově s fixtures zapsanými Go verzí. Jediná záměrná odchylka: literál začínající novým řádkem (yaml.v3 ho ztrácí, my ne). Neplatný YAML → `YAML_INVALID`.
 
 Auth bloky:
 ```yaml

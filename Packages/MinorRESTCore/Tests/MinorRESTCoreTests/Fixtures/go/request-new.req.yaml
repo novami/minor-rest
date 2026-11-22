@@ -1,0 +1,9 @@
+id: 01JCX7BBBBBBBBBBBBBBBBBBBB
+name: Nový request
+seq: 0
+method: GET
+url: ""
+auth:
+  type: inherit
+body:
+  type: none

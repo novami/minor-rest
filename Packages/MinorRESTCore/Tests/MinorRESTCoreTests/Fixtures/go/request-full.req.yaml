@@ -1,0 +1,81 @@
+id: 01JCX7AAAAAAAAAAAAAAAAAAAA
+name: Seznam uživatelů
+seq: 3
+method: POST
+url: '{{baseUrl}}/users/:id'
+params:
+  query:
+    - name: q
+      value: kůň
+      enabled: true
+      description: hledaný výraz
+    - name: page
+      value: "2"
+      enabled: false
+    - name: wsdl
+      value: ""
+      enabled: true
+      bare: true
+  path:
+    - name: id
+      value: "42"
+      description: ID
+headers:
+  - name: X-Trace
+    value: '{{$uuid}}'
+    enabled: true
+  - name: Accept
+    value: application/json
+    enabled: true
+  - name: User-Agent
+    value: ""
+    enabled: false
+auth:
+  type: bearer
+  bearer:
+    token: '{{token}}'
+    prefix: Bearer
+body:
+  type: json
+  raw: |
+    {
+      "jméno": "Žluťoučký",
+    	"x": 1
+    }
+  form:
+    - name: a
+      value: "1"
+      enabled: true
+  multipart:
+    - name: popis
+      kind: text
+      value: Žluťoučký
+      enabled: true
+    - name: soubor
+      kind: file
+      path: data/foto.jpg
+      contentType: image/jpeg
+      enabled: false
+  binaryPath: /tmp/x.bin
+vars:
+  - name: id
+    value: '{{$uuid}}'
+    enabled: true
+  - name: "off"
+    enabled: false
+extract:
+  - name: token
+    from: body
+    path: $.data.token
+    enabled: true
+settings:
+  httpVersion: http2
+  followRedirects: false
+  maxRedirects: 0
+  timeoutMs: 5000
+  verifyTls: true
+  cookieJar: false
+docs: |-
+  # Seznam
+
+  Vrátí *všechny* uživatele.
