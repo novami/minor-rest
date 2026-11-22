@@ -60,7 +60,7 @@ private func scalarCases() throws -> [ScalarCase] {
             #expect(YAML.encode(try YAML.decode(FolderConfig.self, from: text)) == text, "\(file)")
         }
         let env = try fixture("environment.yaml")
-        #expect(YAML.encode(try YAML.decode(Environment.self, from: env)) == env)
+        #expect(YAML.encode(try YAML.decode(EnvironmentConfig.self, from: env)) == env)
     }
 
     @Test func requestFieldsFromGo() throws {

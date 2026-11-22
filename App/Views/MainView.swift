@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Rozvržení hlavního okna: sidebar | request / odpověď.
+/// Rozvržení hlavního okna: sidebar | request / odpověď. Šířku sidebaru a rámec okna ukládá AppKit
+/// (autosave `NSSplitView`/`NSWindow`), výšku odpovědi workspace.
 struct MainView: View {
     @Environment(AppModel.self) private var model
     @State private var scale: CGFloat = 2
@@ -8,24 +9,44 @@ struct MainView: View {
     var body: some View {
         @Bindable var model = model
         let fonts = AppFonts.forScale(scale)
+        let responseHeight = Binding(
+            get: { CGFloat(model.workspace.ws.responseHeight) },
+            set: { h in model.workspace.update { $0.responseHeight = Int(h) } })
         NavigationSplitView(columnVisibility: $model.columnVisibility) {
-            EmptyState(title: t("sidebar.noProject"))
-                .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 600)
+            sidebar
+                .navigationSplitViewColumnWidth(min: 180, ideal: 260, max: 600)
         } detail: {
-            VSplitView {
+            ResponseSplit(height: responseHeight) {
                 EmptyState(title: t("request.empty"), hint: t("request.emptyHint"))
-                    .frame(minHeight: 120, maxHeight: .infinity)
+            } bottom: {
                 EmptyState(title: t("response.empty"), hint: t("response.emptyHint"))
-                    .frame(minHeight: 120, idealHeight: 300, maxHeight: .infinity)
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .navigation) { ProjectSwitcher() }
+        }
+        .toolbar(removing: .title)
         .overlay(alignment: .bottom) { ToastStack(center: model.toasts) }
         .background(BackingScaleReader(scale: $scale))
         .environment(\.appFonts, fonts)
         .font(fonts.ui)
         .frame(minWidth: 900, minHeight: 600)
-        #if DEBUG
-        .task { DebugTools.runIfRequested() }
-        #endif
+        .task {
+            await model.projects.restore()
+            #if DEBUG
+            DebugTools.runIfRequested()
+            #endif
+        }
+    }
+
+    @ViewBuilder private var sidebar: some View {
+        if let project = model.projects.active {
+            // strom projektu přibude v F2/2
+            EmptyState(title: project.name, hint: project.path)
+        } else if model.projects.restored {
+            EmptyState(title: t("sidebar.noProject"))
+        } else {
+            Color.clear
+        }
     }
 }

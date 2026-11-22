@@ -319,7 +319,7 @@ public struct ProjectConfig: Hashable, Sendable {
 }
 
 /// Obsah `environments/<slug>.yaml`.
-public struct Environment: Hashable, Sendable {
+public struct EnvironmentConfig: Hashable, Sendable {
     public var id: String
     public var name: String
     public var vars: [Var]

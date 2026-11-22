@@ -1,16 +1,30 @@
-#if DEBUG
 import AppKit
 
-/// Ladicí přepínače pro ověřování UI z příkazové řádky (bez oprávnění k nahrávání obrazovky):
+/// Ladicí přepínače pro ověřování UI z příkazové řádky (jen Debug build, bez oprávnění k nahrávání obrazovky):
 /// `--snapshot <soubor.png>` vykreslí hlavní okno do PNG, `--dump-menu <soubor.txt>` vypíše menu,
-/// `--quit-after-debug` pak aplikaci ukončí. Jazyk lze vynutit standardním `-AppleLanguages '(en)'`.
-@MainActor
+/// `--quit-after-debug` pak aplikaci ukončí, `--workspace-dir <adresář>` použije jiný adresář pro
+/// `workspace.yaml` (testy nesahají na skutečný). Jazyk lze vynutit standardním `-AppleLanguages '(en)'`.
 enum DebugTools {
+    /// Náhradní adresář workspace (`--workspace-dir`), v Release vždy `nil`.
+    static var workspaceDirectory: URL? {
+        #if DEBUG
+        value("--workspace-dir").map { URL(fileURLWithPath: $0) }
+        #else
+        nil
+        #endif
+    }
+
+    private static func value(_ flag: String) -> String? {
+        let args = ProcessInfo.processInfo.arguments
+        return args.firstIndex(of: flag).flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil }
+    }
+}
+
+#if DEBUG
+@MainActor
+extension DebugTools {
     static func runIfRequested() {
         let args = ProcessInfo.processInfo.arguments
-        func value(_ flag: String) -> String? {
-            args.firstIndex(of: flag).flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil }
-        }
         let snapshot = value("--snapshot"), menu = value("--dump-menu")
         guard snapshot != nil || menu != nil else { return }
         Task {

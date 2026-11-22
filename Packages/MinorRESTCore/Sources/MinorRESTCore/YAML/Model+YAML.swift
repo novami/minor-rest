@@ -301,7 +301,7 @@ extension ProjectConfig: YAMLCodable {
     }
 }
 
-extension Environment: YAMLCodable {
+extension EnvironmentConfig: YAMLCodable {
     public var yaml: YNode {
         var m = YMap()
         m.add("id", id)

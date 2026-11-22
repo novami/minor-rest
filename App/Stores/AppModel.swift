@@ -5,7 +5,18 @@ import SwiftUI
 @MainActor @Observable
 final class AppModel {
     let toasts = ToastCenter()
-    var columnVisibility: NavigationSplitViewVisibility = .all
+    let workspace = WorkspaceStore()
+    let projects: ProjectsStore
+
+    init() {
+        projects = ProjectsStore(workspace: workspace, toasts: toasts)
+    }
+
+    /// Viditelnost sidebaru (uložená ve workspace).
+    var columnVisibility: NavigationSplitViewVisibility {
+        get { workspace.ws.sidebarHidden ? .detailOnly : .all }
+        set { workspace.update { $0.sidebarHidden = newValue == .detailOnly } }
+    }
 
     func toggleSidebar() {
         columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly

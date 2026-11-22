@@ -369,7 +369,7 @@ Postman Collection v2.1 (`Import/Postman`, volitelné v F10): item/folder → st
 │              │ [Pretty|Raw|Náhled]  🔍  JSONPath filtr                          │
 └──────────────┴────────────────────────────────────────────────────────────────┘
 ```
-- `NavigationSplitView` (sidebar skrytelný Cmd+B, šířka se pamatuje) + `VSplitView`/`HSplitView` request/odpověď (dole výchozí, nebo vpravo). Rozměry do workspace.
+- `NavigationSplitView` (sidebar skrytelný Cmd+B – stav ve workspace; šířku sidebaru a rámec okna si ukládá AppKit sám v předvolbách, `workspace.sidebarWidth` se jen zachovává kvůli kompatibilitě) + vlastní `ResponseSplit` request/odpověď (dole výchozí, nebo vpravo; `VSplitView` neuplatní uloženou výšku), výška odpovědi ve workspace.
 - Barvy metod: GET zelená, POST oranžová, PUT modrá, PATCH fialová, DELETE červená, HEAD šedá, OPTIONS tyrkysová (asset barvy se světlou/tmavou variantou, hodnoty jako rev. 2).
 - **Status badge:** 1xx šedá, 2xx zelená, 3xx modrá, 4xx oranžová, 5xx červená; text `201 Created`; tooltip = lokalizovaný popis kódu (`status.<kód>`). Chyba sítě = červený panel s lokalizovanou chybou + detail.
 - Popover času: vodopád DNS / TCP / TLS / TTFB / Download. Popover velikosti: odpověď hlavičky / tělo (přenesené → dekomprimované), request hlavičky / tělo.
@@ -517,6 +517,8 @@ OpenAPIImport.preview(source:) async throws -> ImportPreview; importProject(sour
 // Nastavení (F11)
 AppSettings: load() / save(_:)
 ```
+
+Model prostředí se jmenuje `EnvironmentConfig` (název `Environment` koliduje se SwiftUI `@Environment`).
 
 ### 11.2 Klíčová DTO
 ```swift
