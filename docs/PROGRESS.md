@@ -2,8 +2,8 @@
 
 ## Aktuálně
 - **Změna zadání (2026-11-22):** aplikace se přepisuje do Swiftu (SwiftUI + AppKit, URLSession, macOS 15+). Plán revize 3 v `docs/PLAN.md`, Go/Wails stav v tagu `go-wails-f4` (lokální, nepushnutý).
-- **Fáze:** F1, krok 2 hotový (70ac3ed).
-- **Další krok:** F1, krok 3 – `Vars/` (PLAN kap. 3): `Resolver(scopes:)` (pořadí = priorita; vypnuté ignorovat), `resolve(_:) throws -> (String, unresolved:)` (rekurze max 10, `VAR_CYCLE`, neznámé ponechat literálem, `\{` escape, mezery v závorkách), dynamické `$uuid $ulid $timestamp $timestampMs $isoTimestamp $randomInt $randomString` (časové jednou na resolver; pojmenovaná proměnná jednou na resolver – cache; přímé `{{$uuid}}` pokaždé nové), `unresolved`, `explain()` (tajné maskované `***`), `buildURL(url, path:, query:, resolver:)` (proměnné → `http://` → `:param` percent-encode segmentu → query `encodeQuery`; `VAR_UNRESOLVED_HOST`, `URL_INVALID`), `encodeQuery` (prázdná → `name=`, `bare` → `name`), `encodeQueryComponent` (zachová platné `%XX`, kóduje `& = + #`, mezera `%20`). `JSON/JSONFormatter`: `format(_:)` (vlastní tokenizér, odsazení 2, zachová přesný text čísel a pořadí klíčů, `{{…}}` mimo řetězec = hodnota, chyba `JSON_INVALID: <řádek>: …`), `validate`. Reference: `git show go-wails-f4:internal/vars/{vars.go,url.go,vars_test.go}`, `internal/jsonfmt/{jsonfmt.go,jsonfmt_test.go}`.
+- **Fáze:** F1 hotová (poslední krok F1/3: 3bc599e).
+- **Další krok:** F2, krok 1 – v `App/Stores`: `WorkspaceStore` (`@Observable @MainActor`; načtení `Workspace.load(from: Workspace.appDirectory)` při startu, debounced uložení ~0,5 s, šířka sidebaru/výška odpovědi/skrytí sidebaru napojit na `MainView`) a `ProjectsStore` (drží `ProjectRegistry`, seznam `ProjectInfo`, aktivní projekt, `create(name:in:)`, `openDirectory()` přes `NSOpenPanel` – adresář bez `minorrest.yaml` → `NSAlert` „Založit projekt“ s textem `project.initTitle/initMessage`, `close(id)`; při startu znovu otevřít cesty z workspace, nečitelné vynechat + log). UI: přepínač projektů v toolbaru (`Menu`: otevřené projekty se zaškrtnutím aktivního, „Nový projekt…“ = sheet s názvem a volbou umístění – výchozí `Workspace.defaultProjectsDirectory`, „Otevřít adresář…“, „Zavřít projekt“), prázdný stav sidebaru dle aktivního projektu (zatím bez stromu – F2/2). Chyby jádra do toastu přes `t("errors.<kód>")` + detail (helper `errorText(_:)`). Ověřit `--snapshot` (testovací projekt jen ve scratch adresáři; po testu workspace vrátit – přepínač `--workspace-dir <dir>` v DebugTools pro izolaci by to usnadnil).
 - **Prostředí:** Xcode 27.2, Swift 6.4.2, XcodeGen 2.48.0 (Homebrew), Yams 6.2.2. Příkazy `make gen|build|run|test|clean`.
 
 ### Co existuje (Swift)
@@ -31,6 +31,8 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 
 - F1/2: `Storage/` – `FileIO` (atomický zápis `.tmp-<uuid>` + `rename(2)`, `readYAML/writeYAML`, převod chyb na `NOT_FOUND`/`FS_ERROR`, `takenNames`, `realPath` přes `realpath(3)` na nejbližším existujícím předkovi, `creationDate`), `RelPath` (validace bez `\`, `/` na začátku, prázdných segmentů, `.`, `..`), `Project` (final class, `NSLock`; `create/initProject/open/isProjectDir`, `config/saveConfig/reloadConfig` + `.gitignore`, strom, CRUD, `rename`, `move`, `duplicate`, `delete` s `.responses/<id>`, `fileRef`; Koš injektovatelný `trash:` – výchozí `FileManager.trashItem`), `ProjectRegistry` (actor), `Workspace` (YAML, mapy se seřazenými klíči). Zápis YAML normalizuje řetězce do NFC (`YMap.add`). Chybové kódy úložiště v `ErrorCode`.
 - Testy (port Go `storage_test.go` + kopie složky s novými ID, symlink `/var` v `fileRef`, workspace roundtrip): 20 testů celkem zelených. Skutečný Koš v testech nahrazen přesunem do dočasného adresáře (neověřeno).
+
+- F1/3: `Vars/Resolver` (`VarSource`, `VarScope`, `VarInfo`; vyhodnocení jako Go – `\{{` literál, neznámé ponechá, cache pojmenovaných, časové dynamické jednou na resolver, `VAR_CYCLE` s cestou `a → b → a`, hloubka 10), `Vars/URLBuilder` (`build`, `encodeQuery`, `encodeQueryComponent`, `validate` napodobující Go `url.Parse`, `VAR_UNRESOLVED_HOST`, `URL_INVALID`), `JSON/JSONFormatter` (`format`/`validate`, iterativní tokenizér nad UTF-8 bajty bez rekurze, výstup jako Go `json.Indent`, proměnné jako hodnota i klíč, `\{{…}}` v řetězci, chyby `JSON_INVALID: <řádek>: …`). Testy: port Go `vars_test.go` a `jsonfmt_test.go` + chybové případy, IPv6, ~4 MB JSON. Celkem 29 testů.
 
 ### Co existuje (F0)
 - `main.go` (okno 1280×800, HiddenInset titlebar, About), `menu.go` (nativní menu cs/en dle systému, položky emitují `menu:<akce>`), `app.go` (`SetDirty`, `GetVersion`, potvrzení zavření při neuložených změnách).
@@ -120,6 +122,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 | 2026-11-22 | F0/3 (Swift) | b116273 | CI pro Swift |
 | 2026-11-22 | F1/1 (Swift) | 78b228b | model, yaml shodný s go, slug, ulid |
 | 2026-11-22 | F1/2 (Swift) | 70ac3ed | úložiště, registr, workspace |
+| 2026-11-22 | F1/3 (Swift) | 3bc599e | proměnné, url, formátování json |
 
 ## Rozhodnutí uživatele
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
