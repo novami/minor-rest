@@ -483,6 +483,9 @@ struct Workspace { projects, activeProject, expanded [projectID: [rel]], tabs [p
   // static load(from: URL) throws, save(to: URL) throws, appDirectory, defaultProjectsDirectory
 final class ProjectWatcher { init(onChange: @Sendable (projectID, [rel]?) -> Void); add(id, root); remove(id) }
 
+extension TreeNode { static parent(of:), find(_ rel:), static fold(_:), filtered(_ query:) -> TreeNode,
+                    moveIndex(of: dragged, before child: Int?) -> Int? }   // hledání a DnD ve stromu (F2/3)
+
 // JSON (F1/F3)
 enum JSONFormatter { static func format(_ text: String) throws -> String; static func validate(_:) -> CoreError? }
 

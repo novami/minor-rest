@@ -12,6 +12,14 @@ final class TreeStore {
     var selection: String?
     /// Uzel, jehož název má view po načtení otevřít k editaci.
     var pendingEdit: String?
+    /// Filtr stromu (prázdný = celý strom); během filtru je vše rozbalené a DnD vypnutý.
+    var query = ""
+    /// Zvýšení = přesunout fokus z pole hledání do stromu.
+    private(set) var focusRequest = 0
+
+    var filtering: Bool { !query.trimmingCharacters(in: .whitespaces).isEmpty }
+    /// Strom k zobrazení (po filtru).
+    var visibleRoot: TreeNode? { root.map { filtering ? $0.filtered(query) : $0 } }
 
     @ObservationIgnored private let workspace: WorkspaceStore
     @ObservationIgnored private let projects: ProjectsStore
@@ -30,6 +38,7 @@ final class TreeStore {
         if id != projectID {
             selection = nil
             pendingEdit = nil
+            query = ""
         }
         projectID = id
         guard !id.isEmpty, let project = try? await projects.project(id) else {
@@ -55,23 +64,18 @@ final class TreeStore {
         }
     }
 
-    func node(_ rel: String) -> TreeNode? {
-        guard let root else { return nil }
-        if rel.isEmpty { return root }
-        func find(_ n: TreeNode) -> TreeNode? {
-            if n.rel == rel { return n }
-            for c in n.children where c.kind == .folder || c.rel == rel {
-                if let hit = find(c) { return hit }
-            }
-            return nil
-        }
-        return find(root)
+    func node(_ rel: String) -> TreeNode? { root?.find(rel) }
+
+    /// Fokus do stromu (z pole hledání); bez viditelného výběru vybere první řádek.
+    func focusTree() {
+        if let v = visibleRoot, selection.flatMap(v.find) == nil { selection = v.children.first?.rel }
+        focusRequest += 1
     }
 
     /// Cílová složka pro nový uzel: složka sama, u requestu jeho složka, jinak kořen.
     func targetFolder(for rel: String?) -> String {
         guard let rel, let n = node(rel) else { return "" }
-        return n.kind == .folder ? n.rel : Self.parent(n.rel)
+        return n.kind == .folder ? n.rel : TreeNode.parent(of: n.rel)
     }
 
     // MARK: - Operace
@@ -90,6 +94,19 @@ final class TreeStore {
             let n = try project.rename(rel, to: name)
             if old.kind == .folder { self.replaceExpandedPrefix(rel, with: n.rel) }
             if self.selection == rel { self.selection = n.rel }
+        }
+    }
+
+    /// Přesun do složky `parent` na `index` mezi sourozenci stejného druhu.
+    func move(_ rel: String, to parent: String, index: Int) async {
+        guard let old = node(rel) else { return }
+        await perform { project in
+            let n = try project.move(rel, to: parent, index: index)
+            if old.kind == .folder { self.replaceExpandedPrefix(rel, with: n.rel) }
+            if !parent.isEmpty { self.setExpanded(parent, true) }
+            if let s = self.selection, s == rel || s.hasPrefix(rel + "/") {
+                self.selection = n.rel + s.dropFirst(rel.count)
+            }
         }
     }
 
@@ -128,6 +145,7 @@ final class TreeStore {
 
     private func create(near rel: String?, _ make: (Project, String) throws -> TreeNode) async {
         let parent = targetFolder(for: rel ?? selection)
+        query = ""
         var created: String?
         await perform { project in
             let n = try make(project, parent)
@@ -157,10 +175,6 @@ final class TreeStore {
                 return newRel.map { $0 + p.dropFirst(rel.count) }
             }
         }
-    }
-
-    private static func parent(_ rel: String) -> String {
-        rel.lastIndex(of: "/").map { String(rel[..<$0]) } ?? ""
     }
 
     private func editExpanded(_ change: (inout [String]) -> Void) {

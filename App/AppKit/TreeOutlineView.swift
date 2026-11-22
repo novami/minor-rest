@@ -3,11 +3,13 @@ import MinorRESTCore
 import SwiftUI
 
 /// Strom projektu nad `NSOutlineView` (source list, jeden sloupec). Stav drží `TreeStore`,
-/// view se znovu načte při změně `version`.
+/// view se znovu načte při změně `version` nebo filtru.
 struct TreeOutlineView: NSViewRepresentable {
     let store: TreeStore
     let version: Int
+    let query: String
     let pendingEdit: String?
+    let focusRequest: Int
     let font: NSFont
 
     func makeCoordinator() -> Coordinator { Coordinator(store: store) }
@@ -27,6 +29,8 @@ struct TreeOutlineView: NSViewRepresentable {
         outline.outlineTableColumn = column
         outline.dataSource = context.coordinator
         outline.delegate = context.coordinator
+        outline.registerForDraggedTypes([.treeRel])
+        outline.setDraggingSourceOperationMask(.move, forLocal: true)
         context.coordinator.outline = outline
 
         let scroll = NSScrollView()
@@ -40,9 +44,14 @@ struct TreeOutlineView: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         let c = context.coordinator
         c.font = font
-        if c.version != version {
+        if c.version != version || c.query != query {
             c.version = version
+            c.query = query
             c.reload()
+        }
+        if c.focusRequest != focusRequest {
+            c.focusRequest = focusRequest
+            c.focusTree()
         }
         if let rel = pendingEdit {
             DispatchQueue.main.async { if c.store.pendingEdit == rel { c.beginEditing(rel) } }
@@ -56,6 +65,9 @@ struct TreeOutlineView: NSViewRepresentable {
         let store: TreeStore
         weak var outline: TreeOutline?
         var version = -1
+        var query = ""
+        var focusRequest = 0
+        private var pendingDrop: (rel: String, parent: String, index: Int)?
         var font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
         private var root: TreeItem?
         private var restoring = false
@@ -64,18 +76,26 @@ struct TreeOutlineView: NSViewRepresentable {
 
         init(store: TreeStore) { self.store = store }
 
-        /// Nový strom z `store.root`, obnova rozbalení z workspace a výběru.
+        /// Nový strom z `store.visibleRoot`, rozbalení z workspace (při filtru vše) a obnova výběru.
         func reload() {
             guard let outline else { return }
-            root = store.root.map(TreeItem.init)
+            root = store.visibleRoot.map(TreeItem.init)
             restoring = true
             outline.reloadData()
-            let expanded = store.expanded
-            for rel in expanded.sorted() {
-                if let item = item(rel), outline.row(forItem: item) >= 0 { outline.expandItem(item) }
+            if store.filtering {
+                outline.expandItem(nil, expandChildren: true)
+            } else {
+                for rel in store.expanded.sorted() {
+                    if let item = item(rel), outline.row(forItem: item) >= 0 { outline.expandItem(item) }
+                }
             }
             restoring = false
             select(store.selection)
+        }
+
+        func focusTree() {
+            select(store.selection)
+            outline?.window?.makeFirstResponder(outline)
         }
 
         func item(_ rel: String) -> TreeItem? { root?.find(rel) }
@@ -134,8 +154,53 @@ struct TreeOutlineView: NSViewRepresentable {
         func outlineViewItemDidCollapse(_ notification: Notification) { expandChanged(notification, false) }
 
         private func expandChanged(_ notification: Notification, _ on: Bool) {
-            guard !restoring, let i = notification.userInfo?["NSObject"] as? TreeItem else { return }
+            guard !restoring, !store.filtering, let i = notification.userInfo?["NSObject"] as? TreeItem else { return }
             store.setExpanded(i.node.rel, on)
+        }
+
+        // MARK: Drag & drop
+
+        func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
+            guard !store.filtering, editingRel == nil, let i = item as? TreeItem else { return nil }
+            let pb = NSPasteboardItem()
+            pb.setString(i.node.rel, forType: .treeRel)
+            return pb
+        }
+
+        /// Návrh `NSOutlineView` (rodič + index mezi dětmi, -1 = na položku) převede na pravidla stromu:
+        /// request na složku = dovnitř, request na request = za něj, složka na request = do jeho složky,
+        /// složky jen mezi složky a requesty jen mezi requesty, složka ne do sebe.
+        func outlineView(_ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo, proposedItem item: Any?,
+                         proposedChildIndex index: Int) -> NSDragOperation {
+            pendingDrop = nil
+            guard !store.filtering, let rel = info.draggingPasteboard.string(forType: .treeRel),
+                  let dragged = store.node(rel), let root else { return [] }
+            var target = item as? TreeItem
+            var child: Int? = index < 0 ? nil : index
+            if let t = target, t.node.kind == .request {
+                let parent = outlineView.parent(forItem: t) as? TreeItem
+                target = parent
+                child = dragged.kind == .request ? (parent ?? root).children.firstIndex { $0 === t }.map { $0 + 1 } : nil
+            }
+            let parent = target ?? root
+            let folders = parent.children.filter { $0.node.kind == .folder }.count
+            if let c = child {
+                child = dragged.kind == .folder ? min(c, folders) : max(c, folders)
+            }
+            let dest = parent.node.rel
+            if dragged.kind == .folder && (dest == rel || dest.hasPrefix(rel + "/")) { return [] }
+            guard let moveIndex = parent.node.moveIndex(of: dragged, before: child) else { return [] }
+            outlineView.setDropItem(target, dropChildIndex: child ?? NSOutlineViewDropOnItemIndex)
+            pendingDrop = (rel, dest, moveIndex)
+            return .move
+        }
+
+        func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?,
+                         childIndex index: Int) -> Bool {
+            guard let drop = pendingDrop else { return false }
+            pendingDrop = nil
+            Task { await store.move(drop.rel, to: drop.parent, index: drop.index) }
+            return true
         }
 
         // MARK: Klávesy a menu
@@ -311,6 +376,10 @@ final class TreeOutline: NSOutlineView {
         if row >= 0 { selectRowIndexes([row], byExtendingSelection: false) } else { deselectAll(nil) }
         return c.menu(for: row >= 0 ? (item(atRow: row) as? TreeItem)?.node.rel : nil)
     }
+}
+
+extension NSPasteboard.PasteboardType {
+    static let treeRel = NSPasteboard.PasteboardType("com.github.novami.minorrest.tree-rel")
 }
 
 /// Položka menu s closure místo target/action.

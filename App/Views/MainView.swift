@@ -41,8 +41,7 @@ struct MainView: View {
 
     @ViewBuilder private var sidebar: some View {
         if model.projects.active != nil {
-            TreeOutlineView(store: model.tree, version: model.tree.version, pendingEdit: model.tree.pendingEdit,
-                            font: AppFonts.forScale(scale).uiNSFont)
+            TreeSidebar(font: AppFonts.forScale(scale).uiNSFont)
                 .task(id: model.projects.activeID) { await model.tree.load(model.projects.activeID) }
         } else if model.projects.restored {
             EmptyState(title: t("sidebar.noProject"))
