@@ -45,7 +45,7 @@ public struct Prepared: Sendable, Equatable {
     public var request: PreparedRequest
     public var options: HTTPEngine.Options
     public var unresolved: [String]
-    /// Odkud je auth (F7); zatím "".
+    /// Odkud je auth: `request`, `folder:<rel>`, `project` (`AuthApply.effective`).
     public var authSource: String
     /// Hodnoty tajných proměnných (maskování historie a uložených odpovědí).
     public var secrets: [String] = []
@@ -57,18 +57,25 @@ public enum Prepare {
 
     /// Vyhodnotí proměnné, složí hlavičky (projekt → složky → request; nižší úroveň přepíše
     /// stejný název bez ohledu na velikost písmen) a nastavení (request → projekt → výchozí).
-    /// Auth zatím jen none. `async` kvůli OAuth (F7).
+    /// Auth se zdědí (`AuthApply.effective`) a přidá za hlavičky. `async` kvůli OAuth (F7/2).
     public static func prepare(_ input: PrepareInput) async throws -> Prepared {
         let sc = scopes(input)
         let r = Resolver(scopes: sc)
         let req = input.request
-        let url = try URLBuilder.build(req.url, path: req.params.path, query: req.params.query, resolver: r)
+        var url = try URLBuilder.build(req.url, path: req.params.path, query: req.params.query, resolver: r)
 
         var levels = [input.project.headers]
         levels += input.folders.map(\.config.headers)
         levels.append(req.headers)
-        let (headers, noAuto) = try mergeHeaders(levels, r)
+        var (headers, noAuto) = try mergeHeaders(levels, r)
         let body = try resolveBody(req.body, r)
+
+        let auth = AuthApply.effective(req.auth, folders: input.folders, project: input.project.auth)
+        let queryNames = Set(try req.params.query.filter(\.enabled).map { try r.resolve($0.name).value })
+        let applied = try AuthApply.apply(auth.auth, headers: &headers, queryNames: queryNames, r)
+        if let q = applied.query {
+            url += (url.contains("?") ? "&" : "?") + URLBuilder.encodeQuery([q])
+        }
 
         let s = req.settings.over(input.project.settings).over(input.defaults)
         return Prepared(
@@ -76,8 +83,8 @@ public enum Prepare {
                                      url: url, headers: headers, body: body,
                                      baseDir: input.baseDir, noAuto: noAuto),
             options: HTTPEngine.Options(s, userAgent: input.userAgent),
-            unresolved: r.unresolved, authSource: "",
-            secrets: sc.flatMap(\.vars).filter { $0.secret && !$0.value.isEmpty }.map(\.value))
+            unresolved: r.unresolved, authSource: auth.source,
+            secrets: sc.flatMap(\.vars).filter { $0.secret && !$0.value.isEmpty }.map(\.value) + applied.secrets)
     }
 
     /// Platné proměnné pro UI (zvýraznění, hover, „oko“). Tajné proměnné bez načtené hodnoty

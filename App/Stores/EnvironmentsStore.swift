@@ -110,6 +110,24 @@ final class EnvironmentsStore {
         loadGlobals()
     }
 
+    /// Přidá tajnou proměnnou do aktivního prostředí („Převést na tajnou proměnnou“ u auth).
+    /// Tajné hodnoty prostředí se doplní z Keychain, jinak by uložení stávající smazalo.
+    func addSecret(_ projectID: String, name: String, value: String) async throws {
+        guard let envID = active(projectID)?.id else { return }
+        let project = try await projects.project(projectID)
+        let secrets = secrets
+        try await Task.detached {
+            guard var env = try project.listEnvironments().first(where: { $0.id == envID }) else {
+                throw CoreError(.notFound, envID)
+            }
+            env.vars = try secrets.fill(env.vars, account: project.secretAccount(envID: env.id))
+            env.vars.removeAll { $0.name == name }
+            env.vars.append(Var(name: name, value: value, secret: true))
+            try project.saveEnvironment(env, secrets: secrets)
+        }.value
+        await load(projectID)
+    }
+
     /// Proměnné aktivního prostředí a globální s hodnotami z Keychain (pro `Prepare`).
     func varsForSend(_ projectID: String) async throws -> (environment: [Var], globals: [Var]) {
         let env = active(projectID), globals = globals, secrets = secrets

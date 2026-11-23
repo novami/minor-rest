@@ -23,7 +23,7 @@ struct RequestTab: Identifiable, Equatable {
 }
 
 enum RequestSection: String, CaseIterable {
-    case params, body, headers, settings, docs
+    case params, body, headers, auth, settings, docs
 }
 
 enum ResponseSection: String, CaseIterable {

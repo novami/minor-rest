@@ -14,21 +14,22 @@ enum ScopeTarget: Identifiable, Hashable {
     }
 }
 
-/// „Nastavení složky“ / „Nastavení projektu“ (PLAN 8.5): proměnné, hlavičky, u projektu i HTTP nastavení.
-/// Auth přibude ve F7. Úpravy se drží v konceptu a uloží se najednou.
+/// „Nastavení složky“ / „Nastavení projektu“ (PLAN 8.5): proměnné, hlavičky, auth, u projektu i HTTP
+/// nastavení. Úpravy se drží v konceptu a uloží se najednou.
 struct ScopeSettingsSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appFonts) private var fonts
     let target: ScopeTarget
 
-    private enum Tab: Hashable { case vars, headers, http }
+    private enum Tab: Hashable { case vars, headers, auth, http }
 
     private struct Draft: Equatable {
         var name = ""
         var description = ""
         var vars: [Var] = []
         var headers: [KV] = []
+        var auth = Auth()
         var settings = HTTPSettings()
         var ignoreResponsesInGit = false
     }
@@ -37,6 +38,7 @@ struct ScopeSettingsSheet: View {
     @State private var original: Draft?
     @State private var draft = Draft()
     @State private var readOnly = false
+    @State private var inheritedAuth: InheritedAuth?
     @State private var saving = false
     @State private var error: String?
 
@@ -49,6 +51,7 @@ struct ScopeSettingsSheet: View {
             Picker("", selection: $tab) {
                 Text(t("scope.tab.vars")).tag(Tab.vars)
                 Text(t("scope.tab.headers")).tag(Tab.headers)
+                Text(t("request.section.auth")).tag(Tab.auth)
                 if isProject { Text(t("scope.tab.http")).tag(Tab.http) }
             }
             .pickerStyle(.segmented)
@@ -63,6 +66,14 @@ struct ScopeSettingsSheet: View {
                 case .headers:
                     ScrollView {
                         KvEditor(rows: $draft.headers, names: HeaderHints.names, valuesFor: HeaderHints.values(for:))
+                    }
+                case .auth:
+                    ScrollView {
+                        AuthEditor(auth: $draft.auth, scope: isProject ? .project : .folder, projectID: projectID,
+                                   inherited: inheritedAuth,
+                                   manualAuthorization: draft.headers.contains {
+                                       $0.enabled && $0.name.caseInsensitiveCompare("Authorization") == .orderedSame
+                                   })
                     }
                 case .http:
                     projectHTTP
@@ -116,17 +127,18 @@ struct ScopeSettingsSheet: View {
     private func load() async {
         do {
             let project = try await model.projects.project(projectID)
-            let d: Draft = try await Task.detached {
+            let (d, parents): (Draft, [PrepareFolder]) = try await Task.detached {
                 switch target {
                 case .folder(let rel, _):
                     let c = try project.loadFolderConfig(rel)
-                    return Draft(vars: c.vars, headers: c.headers)
+                    return (Draft(vars: c.vars, headers: c.headers, auth: c.auth), try project.folderChain(rel))
                 case .project:
                     let c = project.config
-                    return Draft(name: c.name, description: c.description, vars: c.vars, headers: c.headers,
-                                 settings: c.settings, ignoreResponsesInGit: c.ignoreResponsesInGit)
+                    return (Draft(name: c.name, description: c.description, vars: c.vars, headers: c.headers,
+                                  auth: c.auth, settings: c.settings, ignoreResponsesInGit: c.ignoreResponsesInGit), [])
                 }
             }.value
+            inheritedAuth = InheritedAuth(folders: parents, project: project.config.auth)
             readOnly = project.readOnly
             draft = d
             original = d
@@ -148,6 +160,7 @@ struct ScopeSettingsSheet: View {
                     var c = try project.loadFolderConfig(rel)
                     c.vars = d.vars
                     c.headers = d.headers
+                    c.auth = d.auth
                     try project.saveFolderConfig(rel, c)
                 case .project:
                     var c = project.config
@@ -155,6 +168,7 @@ struct ScopeSettingsSheet: View {
                     c.description = d.description
                     c.vars = d.vars
                     c.headers = d.headers
+                    c.auth = d.auth
                     c.settings = d.settings
                     c.ignoreResponsesInGit = d.ignoreResponsesInGit
                     try project.saveConfig(c)

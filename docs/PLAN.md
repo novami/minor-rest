@@ -306,7 +306,7 @@ Ověřeno v F4/1: GET/HEAD s tělem URLSession odmítne (`NSURLErrorDataLengthEx
 `apply(to: inout PreparedRequest, auth: Auth, deps) async throws` – volá se v `prepare` po vyhodnocení proměnných v polích auth.
 - **inherit:** od requestu přes složky nahoru k projektu, první ne-`inherit` vyhrává; projekt s `inherit` = `none`. `prepare` vrací i `authSource` (odkud se zdědilo) pro UI.
 - **basic:** `base64(utf8(user + ":" + pass))`. **bearer:** `Authorization: <prefix> <token>`. **apikey:** hlavička nebo query parametr.
-- Uživatelem ručně zadaná hlavička `Authorization` má přednost před auth (v UI varování). (`Authorization` je v URLSession „reserved“ hlavička, ale nastavená na `URLRequest` se odešle – ověřit v F7/1.)
+- Uživatelem ručně zadaná hlavička `Authorization` má přednost před auth (v UI varování). (`Authorization` nastavená na `URLRequest` se odešle – ověřeno v F7/1.) Totéž platí pro hlavičku/query parametr API klíče se stejným názvem. Prázdný token/klíč nebo prázdné jméno i heslo = auth se nepřidá; prázdný prefix bearer = `Bearer`.
 - **oauth2** (vlastní implementace, token endpoint přes stejný engine – stejné TLS/proxy nastavení jako request):
   - `clientAuth`: `header` (Basic `client_id:client_secret`, URL-encoded dle RFC 6749) / `body`.
   - authorization_code: `NWListener` na `127.0.0.1:<redirectPort>`, `state` (náhodných 32 B) + PKCE S256 (`CryptoKit.SHA256`), otevřít prohlížeč (`NSWorkspace.open`), čekat na `/callback` max 5 min (zrušitelné z UI), odpovědět HTML stránkou „Hotovo, okno můžete zavřít“, vyměnit code za token.
@@ -537,6 +537,7 @@ Prepare.explain(_ input: PrepareInput) -> [VarInfo]   // tajné bez načtené ho
 // runtime proměnné per projekt v paměti drží UI (`VarsStore.runtime`, `setRuntime`/`deleteRuntime`), do `PrepareInput.runtime`
 
 // Auth (F7)
+enum AuthApply { static effective(_ auth:, folders:, project:) -> (auth: Auth, source: String) /* request | folder:<rel> | project */; static isLiteral(_:) -> Bool }   // apply volá Prepare; hodnota API klíče jde do Prepared.secrets
 OAuth: fetchToken(…) async throws -> TokenInfo; cancel(); clearToken(…); tokenInfo(…)
 
 // Uložené odpovědi (F8)

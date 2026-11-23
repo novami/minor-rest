@@ -2,12 +2,13 @@ import MinorRESTCore
 import SwiftUI
 
 /// Editor aktivního tabu: metoda, URL bar (URL + zapnuté query), Odeslat; záložky Parametry | Tělo | Hlavičky |
-/// Nastavení | Dokumentace; banner, když se request změnil na disku a tab má neuložené změny.
+/// Auth | Nastavení | Dokumentace; banner, když se request změnil na disku a tab má neuložené změny.
 struct RequestEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.appFonts) private var fonts
     let tab: RequestTab
     @State private var inherited: HTTPSettings?
+    @State private var inheritedAuth: InheritedAuth?
 
     var body: some View {
         let tabs = model.tabs
@@ -62,7 +63,8 @@ struct RequestEditor: View {
                     HStack(spacing: 4) {
                         Text(t("request.section.\(s.rawValue)"))
                         if (s == .body && tab.draft.body.type != "none" && !tab.draft.body.type.isEmpty)
-                            || (s == .docs && !tab.draft.docs.isEmpty) {
+                            || (s == .docs && !tab.draft.docs.isEmpty)
+                            || (s == .auth && !AuthApply.isInherit(tab.draft.auth)) {
                             Circle().fill(Color.accentColor).frame(width: 5, height: 5)
                         }
                         if let n = count(s), n > 0 {
@@ -89,7 +91,7 @@ struct RequestEditor: View {
             let st = tab.draft.settings
             return [st.httpVersion != nil, st.followRedirects != nil, st.maxRedirects != nil,
                     st.timeoutMs != nil, st.verifyTLS != nil, st.cookieJar != nil].filter { $0 }.count
-        case .body, .docs: return nil
+        case .body, .docs, .auth: return nil
         }
     }
 
@@ -119,6 +121,18 @@ struct RequestEditor: View {
                            inherited: inherited)
                 .task(id: tab.projectID) {
                     inherited = (try? await model.projects.project(tab.projectID))?.config.settings.over(.builtin)
+                }
+        case .auth:
+            AuthEditor(auth: Binding(get: { tab.draft.auth }, set: { a in tabs.edit { $0.draft.auth = a } }),
+                       scope: .request, projectID: tab.projectID, inherited: inheritedAuth,
+                       manualAuthorization: tab.draft.headers.contains {
+                           $0.enabled && $0.name.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare("Authorization") == .orderedSame
+                       })
+                .task(id: "\(tab.projectID)|\(tab.rel)|\(model.vars.revision)") {
+                    guard let project = try? await model.projects.project(tab.projectID) else { return }
+                    let rel = tab.rel
+                    let folders = await Task.detached { (try? project.folderChain(rel)) ?? [] }.value
+                    inheritedAuth = InheritedAuth(folders: folders, project: project.config.auth)
                 }
         case .body, .docs:
             EmptyView()

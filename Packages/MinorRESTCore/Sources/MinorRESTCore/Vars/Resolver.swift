@@ -153,7 +153,7 @@ public final class Resolver {
     }
 
     /// Název proměnné `[A-Za-z0-9_.-]+`.
-    static func isValidName(_ s: String) -> Bool {
+    public static func isValidName(_ s: String) -> Bool {
         !s.isEmpty && s.unicodeScalars.allSatisfy {
             ("a"..."z").contains($0) || ("A"..."Z").contains($0) || ("0"..."9").contains($0) || "_.-".unicodeScalars.contains($0)
         }
