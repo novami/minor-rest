@@ -4,6 +4,7 @@ import SwiftUI
 
 /// Jednořádkové pole se zvýrazněním `{{proměnných}}` (PLAN 1.1/9): vlastní field editor (TextKit 1),
 /// barvy přes temporary attributes layout manageru – nemění text ani undo. Mimo editaci obarvený `attributedStringValue`.
+/// S `varContext` z prostředí: známá zeleně, neznámá červeně, hover = popover s hodnotou, po `{{` našeptávač názvů.
 struct VarField: NSViewRepresentable {
     @Binding var text: String
     var placeholder = ""
@@ -41,15 +42,18 @@ struct VarField: NSViewRepresentable {
         c.parent = self
         if field.font != font { field.font = font }
         field.placeholderString = placeholder
-        if field.stringValue != text {
+        let vars = context.environment.varContext
+        let varsChanged = field.vars != vars
+        field.vars = vars
+        if field.stringValue != text || varsChanged {
             if let editor = field.currentEditor() as? NSTextView {
-                editor.string = text
-                Highlighter.apply(editor)
-            } else {
+                if editor.string != text { editor.string = text }
+                Highlighter.apply(editor, vars)
+            } else if field.stringValue != text {
                 field.stringValue = text
             }
         }
-        if field.currentEditor() == nil { Highlighter.display(field) }
+        if field.currentEditor() == nil { Highlighter.display(field, vars) }
         if c.focusRequest != focusRequest {
             c.focusRequest = focusRequest
             DispatchQueue.main.async {
@@ -74,15 +78,23 @@ struct VarField: NSViewRepresentable {
 
         func controlTextDidChange(_ notification: Notification) {
             guard let field = notification.object as? NSTextField else { return }
-            let editor = field.currentEditor() as? NSTextView
-            if let editor { Highlighter.apply(editor) }
+            let vars = (field as? VarTextField)?.vars
+            let editor = field.currentEditor() as? VarFieldEditor
+            if let editor { Highlighter.apply(editor, vars) }
             if parent.text != field.stringValue { parent.text = field.stringValue }
             // návrhy jen při přidání textu (ne při mazání) a ne během vložení vybraného návrhu
             let length = field.stringValue.utf16.count
             defer { lastLength = length }
-            guard let completions = parent.completions, !completing, length > lastLength, let editor,
-                  !((editor as? VarFieldEditor)?.insertingCompletion ?? false),
-                  !completions(editor.string).isEmpty else { return }   // bez návrhů by complete() pípnul
+            guard !completing, length > lastLength, let editor, !editor.insertingCompletion else { return }
+            // bez návrhů by complete() pípnul
+            if let range = editor.varPartialRange {
+                let prefix = (editor.string as NSString).substring(with: range)
+                guard !VarContext.completions(vars, prefix).isEmpty else { return }
+                editor.completingVar = true
+            } else {
+                guard let completions = parent.completions, !completions(editor.string).isEmpty else { return }
+                editor.completingVar = false
+            }
             completing = true
             editor.complete(nil)
             completing = false
@@ -91,12 +103,16 @@ struct VarField: NSViewRepresentable {
         func control(_ control: NSControl, textView: NSTextView, completions words: [String],
                      forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String] {
             index.pointee = -1   // nic nevkládat, dokud uživatel návrh nevybere
+            if let editor = textView as? VarFieldEditor, editor.completingVar {
+                let prefix = (textView.string as NSString).substring(with: charRange)
+                return VarContext.completions((control as? VarTextField)?.vars, prefix)
+            }
             return parent.completions?(textView.string) ?? []
         }
 
         func controlTextDidEndEditing(_ notification: Notification) {
-            guard let field = notification.object as? NSTextField else { return }
-            Highlighter.display(field)
+            guard let field = notification.object as? VarTextField else { return }
+            Highlighter.display(field, field.vars)
         }
 
         func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
@@ -108,6 +124,96 @@ struct VarField: NSViewRepresentable {
 }
 
 final class VarTextField: NSTextField {
+    var vars: VarContext?
+    private var hoverArea: NSTrackingArea?
+    private var hoverToken: VarToken?
+    private var hoverTask: Task<Void, Never>?
+    private var popover: NSPopover?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverArea { removeTrackingArea(hoverArea) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                                  owner: self)
+        addTrackingArea(area)
+        hoverArea = area
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        let tok = token(atX: convert(event.locationInWindow, from: nil).x)
+        guard tok != hoverToken else { return }
+        hideHover()
+        hoverToken = tok
+        guard let tok else { return }
+        let x = convert(event.locationInWindow, from: nil).x
+        hoverTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            self?.showHover(tok, atX: x)
+        }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        hoverToken = nil
+        hideHover()
+    }
+
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow == nil { hideHover() }
+        super.viewWillMove(toWindow: newWindow)
+    }
+
+    private func hideHover() {
+        hoverTask?.cancel()
+        hoverTask = nil
+        popover?.close()
+        popover = nil
+    }
+
+    private func showHover(_ tok: VarToken, atX x: CGFloat) {
+        guard window != nil else { return }
+        let p = NSPopover()
+        p.behavior = .semitransient
+        p.animates = false
+        p.contentViewController = NSHostingController(rootView: VarHoverView(name: tok.name, info: vars?.byName[tok.name],
+                                                                              known: vars?.isKnown(tok.name)))
+        p.show(relativeTo: NSRect(x: x, y: 0, width: 1, height: bounds.height), of: self,
+               preferredEdge: isFlipped ? .maxY : .minY)
+        popover = p
+    }
+
+    /// Token proměnné pod vodorovnou souřadnicí (v editaci podle field editoru, jinak rozložením zobrazeného textu).
+    private func token(atX x: CGFloat) -> VarToken? {
+        let text = stringValue
+        let tokens = VarToken.scan(text)
+        guard !tokens.isEmpty, let index = charIndex(atX: x, text: text) else { return nil }
+        return tokens.first { NSLocationInRange(index, $0.range) }
+    }
+
+    private func charIndex(atX x: CGFloat, text: String) -> Int? {
+        let lm: NSLayoutManager, tc: NSTextContainer, local: CGFloat
+        if let editor = currentEditor() as? NSTextView, let elm = editor.layoutManager, let etc = editor.textContainer {
+            (lm, tc) = (elm, etc)
+            local = editor.convert(NSPoint(x: x, y: 0), from: self).x - editor.textContainerOrigin.x
+        } else {
+            guard let cell else { return nil }
+            let storage = NSTextStorage(attributedString: attributedStringValue)
+            lm = NSLayoutManager()
+            tc = NSTextContainer(size: NSSize(width: 1e6, height: 1e6))
+            lm.addTextContainer(tc)
+            storage.addLayoutManager(lm)
+            local = x - cell.titleRect(forBounds: bounds).minX
+        }
+        lm.ensureLayout(for: tc)
+        let used = lm.usedRect(for: tc)
+        guard local >= used.minX, local <= used.maxX else { return nil }
+        var fraction: CGFloat = 0
+        let glyph = lm.glyphIndex(for: NSPoint(x: local, y: used.midY), in: tc, fractionOfDistanceThroughGlyph: &fraction)
+        return lm.characterIndexForGlyph(at: glyph)
+    }
+
     override func becomeFirstResponder() -> Bool {
         let ok = super.becomeFirstResponder()
         if ok, let editor = currentEditor() as? NSTextView {
@@ -116,7 +222,7 @@ final class VarTextField: NSTextField {
                 storage.addAttribute(.foregroundColor, value: NSColor.textColor,
                                      range: NSRange(location: 0, length: storage.length))
             }
-            Highlighter.apply(editor)
+            Highlighter.apply(editor, vars)
         }
         return ok
     }
@@ -147,9 +253,31 @@ final class VarFieldCell: NSTextFieldCell {
     }
 }
 
-/// Field editor: návrh nahrazuje celý text pole (názvy hlaviček obsahují `-`).
+/// Field editor: návrh nahrazuje celý text pole (názvy hlaviček obsahují `-`), u proměnné jen název za `{{`.
 final class VarFieldEditor: NSTextView {
-    override var rangeForUserCompletion: NSRange { NSRange(location: 0, length: (string as NSString).length) }
+    /// Probíhá našeptávání názvu proměnné (jinak celého textu).
+    var completingVar = false
+
+    override var rangeForUserCompletion: NSRange {
+        if completingVar, let r = varPartialRange { return r }
+        return NSRange(location: 0, length: (string as NSString).length)
+    }
+
+    /// Rozepsaný název za posledním `{{` před kurzorem (`\{{` je literál), jinak `nil`.
+    var varPartialRange: NSRange? {
+        let sel = selectedRange()
+        guard sel.length == 0 else { return nil }
+        let pre = (string as NSString).substring(to: sel.location) as NSString
+        let open = pre.range(of: "{{", options: .backwards)
+        guard open.location != NSNotFound,
+              open.location == 0 || pre.character(at: open.location - 1) != 0x5C else { return nil }
+        let start = open.location + 2
+        let partial = pre.substring(from: start)
+        guard partial.unicodeScalars.enumerated().allSatisfy({ i, c in
+            (i == 0 && c == "$") || CharacterSet.alphanumerics.contains(c) && c.isASCII || "_.-".unicodeScalars.contains(c)
+        }) else { return nil }
+        return NSRange(location: start, length: sel.location - start)
+    }
 
     /// Vkládá se návrh z nabídky (šipky, Enter) – nespouštět nové našeptávání.
     private(set) var insertingCompletion = false
@@ -159,35 +287,81 @@ final class VarFieldEditor: NSTextView {
         insertingCompletion = true
         defer { insertingCompletion = false }
         super.insertCompletion(word, forPartialWordRange: charRange, movement: movement, isFinal: flag)
+        guard flag else { return }
+        defer { completingVar = false }
+        // vybraný název proměnné (Enter/Tab) doplní uzavírací `}}`, pokud za kurzorem ještě není
+        guard completingVar, movement == NSTextMovement.return.rawValue || movement == NSTextMovement.tab.rawValue
+        else { return }
+        let rest = (string as NSString).substring(from: selectedRange().location)
+        if !rest.hasPrefix("}}") { insertText("}}", replacementRange: selectedRange()) }
     }
 }
 
-/// Barvy tokenů proměnných (zatím jen syntakticky: proměnná zeleně, dynamická `$` modře).
+/// Barvy tokenů proměnných: dynamická `$` modře, ostatní zeleně; s kontextem neznámá červeně.
 @MainActor
 enum Highlighter {
-    static func color(_ kind: VarToken.Kind) -> NSColor {
-        kind == .dynamic ? .systemBlue : .systemGreen
+    static func color(_ tok: VarToken, _ vars: VarContext?) -> NSColor {
+        if let vars, !vars.isKnown(tok.name) { return .systemRed }
+        return tok.kind == .dynamic ? .systemBlue : .systemGreen
     }
 
     /// Zvýraznění v editoru (temporary attributes – nejdou do textu ani do undo).
-    static func apply(_ editor: NSTextView) {
+    static func apply(_ editor: NSTextView, _ vars: VarContext?) {
         guard let lm = editor.layoutManager else { return }
         let all = NSRange(location: 0, length: (editor.string as NSString).length)
         lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: all)
         for tok in VarToken.scan(editor.string) {
-            lm.addTemporaryAttribute(.foregroundColor, value: color(tok.kind), forCharacterRange: tok.range)
+            lm.addTemporaryAttribute(.foregroundColor, value: color(tok, vars), forCharacterRange: tok.range)
         }
     }
 
     /// Obarvený text pole mimo editaci.
-    static func display(_ field: NSTextField) {
+    static func display(_ field: NSTextField, _ vars: VarContext?) {
         let s = field.stringValue
         let tokens = VarToken.scan(s)
         let attr = NSMutableAttributedString(string: s, attributes: [
             .font: field.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize),
             .foregroundColor: NSColor.textColor,
         ])
-        for tok in tokens { attr.addAttribute(.foregroundColor, value: color(tok.kind), range: tok.range) }
+        for tok in tokens { attr.addAttribute(.foregroundColor, value: color(tok, vars), range: tok.range) }
         if field.attributedStringValue != attr { field.attributedStringValue = attr }
+    }
+}
+
+/// Obsah hover popoveru nad proměnnou: hodnota (tajná `••••`) a zdroj, nebo „neznámá“.
+struct VarHoverView: View {
+    let name: String
+    let info: VarInfo?
+    /// `nil` = bez kontextu (jen název).
+    let known: Bool?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(name).font(.system(.body, design: .monospaced)).bold()
+            if let info {
+                Text(info.secret ? "••••" : info.resolved)
+                    .font(.system(.body, design: .monospaced))
+                    .lineLimit(4).textSelection(.enabled)
+                if !info.secret && info.value != info.resolved {
+                    Text(info.value).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).lineLimit(2)
+                }
+                Text(VarSourceText.text(info)).font(.caption).foregroundStyle(.secondary)
+            } else if name.hasPrefix("$") && known != false {
+                Text(t("vars.dynamic")).font(.caption).foregroundStyle(.secondary)
+            } else if known == false {
+                Text(t("vars.unknown")).font(.caption).foregroundStyle(.red)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: 420, alignment: .leading)
+    }
+}
+
+@MainActor
+enum VarSourceText {
+    /// „Složka: api/users“, „Prostředí“ …
+    static func text(_ info: VarInfo) -> String {
+        let s = t("vars.source." + info.source.rawValue)
+        return info.ref.isEmpty ? s : s + ": " + info.ref
     }
 }

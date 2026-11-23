@@ -80,6 +80,21 @@ public enum Prepare {
             secrets: sc.flatMap(\.vars).filter { $0.secret && !$0.value.isEmpty }.map(\.value))
     }
 
+    /// Platné proměnné pro UI (zvýraznění, hover, „oko“). Tajné proměnné bez načtené hodnoty
+    /// (seznamy bez Keychain) se ve vnořených hodnotách zobrazí jako `***`, ne jako prázdný text.
+    public static func explain(_ input: PrepareInput) -> [VarInfo] {
+        let sc = scopes(input).map { scope in
+            var scope = scope
+            scope.vars = scope.vars.map { v in
+                var v = v
+                if v.secret && v.value.isEmpty { v.value = Resolver.masked }
+                return v
+            }
+            return scope
+        }
+        return Resolver(scopes: sc).explain()
+    }
+
     static func scopes(_ i: PrepareInput) -> [VarScope] {
         var s = [VarScope(.runtime, vars: i.runtime), VarScope(.request, vars: i.request.vars)]
         s += i.folders.reversed().map { VarScope(.folder, ref: $0.rel, vars: $0.config.vars) }

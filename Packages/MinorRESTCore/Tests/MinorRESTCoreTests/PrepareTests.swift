@@ -66,3 +66,18 @@ func prepareErrors(url: String, code: ErrorCode) async {
     #expect(chain.last?.config.vars == [v("x", "1")])
     #expect(try p.folderChain("top.yaml").isEmpty)
 }
+
+@Test func prepareExplain() {
+    let input = PrepareInput(
+        request: Request(vars: [v("id", "1")]),
+        project: ProjectConfig(vars: [v("id", "p"), v("auth", "Bearer {{key}}")]),
+        folders: [PrepareFolder(rel: "api", config: FolderConfig(vars: [v("base", "{{host}}/api")]))],
+        runtime: [v("token", "t")],
+        environment: [Var(name: "key", value: "", secret: true), v("host", "h")])
+    let info = Dictionary(uniqueKeysWithValues: Prepare.explain(input).map { ($0.name, $0) })
+    #expect(info["id"]?.source == .request && info["id"]?.resolved == "1")
+    #expect(info["base"]?.source == .folder && info["base"]?.ref == "api" && info["base"]?.resolved == "h/api")
+    #expect(info["token"]?.source == .runtime)
+    // tajná hodnota se nenačítá, ve vnořené hodnotě je maska
+    #expect(info["auth"]?.resolved == "Bearer ***" && info["key"]?.secret == true && info["key"]?.value == "")
+}

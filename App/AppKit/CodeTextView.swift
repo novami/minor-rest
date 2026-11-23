@@ -118,7 +118,7 @@ struct CodeTextView: NSViewRepresentable {
             let colors = Self.colors
             syntax = (s.utf16.count <= CodeTextView.syntaxLimit ? Syntax.tokens(s, lang) : [])
                 .map { ($0.range, colors[$0.kind] ?? .textColor) }
-            vars = VarToken.scan(s).map { ($0.range, Highlighter.color($0.kind)) }
+            vars = VarToken.scan(s).map { ($0.range, Highlighter.color($0, nil)) }
             lm.invalidateRenderingAttributes(for: lm.documentRange)
             tv.needsDisplay = true
         }

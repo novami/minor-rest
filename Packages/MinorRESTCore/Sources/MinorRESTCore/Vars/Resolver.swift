@@ -34,6 +34,9 @@ public struct VarInfo: Hashable, Sendable {
 /// pojmenovaných proměnných jsou v rámci resolveru pevné, přímý výskyt `{{$uuid}}` je pokaždé nový.
 public final class Resolver {
     public static let masked = "***"
+    /// Dynamické proměnné (`{{$uuid}}` …) pro našeptávač a zvýraznění.
+    public static let dynamicNames = ["$uuid", "$ulid", "$timestamp", "$timestampMs", "$isoTimestamp",
+                                      "$randomInt", "$randomString"]
     static let maxDepth = 10
 
     private struct Entry {

@@ -161,6 +161,7 @@ struct ScopeSettingsSheet: View {
                 }
             }.value
             if isProject { await model.projects.reload() }
+            model.vars.invalidate()
             dismiss()
         } catch {
             self.error = errorText(error)

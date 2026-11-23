@@ -11,6 +11,7 @@ final class AppModel {
     let tabs: TabsStore
     let runs: RunStore
     let environments: EnvironmentsStore
+    let vars: VarsStore
     var showEnvironments = false
     var scopeSettings: ScopeTarget?
 
@@ -19,9 +20,12 @@ final class AppModel {
         tree = TreeStore(workspace: workspace, projects: projects, toasts: toasts)
         tabs = TabsStore(workspace: workspace, projects: projects, toasts: toasts)
         environments = EnvironmentsStore(workspace: workspace, projects: projects, toasts: toasts)
-        runs = RunStore(projects: projects, environments: environments, toasts: toasts, appDir: workspace.directory)
-        projects.onDiskChange = { [tree, tabs, environments] id, rels in
+        vars = VarsStore(projects: projects, tabs: tabs, environments: environments)
+        runs = RunStore(projects: projects, environments: environments, vars: vars, toasts: toasts,
+                        appDir: workspace.directory)
+        projects.onDiskChange = { [tree, tabs, environments, vars] id, rels in
             tree.diskChanged(id)
+            vars.invalidate()
             Task { await environments.diskChanged(id, rels) }
             Task { await tabs.changedOnDisk(id, rels) }
         }
@@ -60,6 +64,7 @@ final class AppModel {
               await tabs.confirmCloseProject(id, name: p.name) else { return }
         await projects.close(id)
         environments.projectClosed(id)
+        vars.projectClosed(id)
     }
 
     /// Okno Prostředí (⌘E, toolbar); bez aktivního projektu nic.

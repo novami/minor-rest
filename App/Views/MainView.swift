@@ -27,12 +27,14 @@ struct MainView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) { EnvironmentPicker() }
+                ToolbarItem(placement: .primaryAction) { VarsOverviewButton() }
             }
         }
         .toolbar {
             ToolbarItem(placement: .navigation) { ProjectSwitcher() }
         }
         .toolbar(removing: .title)
+        .task(id: model.vars.key) { await model.vars.refresh() }
         .sheet(isPresented: $model.showEnvironments) { EnvironmentsSheet() }
         .sheet(item: $model.scopeSettings) { ScopeSettingsSheet(target: $0) }
         .overlay(alignment: .bottom) { ToastStack(center: model.toasts) }

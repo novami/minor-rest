@@ -533,7 +533,8 @@ protocol SecretStore: Sendable { get(account:) throws -> String?; set(account:va
 struct Secrets: SecretStore { init(service: = "MinorREST"); static account(projectID:envID:name:), globalAccount(_:) }  // SecItem, SECRET_ERROR
 final class MemorySecrets: SecretStore                                // testy
 // Workspace.activeEnvironment [projectID: envID]
-Vars.explain(…) -> [VarInfo]; RuntimeVars (per projekt, v paměti)
+Prepare.explain(_ input: PrepareInput) -> [VarInfo]   // tajné bez načtené hodnoty = `***`; Resolver.dynamicNames
+// runtime proměnné per projekt v paměti drží UI (`VarsStore.runtime`, `setRuntime`/`deleteRuntime`), do `PrepareInput.runtime`
 
 // Auth (F7)
 OAuth: fetchToken(…) async throws -> TokenInfo; cancel(); clearToken(…); tokenInfo(…)

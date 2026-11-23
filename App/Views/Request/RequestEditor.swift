@@ -52,6 +52,7 @@ struct RequestEditor: View {
                 }
             }
         }
+        .environment(\.varContext, model.vars.context?.tabID == tab.id ? model.vars.context : nil)
     }
 
     private var sectionBar: some View {
