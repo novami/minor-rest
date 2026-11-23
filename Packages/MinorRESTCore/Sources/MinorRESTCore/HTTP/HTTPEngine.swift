@@ -5,11 +5,30 @@ import Synchronization
 public actor HTTPEngine {
     static let keepResults = 20
 
+    /// Tělo posledních výsledků s údaji potřebnými pro zobrazení.
+    struct Stored: Sendable {
+        var body: ResponseBody
+        var contentType: String
+        var charset: String
+        var isBinary: Bool
+    }
+
     private var runs: [String: RunDelegate] = [:]
-    private var bodies: [String: Data] = [:]
+    private var results: [String: Stored] = [:]
     private var order: [String] = []
 
     public init() {}
+
+    deinit {
+        for s in results.values { s.body.remove() }
+    }
+
+    /// Zahodí všechny výsledky a smaže jejich temp soubory (ukončení aplikace).
+    public func close() {
+        for s in results.values { s.body.remove() }
+        results = [:]
+        order = []
+    }
 
     /// Zruší běžící odeslání (výsledek `CANCELED`); neznámé runID ignoruje.
     public func cancel(runID: String) {
@@ -42,6 +61,10 @@ public actor HTTPEngine {
         res.sent.method = out.sentMethod
         res.sent.url = out.sentURL
         res.sent.headers = out.sentHeaders
+        res.timing = out.timing
+        res.sizes = out.sizes
+        res.remoteAddr = out.remoteAddr
+        res.localAddr = out.localAddr
         if !out.redirects.isEmpty, out.sentMethod != req.httpMethod, out.sentMethod == HTTPMethod.get {
             res.sent.bodySize = 0  // po 301–303 se tělo zahodí
             res.sent.bodyPreview = ""
@@ -53,22 +76,57 @@ public actor HTTPEngine {
         res.status = out.status
         res.statusText = HTTPStatus.text(out.status)
         res.proto = out.proto
+        res.tls = out.tls
         res.headers = out.headers
-        keep(runID, out.data)
+        res.truncated = out.truncated
+
+        let ct = out.headers.first { $0.name.lowercased() == "content-type" }?.value ?? ""
+        let sample: Data
+        do { sample = try out.body.read(limit: ResponseBody.sniffLen) } catch {
+            out.body.remove()
+            res.error = error
+            return res
+        }
+        (res.contentType, res.charset, res.isBinary) = ContentSniff.sniff(ct, sample)
+        keep(runID, Stored(body: out.body, contentType: res.contentType, charset: res.charset, isBinary: res.isBinary))
         return res
+    }
+
+    /// Tělo pro zobrazení v UTF-8; `pretty` odsadí JSON (nevalidní nechá beze změny).
+    public func body(runID: String, pretty: Bool) throws(CoreError) -> BodyView {
+        let s = try stored(runID)
+        var v = BodyView()
+        v.lang = BodyView.lang(s.contentType)
+        v.size = s.body.size
+        if s.isBinary {
+            if s.contentType.hasPrefix("image/") { v.image = try s.body.read() }
+            return v
+        }
+        let b = try s.body.read(limit: BodyView.maxView)
+        v.partial = v.size > Int64(b.count)
+        v.text = ContentSniff.toUTF8(b, s.charset)
+        if pretty, v.lang == "json", !v.partial, let f = try? JSONFormatter.format(v.text) { v.text = f }
+        return v
     }
 
     /// Surové (dekomprimované) tělo odpovědi držené v posledních výsledcích.
     func data(runID: String) throws(CoreError) -> Data {
-        guard let d = bodies[runID] else { throw CoreError(.runNotFound, runID) }
-        return d
+        try stored(runID).body.read()
     }
 
-    private func keep(_ runID: String, _ data: Data) {
+    func stored(_ runID: String) throws(CoreError) -> Stored {
+        guard let s = results[runID] else { throw CoreError(.runNotFound, runID) }
+        return s
+    }
+
+    func keep(_ runID: String, _ s: Stored) {
+        if let old = results[runID], old.body != s.body { old.body.remove() }
         order.removeAll { $0 == runID }
-        bodies[runID] = data
+        results[runID] = s
         order.append(runID)
-        while order.count > Self.keepResults { bodies[order.removeFirst()] = nil }
+        while order.count > Self.keepResults {
+            results.removeValue(forKey: order.removeFirst())?.body.remove()
+        }
     }
 
     // MARK: - Sestavení URLRequest
@@ -141,11 +199,17 @@ struct RunOutcome: Sendable {
     var status = 0
     var proto = ""
     var headers: [KV] = []
-    var data = Data()
+    var body = ResponseBody.data(Data())
+    var truncated = false
     var redirects: [Redirect] = []
     var sentMethod = ""
     var sentURL = ""
     var sentHeaders: [KV] = []
+    var timing = Timing()
+    var sizes = Sizes()
+    var remoteAddr = ""
+    var localAddr = ""
+    var tls: TLSInfo?
 }
 
 final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
@@ -153,18 +217,22 @@ final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
         var continuation: CheckedContinuation<RunOutcome, Never>?
         var task: URLSessionTask?
         var cause: CoreError?
-        var data = Data()
+        var sink: BodySink
         var redirects: [Redirect] = []
         var proto = ""
+        var metrics = RunOutcome()
+        /// Leaf certifikát podle hostu (subjekt, vydavatel, expirace).
+        var certs: [String: TLSInfo] = [:]
     }
 
-    private let state = Mutex(State())
+    private let state: Mutex<State>
     private let options: HTTPEngine.Options
     private let payload: Payload
 
     init(options: HTTPEngine.Options, payload: Payload) {
         self.options = options
         self.payload = payload
+        state = Mutex(State(sink: BodySink(max: options.maxBodyBytes)))
     }
 
     func run(_ req: URLRequest) async -> RunOutcome {
@@ -200,8 +268,15 @@ final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
 
     func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge,
                     completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-           !options.verifyTLS, let trust = challenge.protectionSpace.serverTrust {
+        let space = challenge.protectionSpace
+        if space.authenticationMethod == NSURLAuthenticationMethodServerTrust, let trust = space.serverTrust,
+           let c = TLSNames.certificate(trust) {
+            var info = TLSInfo()
+            (info.subject, info.issuer, info.notAfter) = c
+            state.withLock { $0.certs[space.host.lowercased()] = info }
+        }
+        if space.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+           !options.verifyTLS, let trust = space.serverTrust {
             completionHandler(.useCredential, URLCredential(trust: trust))
         } else {
             completionHandler(.performDefaultHandling, nil)
@@ -233,45 +308,112 @@ final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        state.withLock { $0.data.append(data) }
+        let r = state.withLock { s -> Result<Bool, CoreError> in
+            do throws(CoreError) { return .success(try s.sink.append(data)) } catch { return .failure(error) }
+        }
+        switch r {
+        case .success(true): break
+        case .success(false): dataTask.cancel()  // limit maxBodyBytes → truncated, odpověď platí
+        case .failure(let e): cancel(e)
+        }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
-        let proto = metrics.transactionMetrics.last?.networkProtocolName ?? ""
-        state.withLock { $0.proto = proto }
+        guard let t = metrics.transactionMetrics.last else { return }
+        var m = RunOutcome()
+        func ms(_ a: Date?, _ b: Date?) -> Double {
+            guard let a, let b else { return 0 }
+            return max(0, b.timeIntervalSince(a) * 1000)
+        }
+        m.timing.dnsMs = ms(t.domainLookupStartDate, t.domainLookupEndDate)
+        m.timing.connectMs = ms(t.connectStartDate, t.secureConnectionStartDate ?? t.connectEndDate)
+        m.timing.tlsMs = ms(t.secureConnectionStartDate, t.secureConnectionEndDate)
+        m.timing.ttfbMs = ms(t.requestEndDate, t.responseStartDate)
+        m.timing.downloadMs = ms(t.responseStartDate, t.responseEndDate)
+        m.timing.totalMs = metrics.taskInterval.duration * 1000
+        m.timing.reused = t.isReusedConnection
+        m.remoteAddr = Self.address(t.remoteAddress, t.remotePort)
+        m.localAddr = Self.address(t.localAddress, t.localPort)
+        m.sizes.reqHeaders = t.countOfRequestHeaderBytesSent
+        m.sizes.reqBody = t.countOfRequestBodyBytesSent
+        m.sizes.headers = t.countOfResponseHeaderBytesReceived
+        m.sizes.bodyWire = t.countOfResponseBodyBytesReceived
+        m.sizes.bodyDecoded = t.countOfResponseBodyBytesAfterDecoding
+        if let v = t.negotiatedTLSProtocolVersion {
+            var info = TLSInfo()
+            info.version = TLSNames.version(v.rawValue)
+            info.cipher = t.negotiatedTLSCipherSuite.map { TLSNames.cipher($0.rawValue) } ?? ""
+            info.serverName = t.request.url?.host() ?? ""
+            m.tls = info
+        }
+        let proto = t.networkProtocolName ?? ""
+        state.withLock { s in
+            s.metrics = m
+            s.proto = proto
+        }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
         session.finishTasksAndInvalidate()
-        var out = RunOutcome()
         let sent = task.currentRequest
-        out.sentMethod = sent?.httpMethod ?? ""
-        out.sentURL = sent?.url?.absoluteString ?? ""
-        out.sentHeaders = Self.rows(sent?.allHTTPHeaderFields ?? [:])
-        let c = state.withLock { s -> CheckedContinuation<RunOutcome, Never>? in
+        let c = state.withLock { s -> (CheckedContinuation<RunOutcome, Never>?, RunOutcome) in
+            var out = s.metrics
             out.redirects = s.redirects
             out.proto = HTTPStatus.proto(s.proto)
-            out.data = s.data
             if let cause = s.cause {
                 out.error = cause
-            } else if let error {
+            } else if let error, !s.sink.truncated {
                 out.error = Self.classify(error)
             }
+            if out.tls != nil, let cert = s.certs[out.tls!.serverName.lowercased()] {
+                (out.tls!.subject, out.tls!.issuer, out.tls!.notAfter) = (cert.subject, cert.issuer, cert.notAfter)
+            }
+            if out.error == nil {
+                out.truncated = s.sink.truncated
+                out.body = s.sink.finish()
+            } else {
+                s.sink.discard()
+            }
             defer { s.continuation = nil; s.task = nil }
-            return s.continuation
+            return (s.continuation, out)
         }
+        var out = c.1
+        out.sentMethod = sent?.httpMethod ?? ""
+        out.sentURL = sent?.url?.absoluteString ?? ""
+        out.sentHeaders = Self.sentHeaders(sent, proto: out.proto)
         if out.error == nil, let r = task.response as? HTTPURLResponse {
             out.status = r.statusCode
             out.headers = Self.rows(r.allHeaderFields.reduce(into: [String: String]()) { $0["\($1.key)"] = "\($1.value)" })
         } else if out.error == nil {
+            out.body.remove()
+            out.body = .data(Data())
             out.error = CoreError(.netError, "no response")
         }
-        if out.error != nil { out.data = Data() }
-        c?.resume(returning: out)
+        c.0?.resume(returning: out)
     }
 
     static func rows(_ h: [String: String]) -> [KV] {
         h.sorted { $0.key.lowercased() < $1.key.lowercased() }.map { KV(name: $0.key, value: $0.value) }
+    }
+
+    /// Hlavičky z `currentRequest` (bez prázdných – ty se neodešlou) + odvozené `Host`, `Connection`, `Cache-Control`.
+    static func sentHeaders(_ r: URLRequest?, proto: String) -> [KV] {
+        var h = (r?.allHTTPHeaderFields ?? [:]).filter { !$0.value.isEmpty }
+        let has = Set(h.keys.map { $0.lowercased() })
+        if !has.contains("host"), let u = r?.url, let host = u.host(percentEncoded: false) {
+            let name = host.contains(":") ? "[\(host)]" : host
+            h["Host"] = u.port.map { "\(name):\($0)" } ?? name
+        }
+        if proto == "HTTP/1.1", !has.contains("connection") { h["Connection"] = "keep-alive" }
+        // Doplní URLSession kvůli `reloadIgnoringLocalAndRemoteCacheData`.
+        if !has.contains("cache-control") { h["Cache-Control"] = "no-cache" }
+        return rows(h)
+    }
+
+    static func address(_ ip: String?, _ port: Int?) -> String {
+        guard let ip, !ip.isEmpty else { return "" }
+        let host = ip.contains(":") ? "[\(ip)]" : ip
+        return port.map { "\(host):\($0)" } ?? host
     }
 
     /// Převod chyby URLSession na kód (kap. 4).

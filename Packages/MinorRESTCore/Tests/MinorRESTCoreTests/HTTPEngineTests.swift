@@ -205,6 +205,10 @@ func httpTLSPublic() async {
     o.verifyTLS = false
     let (insecure, _) = await send(r, o)
     #expect(insecure.error == nil && insecure.status == 200)
+    let tls = insecure.tls
+    #expect(tls?.version.hasPrefix("TLS 1.") == true && tls?.cipher.hasPrefix("TLS_") == true, "\(String(describing: tls))")
+    #expect(tls?.serverName == "self-signed.badssl.com" && tls?.subject.contains("CN=") == true && tls?.notAfter.isEmpty == false)
+    #expect(insecure.timing.tlsMs > 0)
     let (h2, _) = await send(PreparedRequest(method: "GET", url: "https://www.google.com/"))
     #expect(h2.proto == "HTTP/2" || h2.proto == "HTTP/3")
 }

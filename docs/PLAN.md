@@ -282,7 +282,7 @@ Vstup `PreparedRequest{method, url, headers [KV] (pořadí), body, baseDir, noAu
 - **Redirecty:** `urlSession(_:task:willPerformHTTPRedirection:newRequest:)` – při `followRedirects = false` vrátit `nil` (odpovědí je 3xx); jinak limit `maxRedirects` (překročení → zrušit s `REDIRECT_LIMIT`). Každý skok `{status, method, url, location}`. Nový request po 307/308 zachová metodu a tělo, po 301–303 URLSession přepne na GET (zaznamenat). Uživatelské hlavičky přenést do nového requestu (kromě `Authorization` při změně hostu); cookie jar doplní cookies pro nový host.
 - **Timing:** `urlSession(_:task:didFinishCollecting:)` → `transactionMetrics` (jedna transakce na skok); do `timing` jde **poslední skok**: `dnsMs` (domainLookupStart→End), `connectMs` (connectStart→End bez TLS), `tlsMs` (secureConnectionStart→End), `ttfbMs` (requestEnd→responseStart), `downloadMs` (responseStart→responseEnd), `totalMs` = `taskInterval` (+ čtení těla); `reused` = `isReusedConnection`.
 - **IP adresy:** `remoteAddress`/`remotePort`, `localAddress`/`localPort` posledního skoku. `resolvedAddrs` (všechny adresy z DNS) URLSession nedává → vypuštěno.
-- **Odeslané hlavičky:** `task.currentRequest?.allHTTPHeaderFields` + hlavičky, které doplní systém a lze je odvodit (`Host`, `Content-Length`, `Accept-Encoding`, `Accept-Language`, `Connection`). Pořadí odeslání ani HTTP/2 pseudo-hlavičky nejsou dostupné → záložka „Odesláno“ to uvádí poznámkou. Velikosti hlaviček z metrik (`countOfRequestHeaderBytesSent`).
+- **Odeslané hlavičky:** `task.currentRequest?.allHTTPHeaderFields` + hlavičky, které doplní systém a lze je odvodit (`Host`, `Connection: keep-alive` u HTTP/1.1, `Cache-Control: no-cache` kvůli politice cache; `Content-Length`, `Accept-Encoding`, `Accept-Language` už v `currentRequest` jsou – ověřeno v F4/2 proti echo serveru). Pořadí odeslání ani HTTP/2 pseudo-hlavičky nejsou dostupné → záložka „Odesláno“ to uvádí poznámkou. Velikosti hlaviček z metrik (`countOfRequestHeaderBytesSent`).
 - **Hlavičky requestu:** `Host` a `Content-Length` nelze nastavit (URLSession je určuje sám; uživatelskou hodnotu ignorovat s varováním v UI). Automatické hlavičky, pokud je uživatel nezadal: `User-Agent: MinorREST/<verze>`, `Accept: */*`, `Content-Type` dle typu body; `Accept-Encoding` doplňuje URLSession (`gzip, deflate, br`). V UI šedě a jdou vypnout (`User-Agent`, `Accept`, `Content-Type`; vypnutí = řádek se stejným názvem a `enabled: false`); vypnutý `User-Agent` = prázdná hodnota (jinak by systém doplnil vlastní) – **ověřit v F4/1**.
 - **Komprese:** URLSession dekóduje `gzip`, `deflate`, `br` automaticky (vypnout nejde). Velikosti: `bodyWire` = `countOfResponseBodyBytesReceived`, `bodyDecoded` = `countOfResponseBodyBytesAfterDecoding`. Neznámé kódování (např. `zstd`) zůstane nedekódované.
 - **Velikosti:** `reqHeaders` = `countOfRequestHeaderBytesSent`, `reqBody` = `countOfRequestBodyBytesSent`, `headers` = `countOfResponseHeaderBytesReceived`, `bodyWire`, `bodyDecoded` (HTTP/2: komprimované HPACK hodnoty dle systému – uvést v tooltipu).
@@ -506,6 +506,7 @@ actor HTTPEngine {                                                              
   func body(runID: String, pretty: Bool) throws -> BodyView                         // RUN_NOT_FOUND
   func filter(runID: String, jsonPath: String) throws -> String
   func saveBody(runID: String, to: URL) throws
+  func close()                                                                      // smaže výsledky a temp soubory (ukončení aplikace)
 }
 enum Prepare { static func prepare(_ in: PrepareInput) async throws -> Prepared }   // {request, options, unresolved, authSource}
 struct History { list() -> [HistoryItem]; entry(id) throws -> SavedResponse; clear() throws }
@@ -552,7 +553,7 @@ struct RunResult: Sendable {
   var extracted: [KV]            // nastavené runtime proměnné (F8)
   var authSource: String         // (F7)
 }
-struct BodyView: Sendable { var text: String; var lang: String /* json|xml|html|text */; var size: Int64; var partial: Bool; var image: Data? }
+struct BodyView: Sendable { var text: String; var lang: String /* json|xml|html|text */; var size: Int64; var partial: Bool; var image: Data? /* celé tělo binárního image/* */ }
 ```
 `RunResult` záměrně **neobsahuje tělo** – UI si ho vyžádá přes `HTTPEngine.body` (líné načtení, Pretty/Raw bez kopírování metadat). `body` vrací max. 2 MB textu (`partial`).
 
