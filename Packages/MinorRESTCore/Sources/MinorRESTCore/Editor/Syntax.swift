@@ -2,7 +2,7 @@ import Foundation
 
 /// Jazyk zvýraznění v `CodeTextView`.
 public enum SyntaxLang: String, Sendable {
-    case json, xml, html, text, markdown
+    case json, xml, html, text, markdown, diff
 
     /// Jazyk raw těla (`nil` = typ bez textového editoru).
     public init?(bodyType: String) {
@@ -36,8 +36,25 @@ public enum Syntax {
         case .json: return json(s)
         case .xml, .html: return markup(s)
         case .markdown: return markdown(s)
+        case .diff: return diff(s)
         case .text: return []
         }
+    }
+
+    /// `+ ` řádky = string (zelená), `- ` = keyword, `@@` = comment.
+    private static func diff(_ s: [UInt16]) -> [SyntaxToken] {
+        var out: [SyntaxToken] = []
+        var i = 0
+        while i < s.count {
+            var j = i
+            while j < s.count, s[j] != 0x0A { j += 1 }
+            if j > i {
+                let kind: SyntaxToken.Kind? = s[i] == ch("+") ? .string : s[i] == ch("-") ? .keyword : s[i] == ch("@") ? .comment : nil
+                if let kind { out.append(SyntaxToken(i, j - i, kind)) }
+            }
+            i = j + 1
+        }
+        return out
     }
 
     @inline(__always) private static func ch(_ c: Unicode.Scalar) -> UInt16 { UInt16(c.value) }

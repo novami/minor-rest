@@ -26,3 +26,13 @@ import Testing
     #expect((try? s.get(2)) == nil)
     #expect(try s.save(e, body: nil).version == 4)
 }
+
+@Test(arguments: [
+    (["a", "b", "c"], ["a", "x", "c", "d"], "  a\n- b\n+ x\n  c\n+ d"),
+    (["a"], ["a"], "@@ 1 @@"),
+    ([], ["n"], "+ n"),
+    (["1", "2", "3", "4", "5", "6", "7", "8", "9"], ["1", "2", "3", "4", "5", "6", "7", "8", "X"], "@@ 5 @@\n  6\n  7\n  8\n- 9\n+ X"),
+])
+func lineDiff(_ a: [String], _ b: [String], _ expected: String) {
+    #expect(LineDiff.render(LineDiff.diff(a, b)) == expected)
+}

@@ -9,6 +9,8 @@ struct VersionsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.appFonts) private var fonts
     @State private var opened: Opened?
+    @State private var selection = Set<Int>()
+    @State private var diff: DiffSheet.Content?
     @State private var editing: Int?
     @State private var labelText = ""
 
@@ -27,6 +29,8 @@ struct VersionsView: View {
                     Task { await model.runs.saveResponse(tabID, projectID: projectID, requestID: requestID) }
                 }
                 .disabled(model.runs.run(tabID)?.entry == nil)
+                Button(t("versions.compare")) { compare() }
+                    .disabled(selection.count != 2)
                 Spacer()
             }
             .padding(.horizontal, 10).padding(.bottom, 6)
@@ -34,11 +38,25 @@ struct VersionsView: View {
                 Text(t("versions.empty")).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(items) { row($0) }.listStyle(.plain)
+                List(items, selection: $selection) { row($0) }.listStyle(.plain)
             }
         }
         .task(id: requestID) { await model.runs.loadVersions(projectID, requestID) }
         .sheet(item: $opened) { VersionSheet(opened: $0) }
+        .sheet(item: $diff) { DiffSheet(content: $0) }
+    }
+
+    /// Starší vybraná verze → novější.
+    private func compare() {
+        let pair = selection.sorted()
+        guard pair.count == 2 else { return }
+        Task {
+            guard let a = await model.runs.version(projectID, requestID, pair[0]),
+                  let b = await model.runs.version(projectID, requestID, pair[1]) else { return }
+            let lines = LineDiff.diff(LineDiff.text(a.0, body: a.1), LineDiff.text(b.0, body: b.1))
+            let changed = lines.contains { $0.kind != .same }
+            diff = DiffSheet.Content(from: pair[0], to: pair[1], text: changed ? LineDiff.render(lines) : "")
+        }
     }
 
     private func row(_ i: SavedInfo) -> some View {
@@ -108,6 +126,36 @@ private struct VersionSheet: View {
                         .frame(maxWidth: .infinity, alignment: .leading).padding(6)
                 }
                 .frame(minHeight: 120)
+            }
+            HStack { Spacer(); Button(t("common.close")) { dismiss() }.keyboardShortcut(.cancelAction) }
+        }
+        .padding(16)
+        .frame(width: 720, height: 560)
+    }
+}
+
+
+/// Diff dvou verzí (starší → novější) v `CodeTextView`.
+private struct DiffSheet: View {
+    struct Content: Identifiable {
+        let from: Int
+        let to: Int
+        let text: String
+        var id: String { "\(from)-\(to)" }
+    }
+
+    let content: Content
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.appFonts) private var fonts
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(t("versions.diff", ["a": String(content.from), "b": String(content.to)])).font(.headline)
+            if content.text.isEmpty {
+                Text(t("versions.nodiff")).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                CodeTextView(text: .constant(content.text), lang: .diff, editable: false, font: fonts.codeNSFont)
             }
             HStack { Spacer(); Button(t("common.close")) { dismiss() }.keyboardShortcut(.cancelAction) }
         }

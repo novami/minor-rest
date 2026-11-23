@@ -3367,6 +3367,57 @@
         }
       }
     },
+    "versions.compare": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Porovnat vybrané"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare selected"
+          }
+        }
+      }
+    },
+    "versions.diff": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Změny: verze {a} → {b}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changes: version {a} → {b}"
+          }
+        }
+      }
+    },
+    "versions.nodiff": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verze jsou shodné."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The versions are identical."
+          }
+        }
+      }
+    },
     "versions.delete": {
       "extractionState": "manual",
       "localizations": {
