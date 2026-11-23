@@ -17,6 +17,19 @@ public struct ErrorCode: RawRepresentable, Hashable, Sendable, CustomStringConve
     public static let varUnresolvedHost = ErrorCode(rawValue: "VAR_UNRESOLVED_HOST")
     public static let urlInvalid = ErrorCode(rawValue: "URL_INVALID")
     public static let jsonInvalid = ErrorCode(rawValue: "JSON_INVALID")
+    // Odeslání (F4)
+    public static let canceled = ErrorCode(rawValue: "CANCELED")
+    public static let netTimeout = ErrorCode(rawValue: "NET_TIMEOUT")
+    public static let netDNS = ErrorCode(rawValue: "NET_DNS")
+    public static let netRefused = ErrorCode(rawValue: "NET_REFUSED")
+    public static let netError = ErrorCode(rawValue: "NET_ERROR")
+    public static let tlsVerify = ErrorCode(rawValue: "TLS_VERIFY")
+    public static let tlsError = ErrorCode(rawValue: "TLS_ERROR")
+    public static let redirectLimit = ErrorCode(rawValue: "REDIRECT_LIMIT")
+    public static let fileNotFound = ErrorCode(rawValue: "FILE_NOT_FOUND")
+    public static let methodInvalid = ErrorCode(rawValue: "METHOD_INVALID")
+    public static let bodyNotAllowed = ErrorCode(rawValue: "BODY_NOT_ALLOWED")
+    public static let runNotFound = ErrorCode(rawValue: "RUN_NOT_FOUND")
 }
 
 /// Chyba jádra: kód pro UI a technický detail.

@@ -297,6 +297,8 @@ Vstup `PreparedRequest{method, url, headers [KV] (pořadí), body, baseDir, noAu
 ### 4.1 Omezení URLSession oproti rev. 2 (schváleno volbou URLSession)
 Nelze: vynutit HTTP/1.1 vs HTTP/2 ani h2c (nastavení `httpVersion` se v UI nezobrazuje, z YAML se jen zachová), nastavit vlastní `Host`, vypnout automatickou dekompresi a `Accept-Encoding`, zjistit přesné pořadí odeslaných hlaviček a HTTP/2 pseudo-hlavičky, seznam všech DNS adres. Export cURL proto nevypisuje `--http1.1`/`--http2`.
 
+Ověřeno v F4/1: GET/HEAD s tělem URLSession odmítne (`NSURLErrorDataLengthExceedsMaximum`, i jako stream) → engine vrátí `BODY_NOT_ALLOWED` ještě před odesláním (prázdné tělo se u GET/HEAD tiše vynechá, bez `Content-Type`). Vypnutý `User-Agent`/`Accept` = hlavička s prázdnou hodnotou (bez ní systém doplní vlastní; úplně vynechat nejde). `Authorization` se odešle beze změny. Po 302 URLSession mění na GET jen POST (PUT/PATCH/DELETE zůstanou), 303 vždy na GET. `HTTPURLResponse.allHeaderFields` spojuje opakované hlavičky (i `Set-Cookie`) do jedné hodnoty – řeší F4/4. Text stavu (`statusText`) je ze standardní tabulky (reason phrase serveru URLSession nedává).
+
 - Testy: lokální testovací HTTP/1.1 server v testech (`Network.framework` `NWListener`, malý parser requestu) – metody, hlavičky, těla, redirect on/off/limit, gzip velikosti, windows-1250 → UTF-8, timeout, cancel, chyby (DNS na `.invalid`, refused na volném portu). HTTP/2 a TLS ověřit ručně proti veřejnému HTTPS serveru (QA checklist).
 
 ## 5. Autorizace (`Auth/`)
@@ -498,7 +500,7 @@ extension HTTPSettings { static let builtin; func over(_ base:) -> HTTPSettings 
 enum JSONFormatter { static func format(_ text: String) throws -> String; static func validate(_:) -> CoreError? }
 
 // Odeslání (F4, F5)
-actor HTTPEngine {
+actor HTTPEngine {                                                                  // Options = HTTPEngine.Options (init z HTTPSettings + userAgent)
   func send(runID: String, _ r: PreparedRequest, _ o: Options) async -> RunResult   // chyby v RunResult.error
   func cancel(runID: String)
   func body(runID: String, pretty: Bool) throws -> BodyView                         // RUN_NOT_FOUND

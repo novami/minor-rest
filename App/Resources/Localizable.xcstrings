@@ -307,6 +307,23 @@
         }
       }
     },
+    "errors.BODY_NOT_ALLOWED": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metoda GET ani HEAD nemůže mít tělo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GET and HEAD requests cannot have a body"
+          }
+        }
+      }
+    },
     "errors.CANCELED": {
       "extractionState": "manual",
       "localizations": {
