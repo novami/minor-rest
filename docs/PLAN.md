@@ -509,6 +509,8 @@ actor HTTPEngine {                                                              
   func close()                                                                      // smaže výsledky a temp soubory (ukončení aplikace)
 }
 enum Prepare { static func prepare(_ in: PrepareInput) async throws -> Prepared }   // {request, options, unresolved, authSource}
+  // PrepareInput{request, project: ProjectConfig, folders: [PrepareFolder{rel, config}] (od kořene), runtime, environment, globals, defaults = .builtin, baseDir, userAgent}
+extension Project { func folderChain(_ rel:) throws -> [PrepareFolder] }        // chybějící _folder.yaml = prázdná konfigurace
 struct History { list() -> [HistoryItem]; entry(id) throws -> SavedResponse; clear() throws }
 
 // Proměnné a prostředí (F6)

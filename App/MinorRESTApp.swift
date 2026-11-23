@@ -29,6 +29,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
+    /// Smaže temp soubory těl odpovědí; engine běží mimo hlavní vlákno, čekání je omezené.
+    func applicationWillTerminate(_ notification: Notification) {
+        let done = DispatchSemaphore(value: 0)
+        let engine = model.runs.engine
+        Task.detached {
+            await engine.close()
+            done.signal()
+        }
+        _ = done.wait(timeout: .now() + 2)
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         switch model.tabs.askBeforeQuit() {
         case nil: return .terminateCancel

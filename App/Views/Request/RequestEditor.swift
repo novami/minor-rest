@@ -28,7 +28,11 @@ struct RequestEditor: View {
                                              set: { m in tabs.edit { $0.draft.method = m } }))
                 VarField(text: urlText, placeholder: t("request.urlPlaceholder"), font: fonts.codeNSFont,
                          focusRequest: tabs.focusURLRequest, onSubmit: send)
-                Button(t("request.send"), action: send)
+                if model.runs.isRunning(tab.id) {
+                    Button(t("request.cancel")) { model.cancelRun() }
+                } else {
+                    Button(t("request.send"), action: send)
+                }
             }
             .padding(10)
             sectionBar
@@ -143,5 +147,5 @@ struct RequestEditor: View {
         })
     }
 
-    private func send() { model.notImplemented("menu.send") }
+    private func send() { model.send() }
 }

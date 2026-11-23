@@ -21,8 +21,10 @@ struct AppCommands: Commands {
                 .keyboardShortcut("w")
         }
         CommandMenu(t("menu.request")) {
-            item("menu.send", .return)
-            item("menu.cancel", ".")
+            Button(t("menu.send")) { model.send() }
+                .keyboardShortcut(.return)
+            Button(t("menu.cancel")) { model.cancelRun() }
+                .keyboardShortcut(".")
             Divider()
             item("menu.copyCurl", "c", [.command, .shift])
             Button(t("menu.duplicate")) { Task { await model.tree.duplicate(model.tree.selection) } }

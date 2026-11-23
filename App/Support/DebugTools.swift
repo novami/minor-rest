@@ -5,7 +5,8 @@ import AppKit
 /// `--snapshot-delay <s>` odloží snímek (výchozí 1,5 s),
 /// `--quit-after-debug` pak aplikaci ukončí, `--workspace-dir <adresář>` použije jiný adresář pro
 /// `workspace.yaml` (testy nesahají na skutečný), `--section <params|body|headers|settings|docs>` výchozí záložka
-/// otevřených tabů, `--debug-edit-docs <text>` po startu přepíše dokumentaci aktivního tabu (neuložený stav). Jazyk lze vynutit standardním `-AppleLanguages '(en)'`.
+/// otevřených tabů, `--debug-edit-docs <text>` po startu přepíše dokumentaci aktivního tabu (neuložený stav),
+/// `--debug-send` po startu odešle aktivní tab. Jazyk lze vynutit standardním `-AppleLanguages '(en)'`.
 enum DebugTools {
     /// Náhradní adresář workspace (`--workspace-dir`), v Release vždy `nil`.
     static var workspaceDirectory: URL? {
@@ -40,6 +41,12 @@ extension DebugTools {
             Task {
                 try? await Task.sleep(for: .seconds(1))
                 model.tabs.edit { $0.draft.docs = docs }
+            }
+        }
+        if args.contains("--debug-send") {
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                model.send()
             }
         }
         let snapshot = value("--snapshot"), menu = value("--dump-menu")

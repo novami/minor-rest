@@ -19,7 +19,11 @@ struct MainView: View {
             ResponseSplit(height: responseHeight) {
                 requestPane
             } bottom: {
-                EmptyState(title: t("response.empty"), hint: t("response.emptyHint"))
+                if let tab = model.tabs.active, let run = model.runs.run(tab.id) {
+                    ResponsePane(run: run)
+                } else {
+                    EmptyState(title: t("response.empty"), hint: t("response.emptyHint"))
+                }
             }
         }
         .toolbar {
