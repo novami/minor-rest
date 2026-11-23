@@ -1,3 +1,4 @@
+import AppKit
 import MinorRESTCore
 import SwiftUI
 
@@ -127,10 +128,28 @@ struct AuthEditor: View {
                 }
                 .labelsHidden().fixedSize()
             }
+            if oauthGrant == OAuthParams.authorizationCode {
+                row("auth.oauth.authURL", field(\.oauth2, OAuth2Auth(), \.authURL, placeholder: "{{baseUrl}}/oauth/authorize"))
+            }
             row("auth.oauth.tokenURL", field(\.oauth2, OAuth2Auth(), \.tokenURL, placeholder: "{{baseUrl}}/oauth/token"))
             row("auth.oauth.clientID", field(\.oauth2, OAuth2Auth(), \.clientID))
             row("auth.oauth.clientSecret", field(\.oauth2, OAuth2Auth(), \.clientSecret), literal: o.clientSecret, name: "clientSecret")
             row("auth.oauth.scope", field(\.oauth2, OAuth2Auth(), \.scope))
+            if oauthGrant == OAuthParams.authorizationCode {
+                GridRow {
+                    Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                    Toggle(t("auth.oauth.pkce"), isOn: Binding(get: { o.usePKCE },
+                                                               set: { v in update(\.oauth2, OAuth2Auth()) { $0.usePKCE = v } }))
+                }
+                GridRow {
+                    Text(t("auth.oauth.port")).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+                    TextField("0", value: Binding(get: { o.redirectPort },
+                                                  set: { v in update(\.oauth2, OAuth2Auth()) { $0.redirectPort = min(max(v, 0), 65535) } }),
+                              format: .number.grouping(.never))
+                        .textFieldStyle(.roundedBorder).frame(width: 90)
+                        .help(t("auth.oauth.portHelp"))
+                }
+            }
             if oauthGrant == OAuthParams.password {
                 row("auth.username", field(\.oauth2, OAuth2Auth(), \.username))
                 row("auth.password", field(\.oauth2, OAuth2Auth(), \.password), literal: o.password, name: "password")
@@ -161,9 +180,6 @@ struct AuthEditor: View {
                 Toggle(t("auth.oauth.autoRefresh"), isOn: Binding(get: { o.autoRefresh },
                                                                   set: { v in update(\.oauth2, OAuth2Auth()) { $0.autoRefresh = v } }))
             }
-        }
-        if oauthGrant == OAuthParams.authorizationCode {
-            Text(t("auth.oauth.codeLater")).foregroundStyle(.secondary)
         }
         OAuthPanel(auth: o, projectID: projectID, rel: oauthRel)
     }
@@ -306,12 +322,25 @@ private struct OAuthPanel: View {
             HStack(spacing: 8) {
                 Text(status).foregroundStyle(.secondary)
                 Spacer().frame(width: 8)
-                Button(t("auth.oauth.get")) { run { p, o, c in _ = try await c.fetchToken(p, options: o) } }
-                    .disabled(busy || grant == OAuthParams.authorizationCode)
+                if grant == OAuthParams.authorizationCode {
+                    if busy {
+                        Button(t("common.cancel")) { Task { await model.runs.oauth.cancelLogin() } }
+                    } else {
+                        Button(t("auth.oauth.login")) {
+                            run { p, o, c in _ = try await c.login(p, options: o) { url in NSWorkspace.shared.open(url) } }
+                        }
+                    }
+                } else {
+                    Button(t("auth.oauth.get")) { run { p, o, c in _ = try await c.fetchToken(p, options: o) } }
+                        .disabled(busy)
+                }
                 Button(t("auth.oauth.refresh")) { run { p, o, c in _ = try await c.refresh(p, options: o) } }
                     .disabled(busy || info?.hasRefresh != true)
                 Button(t("auth.oauth.clear")) { run { p, _, c in try await c.clearToken(p) } }
                     .disabled(busy || info == nil)
+                if busy && grant == OAuthParams.authorizationCode {
+                    Text(t("auth.oauth.waiting")).foregroundStyle(.secondary)
+                }
                 if busy { ProgressView().controlSize(.small) }
             }
             if let error { Text(error).foregroundStyle(.red).font(fonts.small).textSelection(.enabled) }

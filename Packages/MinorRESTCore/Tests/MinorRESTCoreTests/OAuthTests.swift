@@ -109,3 +109,50 @@ private func bodyString(_ r: TestRequest) -> String { String(decoding: r.body, a
     #expect(ts.calls.withLock { $0.count } == 1)
     #expect(secrets.all.keys.sorted() == ["access", "meta", "refresh"].map { "oauth/\(params.cacheKey)/\($0)" })
 }
+
+private func codeParams(_ url: String, port: UInt16 = 0) -> OAuthParams {
+    var a = oauth(url + "/token", grant: "authorization_code")
+    a.authURL = url + "/authorize"
+    a.usePKCE = true
+    a.redirectPort = Int(port)
+    return OAuthParams(a) { $0 }
+}
+
+/// Přihlášení: prohlížeč dostane správné parametry, callback s cizím `state` se ignoruje, code se vymění s `code_verifier`.
+@Test func oauthAuthorizationCodeLogin() async throws {
+    let ts = TokenServer()
+    let srv = try await TestHTTPServer { ts.response($0) }
+    defer { srv.stop() }
+    let client = OAuthClient(engine: HTTPEngine(), secrets: MemorySecrets())
+    let params = codeParams(srv.url)
+    let opened = Mutex<URL?>(nil)
+    let info = try await client.login(params, options: HTTPEngine.Options()) { url in
+        opened.withLock { $0 = url }
+        let q = Dictionary(uniqueKeysWithValues: URLComponents(url: url, resolvingAgainstBaseURL: false)!.queryItems!.map { ($0.name, $0.value ?? "") })
+        Task {
+            for st in ["cizi", q["state"]!] {
+                _ = try? await URLSession.shared.data(from: URL(string: q["redirect_uri"]! + "?code=abc&state=\(st)")!)
+            }
+        }
+    }
+    #expect(info.hasRefresh)
+    let q = URLComponents(url: opened.withLock { $0! }, resolvingAgainstBaseURL: false)!.queryItems!
+    #expect(q.first { $0.name == "code_challenge_method" }?.value == "S256")
+    let body = bodyString(ts.calls.withLock { $0[0] })
+    #expect(body.hasPrefix("grant_type=authorization_code&code=abc&redirect_uri=http%3A%2F%2F127.0.0.1%3A"))
+    #expect(body.contains("&code_verifier="))
+    #expect(try await client.accessToken(params, options: HTTPEngine.Options()) == "access-1")
+}
+
+@Test func oauthLoginCancelAndTimeout() async throws {
+    let client = OAuthClient(engine: HTTPEngine(), secrets: MemorySecrets())
+    let params = codeParams("http://127.0.0.1:1")
+    let t = Task { try await client.login(params, options: HTTPEngine.Options()) { _ in } }
+    try await Task.sleep(for: .milliseconds(300))
+    await client.cancelLogin()
+    do { _ = try await t.value; Issue.record("má selhat") } catch let e as CoreError { #expect(e.code == .canceled) }
+    do {
+        _ = try await client.login(params, options: HTTPEngine.Options(), timeout: .milliseconds(200)) { _ in }
+        Issue.record("má selhat")
+    } catch let e as CoreError { #expect(e.code == .netTimeout) }
+}

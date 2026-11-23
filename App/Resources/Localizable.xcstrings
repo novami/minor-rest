@@ -5543,23 +5543,6 @@
         }
       }
     },
-    "auth.oauth.codeLater": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Přihlášení (authorization code) zatím není podporováno – použije se jen uložený token."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sign-in (authorization code) is not supported yet – only a stored token is used."
-          }
-        }
-      }
-    },
     "auth.oauth.get": {
       "extractionState": "manual",
       "localizations": {
@@ -5709,6 +5692,108 @@
           "stringUnit": {
             "state": "translated",
             "value": "OAuth2: the server refused to issue a token"
+          }
+        }
+      }
+    },
+    "auth.oauth.authURL": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authorization URL"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authorization URL"
+          }
+        }
+      }
+    },
+    "auth.oauth.pkce": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Použít PKCE (S256)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use PKCE (S256)"
+          }
+        }
+      }
+    },
+    "auth.oauth.port": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port přesměrování"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redirect port"
+          }
+        }
+      }
+    },
+    "auth.oauth.portHelp": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "0 = náhodný volný port; redirect URI je http://127.0.0.1:<port>/callback"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "0 = random free port; redirect URI is http://127.0.0.1:<port>/callback"
+          }
+        }
+      }
+    },
+    "auth.oauth.login": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přihlásit"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in"
+          }
+        }
+      }
+    },
+    "auth.oauth.waiting": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Čekám na přihlášení v prohlížeči…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for sign-in in the browser…"
           }
         }
       }

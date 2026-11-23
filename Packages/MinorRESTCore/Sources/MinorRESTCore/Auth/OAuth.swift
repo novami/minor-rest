@@ -89,6 +89,7 @@ public actor OAuthClient {
     private let secrets: SecretStore
     private let now: @Sendable () -> Date
     private var memory: [String: Stored] = [:]
+    var loginTask: Task<TokenInfo, any Error>?
 
     public init(engine: HTTPEngine, secrets: SecretStore, now: @escaping @Sendable () -> Date = { Date() }) {
         self.engine = engine
