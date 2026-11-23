@@ -33,6 +33,20 @@ enum ResponseBody: Sendable, Equatable {
         }
     }
 
+    /// Zápis celého těla do souboru (přepíše existující).
+    func save(to url: URL) throws(CoreError) {
+        do {
+            switch self {
+            case .data(let d): try d.write(to: url, options: .atomic)
+            case .file(let u, _):
+                if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+                try FileManager.default.copyItem(at: u, to: url)
+            }
+        } catch {
+            throw CoreError(.fsError, error.localizedDescription)
+        }
+    }
+
     func remove() {
         if let p = path { try? FileManager.default.removeItem(at: p) }
     }
@@ -181,9 +195,12 @@ enum ContentSniff {
     }
 }
 
-/// Tělo pro zobrazení (UTF-8, nejvýš `maxView` bajtů).
+/// Tělo pro zobrazení (UTF-8): celé do `maxView`, větší jen prvních `headView` bajtů (`partial`).
 public struct BodyView: Sendable, Equatable {
-    public static let maxView = 2 << 20
+    public static let maxView: Int64 = 10_000_000
+    public static let headView = 1_000_000
+    /// Větší tělo se automaticky neformátuje (Pretty až na vyžádání).
+    public static let autoPretty: Int64 = 5_000_000
     /// Větší obrázek se nenačítá (náhled jen do 10 MB).
     public static let maxImage: Int64 = 10_000_000
 

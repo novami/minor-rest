@@ -401,8 +401,8 @@ Postman Collection v2.1 (`Import/Postman`, volitelné v F10): item/folder → st
 ### 8.4 Odpověď
 - **Tělo:** Pretty (JSON přes `JSONFormatter`, XML/HTML odsazení v jádře; `CodeTextView` read-only, obarvení, Cmd+F), Raw (text v UTF-8 bez úprav), Náhled (HTML: `WKWebView` s vypnutým JavaScriptem a bez síťových požadavků; obrázky: `NSImage` do 10 MB). Výchozí pohled dle Content-Type.
 - Binární nebo oříznuté tělo → informační panel (typ, velikost) + „Uložit do souboru“.
-- Tělo > 5 MB: Pretty se nespouští automaticky („Přesto formátovat“). Tělo > 10 MB: zobrazit první 1 MB + „Uložit do souboru“.
-- JSONPath filtr (vlastní implementace podmnožiny: `$`, `.key`, `['key']`, `[n]`, `[*]`, `..key`, `[start:end]`, filtry `?(@.x == …)` – rozsah upřesnit v F5/3; výsledek jako formátovaný JSON; chybný výraz → červený rámeček).
+- Tělo do 10 MB se zobrazuje celé; > 5 MB: Pretty se nespouští automaticky („Přesto formátovat“). Tělo > 10 MB: zobrazit první 1 MB (jen Raw, bez filtru) + „Uložit do souboru“.
+- JSONPath filtr (vlastní implementace RFC 9535: selektory jméno/`*`/index/slice/sjednocení, `..`, filtry `?…` s porovnáním, `&& || !`, testem existence a funkcemi `length/count/match/search/value`; výsledek vždy jako formátované pole shod; chybný výraz → červený rámeček s popisem v tooltipu; jen pro JSON tělo zobrazené celé).
 - Hlavičky (tabulka, kopírování hodnoty), Cookies (z `Set-Cookie`), Časování (vodopád, IP vzdálená/lokální, protokol, TLS detail), Odesláno (hlavičky + tělo requestu, poznámka o omezení 4.1), Redirecty (jen pokud byly), Verze.
 - Akce: **Uložit odpověď** (Cmd+Shift+S, volitelný popisek), Kopírovat tělo, Uložit tělo do souboru (`NSSavePanel`).
 - Stavy panelu: prázdný (nápověda Cmd+Enter), odesílání (spinner, uplynulý čas, Zrušit), odpověď, chyba.
@@ -498,6 +498,8 @@ extension HTTPSettings { static let builtin; func over(_ base:) -> HTTPSettings 
 
 // JSON (F1/F3)
 enum JSONFormatter { static func format(_ text: String) throws -> String; static func validate(_:) -> CoreError? }
+enum JSONValue { static parse(_:) throws -> JSONValue; var compact: String }   // pořadí klíčů a text čísel zachovány
+struct JSONPath { init(_ expr:) throws /* JSONPATH_INVALID: <pozice>: … */; select(_ root:) -> [JSONValue]; static filter(json:_ expr:) throws -> String }
 
 // Odeslání (F4, F5)
 actor HTTPEngine {                                                                  // Options = HTTPEngine.Options (init z HTTPSettings + userAgent)
@@ -564,8 +566,9 @@ struct RunResult: Sendable {
   var authSource: String         // (F7)
 }
 struct BodyView: Sendable { var text: String; var lang: String /* json|xml|html|text */; var size: Int64; var partial: Bool; var image: Data? /* celé tělo binárního image/* */ }
+// BodyView.maxView = 10 MB (celé tělo), headView = 1 MB (partial), autoPretty = 5 MB; filter/saveBody pracují s celým tělem
 ```
-`RunResult` záměrně **neobsahuje tělo** – UI si ho vyžádá přes `HTTPEngine.body` (líné načtení, Pretty/Raw bez kopírování metadat). `body` vrací max. 2 MB textu (`partial`).
+`RunResult` záměrně **neobsahuje tělo** – UI si ho vyžádá přes `HTTPEngine.body` (líné načtení, Pretty/Raw bez kopírování metadat). `body` vrací celé tělo do 10 MB, větší jen první 1 MB (`partial`).
 
 ## 12. Fáze implementace
 

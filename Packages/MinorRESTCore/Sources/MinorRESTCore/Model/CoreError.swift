@@ -17,6 +17,7 @@ public struct ErrorCode: RawRepresentable, Hashable, Sendable, CustomStringConve
     public static let varUnresolvedHost = ErrorCode(rawValue: "VAR_UNRESOLVED_HOST")
     public static let urlInvalid = ErrorCode(rawValue: "URL_INVALID")
     public static let jsonInvalid = ErrorCode(rawValue: "JSON_INVALID")
+    public static let jsonPathInvalid = ErrorCode(rawValue: "JSONPATH_INVALID")
     // Odeslání (F4)
     public static let canceled = ErrorCode(rawValue: "CANCELED")
     public static let netTimeout = ErrorCode(rawValue: "NET_TIMEOUT")

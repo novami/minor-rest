@@ -60,7 +60,6 @@ struct ResponsePane: View {
         if !run.unresolved.isEmpty {
             out.append(t("response.unresolved", ["names": run.unresolved.joined(separator: ", ")]))
         }
-        if run.result?.error == nil, run.result?.truncated == true { out.append(t("response.truncated")) }
         return out
     }
 }

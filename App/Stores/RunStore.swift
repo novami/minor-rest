@@ -14,6 +14,10 @@ final class RunStore {
         /// Tělo bez úprav (Raw, Náhled) a odsazené (Pretty, načte se při prvním zobrazení).
         var body: BodyView?
         var pretty: BodyView?
+        /// Pretty u těla nad `BodyView.autoPretty` až na vyžádání.
+        var forcePretty = false
+        /// Výsledek JSONPath filtru pro `filtered.expr`.
+        var filtered: Filtered?
         /// Pohled zvolený uživatelem; `nil` = výchozí podle Content-Type.
         var mode: BodyMode?
         /// Chyba přípravy (proměnné, URL) nebo odeslání.
@@ -21,7 +25,15 @@ final class RunStore {
         var unresolved: [String] = []
     }
 
+    struct Filtered {
+        let expr: String
+        var text: String?
+        var error: String?
+    }
+
     private(set) var runs: [String: Run] = [:]
+    /// JSONPath výraz per tab (platí i pro další běhy).
+    var filters: [String: String] = [:]
     @ObservationIgnored let engine = HTTPEngine()
     @ObservationIgnored private let projects: ProjectsStore
     @ObservationIgnored private let toasts: ToastCenter
@@ -103,6 +115,27 @@ final class RunStore {
         guard let r = runs[tabID], !r.running, r.pretty == nil, r.body != nil else { return }
         let v = try? await engine.body(runID: r.runID, pretty: true)
         update(tabID, r.runID) { $0.pretty = v ?? $0.body }
+    }
+
+    func forcePretty(_ tabID: String) {
+        guard let r = runs[tabID] else { return }
+        update(tabID, r.runID) { $0.forcePretty = true }
+    }
+
+    /// Vyhodnotí filtr tabu nad posledním během (mimo hlavní vlákno v enginu).
+    func applyFilter(_ tabID: String) async {
+        let expr = filters[tabID, default: ""].trimmingCharacters(in: .whitespaces)
+        guard let r = runs[tabID], !r.running, r.filtered?.expr != expr else { return }
+        guard !expr.isEmpty else { return update(tabID, r.runID) { $0.filtered = nil } }
+        var f = Filtered(expr: expr)
+        do { f.text = try await engine.filter(runID: r.runID, jsonPath: expr) } catch { f.error = errorText(error) }
+        update(tabID, r.runID) { $0.filtered = f }
+    }
+
+    /// Uloží surové tělo; chyba → toast.
+    func saveBody(_ tabID: String, to url: URL) async {
+        guard let r = runs[tabID] else { return }
+        do { try await engine.saveBody(runID: r.runID, to: url) } catch { toasts.show(errorText(error), isError: true) }
     }
 
     func cancel(_ tabID: String) async {

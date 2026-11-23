@@ -97,7 +97,7 @@ public actor HTTPEngine {
         return res
     }
 
-    /// Tělo pro zobrazení v UTF-8; `pretty` odsadí JSON (nevalidní nechá beze změny), XML a HTML.
+    /// Tělo pro zobrazení v UTF-8; `pretty` odsadí JSON (nevalidní nechá beze změny), XML a HTML – jen celé tělo.
     public func body(runID: String, pretty: Bool) throws(CoreError) -> BodyView {
         let s = try stored(runID)
         var v = BodyView()
@@ -107,8 +107,8 @@ public actor HTTPEngine {
             if s.contentType.hasPrefix("image/"), v.size <= BodyView.maxImage { v.image = try s.body.read() }
             return v
         }
-        let b = try s.body.read(limit: BodyView.maxView)
-        v.partial = v.size > Int64(b.count)
+        v.partial = v.size > BodyView.maxView
+        let b = try s.body.read(limit: v.partial ? BodyView.headView : nil)
         v.text = ContentSniff.toUTF8(b, s.charset)
         guard pretty, !v.partial else { return v }
         switch v.lang {
@@ -117,6 +117,18 @@ public actor HTTPEngine {
         default: break
         }
         return v
+    }
+
+    /// JSONPath filtr nad celým tělem (do `BodyView.maxView`); výsledek = odsazené pole shod.
+    public func filter(runID: String, jsonPath: String) throws(CoreError) -> String {
+        let s = try stored(runID)
+        guard !s.isBinary, s.body.size <= BodyView.maxView else { throw CoreError(.jsonInvalid, "body not available") }
+        return try JSONPath.filter(json: ContentSniff.toUTF8(try s.body.read(), s.charset), jsonPath)
+    }
+
+    /// Uložení surového (dekomprimovaného) těla do souboru.
+    public func saveBody(runID: String, to url: URL) throws(CoreError) {
+        try stored(runID).body.save(to: url)
     }
 
     /// Surové (dekomprimované) tělo odpovědi držené v posledních výsledcích.

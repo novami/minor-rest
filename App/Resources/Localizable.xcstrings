@@ -511,6 +511,23 @@
         }
       }
     },
+    "errors.JSONPATH_INVALID": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neplatný JSONPath výraz, pozice"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid JSONPath expression, position"
+          }
+        }
+      }
+    },
     "errors.JSON_INVALID": {
       "extractionState": "manual",
       "localizations": {
@@ -1888,19 +1905,36 @@
         }
       }
     },
+    "response.bigBody": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tělo je velké ({size}), formátování se nespouští automaticky"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Body is large ({size}), formatting is not started automatically"
+          }
+        }
+      }
+    },
     "response.binary": {
       "extractionState": "manual",
       "localizations": {
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Binární obsah ({size})"
+            "value": "Binární obsah ({type}, {size})"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Binary content ({size})"
+            "value": "Binary content ({type}, {size})"
           }
         }
       }
@@ -1969,6 +2003,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "The response set no cookies"
+          }
+        }
+      }
+    },
+    "response.copyBody": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kopírovat tělo"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy Body"
           }
         }
       }
@@ -2058,6 +2109,40 @@
         }
       }
     },
+    "response.filter.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSONPath filtr (RFC 9535); výsledek je pole shod"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSONPath filter (RFC 9535); the result is an array of matches"
+          }
+        }
+      }
+    },
+    "response.filter.placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSONPath, např. $.data[*].id"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSONPath, e.g. $.data[*].id"
+          }
+        }
+      }
+    },
     "response.find": {
       "extractionState": "manual",
       "localizations": {
@@ -2071,6 +2156,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Find in body (⌘F)"
+          }
+        }
+      }
+    },
+    "response.formatAnyway": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přesto formátovat"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Format anyway"
           }
         }
       }
@@ -2115,13 +2217,13 @@
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Obrázek je pro náhled příliš velký ({size})"
+            "value": "Obrázek je pro náhled příliš velký ({type}, {size})"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Image is too large to preview ({size})"
+            "value": "Image is too large to preview ({type}, {size})"
           }
         }
       }
@@ -2200,13 +2302,13 @@
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zobrazen jen začátek těla (celkem {size})"
+            "value": "Tělo je velké ({size}), zobrazen jen první {head}"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Showing only the beginning of the body ({size} total)"
+            "value": "Body is large ({size}), showing only the first {head}"
           }
         }
       }
@@ -2241,6 +2343,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remote address"
+          }
+        }
+      }
+    },
+    "response.saveBody": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uložit do souboru…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to File…"
           }
         }
       }

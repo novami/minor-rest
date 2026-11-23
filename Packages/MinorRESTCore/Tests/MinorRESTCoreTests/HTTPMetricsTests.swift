@@ -86,7 +86,11 @@ func httpCharset(ct: String, body: Data, mediaType: String, charset: String, bin
     #expect(res.error == nil && !res.truncated && res.sizes.bodyDecoded == Int64(big.count))
     #expect(try await e.data(runID: "big") == big)
     let v = try await e.body(runID: "big", pretty: false)
-    #expect(v.partial && v.text.utf8.count == BodyView.maxView && v.size == Int64(big.count))
+    #expect(v.partial && v.text.utf8.count == BodyView.headView && v.size == Int64(big.count))
+    let out = FileManager.default.temporaryDirectory.appending(path: "minorrest-test-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: out) }
+    try await e.saveBody(runID: "big", to: out)
+    #expect(try Data(contentsOf: out) == big)
 
     var o = opts
     o.maxBodyBytes = 5
