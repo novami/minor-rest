@@ -494,7 +494,7 @@ final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     }
 }
 
-enum HTTPStatus {
+public enum HTTPStatus {
     /// `http/1.1` → `HTTP/1.1`, `h2` → `HTTP/2`, `h3` → `HTTP/3`.
     static func proto(_ name: String) -> String {
         switch name.lowercased() {
@@ -506,7 +506,7 @@ enum HTTPStatus {
     }
 
     /// Standardní text stavu (skutečný reason phrase URLSession nedává).
-    static func text(_ code: Int) -> String { texts[code] ?? "" }
+    public static func text(_ code: Int) -> String { texts[code] ?? "" }
 
     private static let texts: [Int: String] = [
         100: "Continue", 101: "Switching Protocols", 102: "Processing", 103: "Early Hints",

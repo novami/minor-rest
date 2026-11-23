@@ -5,6 +5,7 @@ import SwiftUI
 struct ResponsePane: View {
     let tabID: String
     let run: RunStore.Run
+    let section: ResponseSection
     @Environment(AppModel.self) private var model
     @Environment(\.appFonts) private var fonts
 
@@ -16,7 +17,7 @@ struct ResponsePane: View {
                 ResponseMetaBar(result: r).padding(.horizontal, 10).padding(.vertical, 6)
                 warnings
                 Divider()
-                ResponseBodyPane(tabID: tabID, run: run, result: r)
+                ResponseTabs(tabID: tabID, run: run, result: r, section: section)
             } else if let error = run.error {
                 ErrorPanel(error: error)
                 warnings

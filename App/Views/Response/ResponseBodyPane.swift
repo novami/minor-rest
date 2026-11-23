@@ -6,11 +6,12 @@ enum BodyMode: String, CaseIterable {
     case pretty, raw, preview
 }
 
-/// Záložky odpovědi (zatím jen Tělo) a tělo v pohledu Pretty / Raw / Náhled.
-struct ResponseBodyPane: View {
+/// Tělo odpovědi v pohledu Pretty / Raw / Náhled; `bar` = záložkový pruh odpovědi.
+struct ResponseBodyPane<Bar: View>: View {
     let tabID: String
     let run: RunStore.Run
     let result: RunResult
+    @ViewBuilder let bar: Bar
     @State private var findTrigger = 0
     @Environment(AppModel.self) private var model
     @Environment(\.appFonts) private var fonts
@@ -20,9 +21,7 @@ struct ResponseBodyPane: View {
         let mode = run.mode.flatMap { modes.contains($0) ? $0 : nil } ?? defaultMode(modes)
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Text(t("response.tab.body"))
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(Color.primary.opacity(0.1), in: .rect(cornerRadius: 5))
+                bar
                 Spacer()
                 if modes.count > 1 {
                     Picker("", selection: Binding(get: { mode }, set: { model.runs.setMode(tabID, $0) })) {

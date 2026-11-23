@@ -6,7 +6,8 @@ import AppKit
 /// `--quit-after-debug` pak aplikaci ukončí, `--workspace-dir <adresář>` použije jiný adresář pro
 /// `workspace.yaml` (testy nesahají na skutečný), `--section <params|body|headers|settings|docs>` výchozí záložka
 /// otevřených tabů, `--debug-edit-docs <text>` po startu přepíše dokumentaci aktivního tabu (neuložený stav),
-/// `--debug-send` po startu odešle aktivní tab, `--response-mode <pretty|raw|preview>` pak přepne pohled těla. Jazyk lze vynutit standardním `-AppleLanguages '(en)'`.
+/// `--debug-send` po startu odešle aktivní tab, `--response-mode <pretty|raw|preview>` pak přepne pohled těla,
+/// `--response-section <body|headers|cookies|timing|sent|redirects>` záložku odpovědi. Jazyk lze vynutit standardním `-AppleLanguages '(en)'`.
 enum DebugTools {
     /// Náhradní adresář workspace (`--workspace-dir`), v Release vždy `nil`.
     static var workspaceDirectory: URL? {
@@ -50,6 +51,9 @@ extension DebugTools {
                 if let mode = value("--response-mode").flatMap(BodyMode.init), let tab = model.tabs.active {
                     try? await Task.sleep(for: .seconds(1))
                     model.runs.setMode(tab.id, mode)
+                }
+                if let section = value("--response-section").flatMap(ResponseSection.init) {
+                    model.tabs.edit { $0.responseSection = section }
                 }
             }
         }

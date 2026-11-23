@@ -14,6 +14,8 @@ struct RequestTab: Identifiable, Equatable {
     var urlText: String?
     /// Poslední záložka editoru (jen v paměti).
     var section: RequestSection = .params
+    /// Poslední záložka odpovědi (jen v paměti).
+    var responseSection: ResponseSection = .body
     /// Novější verze z disku, zatímco tab má neuložené změny (banner Načíst z disku / Ponechat moje).
     var diskChanged: Request?
 
@@ -22,6 +24,10 @@ struct RequestTab: Identifiable, Equatable {
 
 enum RequestSection: String, CaseIterable {
     case params, body, headers, settings, docs
+}
+
+enum ResponseSection: String, CaseIterable {
+    case body, headers, cookies, timing, sent, redirects
 }
 
 /// Taby per projekt; seznam a aktivní tab se ukládají do workspace.

@@ -20,7 +20,7 @@ struct MainView: View {
                 requestPane
             } bottom: {
                 if let tab = model.tabs.active, let run = model.runs.run(tab.id) {
-                    ResponsePane(tabID: tab.id, run: run)
+                    ResponsePane(tabID: tab.id, run: run, section: tab.responseSection)
                 } else {
                     EmptyState(title: t("response.empty"), hint: t("response.emptyHint"))
                 }
