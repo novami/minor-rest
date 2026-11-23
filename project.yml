@@ -31,7 +31,7 @@ targets:
         CFBundleDisplayName: MinorREST
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        MRUpdatePublicKey: ""   # veřejný ed25519 klíč (base64) pro ověření aktualizací; viz docs/RELEASE.md
+        MRUpdatePublicKey: ""   # veřejný klíč MinorUpdate (base64); viz docs/RELEASE.md
         LSApplicationCategoryType: public.app-category.developer-tools
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true

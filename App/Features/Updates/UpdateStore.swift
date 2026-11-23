@@ -15,7 +15,7 @@ final class UpdateStore {
         case failed(String)
     }
 
-    static let repo = "novami/minor-rest"
+    static let feedURL = URL(string: "https://github.com/novami/minor-rest/releases/latest/download/appcast.json")!
     private static let autoCheckKey = "updates.autoCheck"
     private static let autoDownloadKey = "updates.autoDownload"
 
@@ -67,7 +67,7 @@ final class UpdateStore {
         currentVersion = AppVersion(bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") ?? AppVersion(0, 0, 0)
         autoCheck = defaults.object(forKey: Self.autoCheckKey) as? Bool ?? true
         autoDownload = defaults.object(forKey: Self.autoDownloadKey) as? Bool ?? true
-        checker = UpdateChecker(repo: Self.repo, current: currentVersion)
+        checker = UpdateChecker(feedURL: Self.feedURL, current: currentVersion)
         let key = bundle.object(forInfoDictionaryKey: "MRUpdatePublicKey") as? String ?? ""
         let work = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("MinorREST/update")
         installer = try? UpdateInstaller(publicKeyBase64: key, bundleID: bundle.bundleIdentifier ?? "", workDir: work)

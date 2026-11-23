@@ -16,30 +16,35 @@ public struct UpdateInstaller: Sendable {
         self.workDir = workDir
     }
 
-    /// Ověří podpis (base64) celého zipu.
-    public func verify(zip: Data, signatureBase64: String) throws {
-        guard let sig = Data(base64Encoded: signatureBase64.trimmingCharacters(in: .whitespacesAndNewlines)),
+    /// Podepisovaná zpráva (sdílená s `tools/minorupdate.swift`): `minorupdate-v1\n<appID>\n<verze>\n<sha256 hex>`.
+    static func signedMessage(appID: String, version: String, sha256: String) -> Data {
+        Data("minorupdate-v1\n\(appID)\n\(version)\n\(sha256)".utf8)
+    }
+
+    /// Ověří otisk archivu a podpis feedu (vázaný na appID, verzi a otisk).
+    public func verify(zip: Data, info: UpdateInfo) throws {
+        let hex = SHA256.hash(data: zip).map { String(format: "%02x", $0) }.joined()
+        guard hex == info.sha256.lowercased(),
+              let sig = Data(base64Encoded: info.signature),
               let key = try? Curve25519.Signing.PublicKey(rawRepresentation: publicKey),
-              key.isValidSignature(sig, for: zip)
+              key.isValidSignature(sig, for: Self.signedMessage(appID: bundleID, version: info.version.description, sha256: hex))
         else { throw CoreError(.updateBadSignature) }
     }
 
-    /// Stáhne zip + podpis, ověří, rozbalí a zkontroluje bundle. Vrací cestu k nové `.app`.
+    /// Stáhne zip, ověří, rozbalí a zkontroluje bundle. Vrací cestu k nové `.app`.
     public func prepare(_ info: UpdateInfo, progress: @Sendable (Double) -> Void = { _ in }) async throws -> URL {
         let fm = FileManager.default
         let dir = workDir.appendingPathComponent(info.version.description, isDirectory: true)
         try? fm.removeItem(at: dir)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        let zipData: Data, sigData: Data
+        let zipData: Data
         do {
             progress(0.1)
-            let (sd, sr) = try await loader.load(URLRequest(url: info.signatureURL, timeoutInterval: 30))
-            let (zd, zr) = try await loader.load(URLRequest(url: info.zipURL, timeoutInterval: 300))
-            guard sr.statusCode == 200, zr.statusCode == 200 else { throw CoreError(.updateDownload, "HTTP \(zr.statusCode)") }
-            sigData = sd
+            let (zd, zr) = try await loader.load(URLRequest(url: info.url, timeoutInterval: 300))
+            guard zr.statusCode == 200 else { throw CoreError(.updateDownload, "HTTP \(zr.statusCode)") }
             zipData = zd
         } catch let e as CoreError { throw e } catch { throw CoreError(.updateDownload, "\(error)") }
-        try verify(zip: zipData, signatureBase64: String(decoding: sigData, as: UTF8.self))
+        try verify(zip: zipData, info: info)
         progress(0.7)
         let zip = dir.appendingPathComponent("update.zip")
         try zipData.write(to: zip)

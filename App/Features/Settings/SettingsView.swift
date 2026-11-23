@@ -17,6 +17,9 @@ struct SettingsView: View {
                 if let info = updates.info {
                     LabeledContent(t("updates.availableVersion"), value: info.version.description)
                 }
+                if let notes = updates.info?.notes, !notes.isEmpty {
+                    LabeledContent(t("updates.releaseNotes")) { Text(notes).lineLimit(4).textSelection(.enabled) }
+                }
                 LabeledContent(t("updates.status"), value: updates.statusText)
                 HStack {
                     Button(t("updates.checkNow")) { Task { await updates.check(manual: true) } }
@@ -25,9 +28,6 @@ struct SettingsView: View {
                     }
                     if case .ready = updates.state {
                         Button(t("updates.restart")) { updates.installAndRestart() }
-                    }
-                    if let info = updates.info {
-                        Link(t("updates.releaseNotes"), destination: info.pageURL)
                     }
                 }
             }

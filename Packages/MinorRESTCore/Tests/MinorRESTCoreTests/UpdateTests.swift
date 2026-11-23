@@ -22,35 +22,38 @@ private struct FakeLoader: DataLoader {
     }
 }
 
-private func release(_ tag: String, prerelease: Bool = false, assets: Bool = true) -> Data {
-    let a = assets ? """
-    [{"name":"MinorREST-\(tag)-macos-arm64.zip","browser_download_url":"https://github.com/o/r/z.zip","size":10},
-     {"name":"MinorREST-\(tag)-macos-arm64.zip.sig","browser_download_url":"https://github.com/o/r/z.sig","size":10}]
-    """ : "[]"
-    return Data("""
-    {"tag_name":"\(tag)","draft":false,"prerelease":\(prerelease),"body":"n","html_url":"https://github.com/o/r/releases/1","assets":\(a)}
-    """.utf8)
+private func feed(_ version: String, url: String = "https://github.com/o/r/z.zip") -> Data {
+    Data(#"{"version":"\#(version)","url":"\#(url)","sha256":"ab","signature":"cw==","notes":"n"}"#.utf8)
 }
 
 @Test func checkerFindsNewerOnly() async throws {
     func check(_ data: Data, current: String) async throws -> UpdateInfo? {
-        let loader = FakeLoader(responses: ["latest": (200, data, ["ETag": "x"])])
-        return try await UpdateChecker(repo: "o/r", current: AppVersion(current)!, loader: loader).check()
+        let loader = FakeLoader(responses: ["appcast.json": (200, data, [:])])
+        return try await UpdateChecker(feedURL: URL(string: "https://x/appcast.json")!, current: AppVersion(current)!, loader: loader).check()
     }
-    #expect(try await check(release("1.2.0"), current: "1.1.9")?.version == AppVersion(1, 2, 0))
-    #expect(try await check(release("1.2.0"), current: "1.2.0") == nil)
-    #expect(try await check(release("1.2.0", prerelease: true), current: "1.0.0") == nil)
-    await #expect(throws: CoreError.self) { try await check(release("1.2.0", assets: false), current: "1.0.0") }
+    #expect(try await check(feed("1.2.0"), current: "1.1.9")?.version == AppVersion(1, 2, 0))
+    #expect(try await check(feed("1.2.0"), current: "1.2.0") == nil)
+    await #expect(throws: CoreError.self) { try await check(feed("1.2.0", url: "http://x/z.zip"), current: "1.0.0") }
+    await #expect(throws: CoreError.self) { try await check(Data("{}".utf8), current: "1.0.0") }
 }
 
-@Test func signatureVerification() throws {
+@Test func verifyChecksHashAndSignedMessage() throws {
     let key = Curve25519.Signing.PrivateKey()
     let installer = try UpdateInstaller(publicKeyBase64: key.publicKey.rawRepresentation.base64EncodedString(),
-                                        bundleID: "x", workDir: FileManager.default.temporaryDirectory)
+                                        bundleID: "app.test", workDir: FileManager.default.temporaryDirectory)
     let zip = Data("zip-bytes".utf8)
-    let sig = try key.signature(for: zip).base64EncodedString()
-    try installer.verify(zip: zip, signatureBase64: sig + "\n")
-    #expect(throws: CoreError.self) { try installer.verify(zip: Data("tampered".utf8), signatureBase64: sig) }
+    let hex = SHA256.hash(data: zip).map { String(format: "%02x", $0) }.joined()
+    func info(version: String = "1.0.1", sha: String = hex, signedFor app: String = "app.test") throws -> UpdateInfo {
+        let msg = UpdateInstaller.signedMessage(appID: app, version: version, sha256: hex)
+        return UpdateInfo(version: AppVersion(version)!, notes: "", url: URL(string: "https://x/z.zip")!, sha256: sha,
+                          signature: try key.signature(for: msg).base64EncodedString())
+    }
+    try installer.verify(zip: zip, info: info())
+    #expect(throws: CoreError.self) { try installer.verify(zip: Data("tampered".utf8), info: info()) }       // otisk nesedí
+    #expect(throws: CoreError.self) { try installer.verify(zip: zip, info: info(signedFor: "other.app")) }   // podpis pro jinou aplikaci
+    var wrongVersion = try info()
+    wrongVersion.version = AppVersion(9, 9, 9)
+    #expect(throws: CoreError.self) { try installer.verify(zip: zip, info: wrongVersion) }                   // downgrade/záměna verze
     #expect(throws: CoreError.self) { try UpdateInstaller(publicKeyBase64: "", bundleID: "x", workDir: .temporaryDirectory) }
 }
 

@@ -66,7 +66,7 @@ minor-rest/
 │   └── Tests/MinorRESTCoreTests/   # Swift Testing (@Test, parametrizované = tabulkové testy)
 ├── scripts/                        # release, podpis aktualizace
 ├── docs/
-└── .github/workflows/              # ci.yml, release.yml
+└── .github/workflows/              # ci.yml
 ```
 
 **Zásady:**
@@ -441,11 +441,11 @@ Změny se projeví ihned bez restartu. Priorita HTTP nastavení: request → pro
 Repozitář a releasy jsou veřejné → updater nepotřebuje token.
 
 - Verze: vždy jen `MAJOR.MINOR.PATCH` (např. `0.3.5`) – bez `v`, bez hashe a čísla buildu; stejný tvar má i git tag. `MARKETING_VERSION` = `CURRENT_PROJECT_VERSION` = verze z tagu (About panel pak nezobrazuje „(build)“), vývojový build `0.0.0` (kontrola aktualizací vypnutá).
-- **Vlastní updater (rozhodnutí uživatele 2026-11-23, místo Sparkle):** `MinorRESTCore/Updates` – kontrola `releases/latest` (GitHub API, ETag), assety `MinorREST-<verze>-macos-arm64.zip` + `.zip.sig` (ed25519, base64), ověření veřejným klíčem `MRUpdatePublicKey` v `Info.plist` (privátní v Secret `UPDATE_SIGNING_KEY`), kontrola bundle ID a verze, výměna bundlu při ukončení/„Restartovat“ s rollbackem. UI: `App/Features/Updates` (`UpdateStore`), sekce v Nastavení, menu. Podrobně `docs/RELEASE.md`.
+- **Vlastní updater (rozhodnutí uživatele 2026-11-23, místo Sparkle):** `MinorRESTCore/Updates` – feed `appcast.json` (asset posledního releasu: version, url, sha256, signature, notes), podpis ed25519 sdíleným klíčem MinorUpdate (zpráva `minorupdate-v1\n<bundle ID>\n<verze>\n<sha256>`, privátní klíč jen v Keychainu, podepisuje se lokálně `scripts/release.sh`), veřejný klíč `MRUpdatePublicKey` v `Info.plist`; kontrola bundle ID a verze, výměna bundlu při ukončení/„Restartovat“ s rollbackem. UI: `App/Features/Updates`, sekce v Nastavení, menu. Podrobně `docs/RELEASE.md`.
 - Nelze aktualizovat z translokované cesty (`/AppTranslocation/`) → vyzvat k přesunu do `/Applications`.
 - **První ruční instalace (README):** aplikace není notarizovaná → po přetažení do `/Applications` buď `xattr -dr com.apple.quarantine /Applications/MinorREST.app`, nebo Nastavení systému → Soukromí a zabezpečení → „Přesto otevřít“.
 - **`ci.yml`** (push/PR, `macos-15`+): `swift test` v `Packages/MinorRESTCore`; `brew install xcodegen && make build`.
-- **`release.yml`** (tag `[0-9]+.[0-9]+.[0-9]+`, `permissions: contents: write`): `scripts/release.sh $TAG` (xcodegen, `xcodebuild -configuration Release`, `codesign --force --deep -s -`, `ditto -c -k --keepParent` → zip, `hdiutil … -format UDZO` → dmg, `scripts/sign-update.swift` → `.zip.sig`), `gh release create "$TAG" --generate-notes <zip sig dmg>`.
+- **Vydání:** lokálně `scripts/release.sh <verze>` (build, ad-hoc podpis, zip, podepsaný `appcast.json`), publikace `gh release create` jen na pokyn; žádný `release.yml` (klíč nesmí do CI).
 - `Info.plist`: `LSMinimumSystemVersion` 15.0, `CFBundleIdentifier` viz kap. 0.
 
 ## 11. API jádra pro UI (`MinorRESTCore`)
@@ -656,7 +656,7 @@ Testy: hlavní cesta + nejdůležitější edge case, parametrizované `@Test(ar
 ### F12 – Auto-update a release
 1. ~~Sparkle~~ → vlastní updater (kap. 10): jádro + UI hotové, zbývá reálný cyklus proti release.
 2. UI (menu „Zkontrolovat aktualizace…“, sekce v Nastavení).
-3. `scripts/release.sh`, `release.yml`, README (instalace, první spuštění, build ze zdrojů).
+3. `scripts/release.sh`, README (instalace, první spuštění, build ze zdrojů).
 **Vyžaduje uživatele:** vygenerovat klíč (`swift scripts/sign-update.swift --gen`), privátní do GitHub Secret `UPDATE_SIGNING_KEY`, veřejný do `project.yml` (`MRUpdatePublicKey`); schválit push a tag. **Hotovo:** lokální build s nižší verzí najde release, ověří, nainstaluje a restartuje se.
 
 ### F13 – Dotažení

@@ -1,11 +1,12 @@
 #!/bin/bash
-# Sestaví Release (arm64), ad-hoc podepíše a vytvoří dist/MinorREST-<verze>-macos-arm64.zip + .zip.sig + .dmg.
-# Použití: UPDATE_SIGNING_KEY=<base64> scripts/release.sh 0.3.5
+# Lokální vydání: Release build (arm64), ad-hoc podpis, zip, podepsaný appcast.json (sdílený klíč MinorUpdate z Keychainu).
+# Použití: scripts/release.sh 0.3.5      (privátní klíč nikdy neopouští Mac)
 set -euo pipefail
 VERSION="${1:?verze ve tvaru MAJOR.MINOR.PATCH}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "neplatná verze: $VERSION" >&2; exit 1; }
 cd "$(dirname "$0")/.."
-DIST=dist; NAME="MinorREST-$VERSION-macos-arm64"
+[ -z "$(git status --porcelain)" ] || { echo "pracovní strom není čistý" >&2; exit 1; }
+DIST=dist; NAME="MinorREST-$VERSION"
 rm -rf "$DIST" .build/release-xcode && mkdir -p "$DIST"
 xcodegen generate --quiet
 xcodebuild -project MinorREST.xcodeproj -scheme MinorREST -configuration Release -derivedDataPath .build/release-xcode \
@@ -13,6 +14,13 @@ xcodebuild -project MinorREST.xcodeproj -scheme MinorREST -configuration Release
 APP=.build/release-xcode/Build/Products/Release/MinorREST.app
 codesign --force --deep -s - "$APP"
 ditto -c -k --keepParent "$APP" "$DIST/$NAME.zip"
-hdiutil create -quiet -volname MinorREST -srcfolder "$APP" -format UDZO "$DIST/$NAME.dmg"
-swift scripts/sign-update.swift --file "$DIST/$NAME.zip" > "$DIST/$NAME.zip.sig"
-echo "hotovo: $DIST/"
+URL="https://github.com/novami/minor-rest/releases/download/$VERSION/$NAME.zip"
+BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Contents/Info.plist")
+NOTES="docs/release-notes/$VERSION.md"
+if [ -f "$NOTES" ]; then
+  swift scripts/minorupdate.swift sign "$DIST/$NAME.zip" "$BUNDLE_ID" "$VERSION" "$URL" "$NOTES" > "$DIST/appcast.json"
+else
+  swift scripts/minorupdate.swift sign "$DIST/$NAME.zip" "$BUNDLE_ID" "$VERSION" "$URL" > "$DIST/appcast.json"
+fi
+echo "Hotovo: $DIST/. Publikace (po tagu $VERSION a pushi, jen na pokyn):"
+echo "  gh release create $VERSION $DIST/$NAME.zip $DIST/appcast.json --title $VERSION --generate-notes"
