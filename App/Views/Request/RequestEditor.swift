@@ -20,8 +20,14 @@ struct RequestEditor: View {
             .padding(10)
             sectionBar
             Divider()
-            ScrollView {
-                content.padding(10)
+            if tab.section == .body {
+                BodyEditor(requestBody: Binding(get: { tab.draft.body }, set: { b in tabs.edit { $0.draft.body = b } }),
+                           tabID: tab.id, projectID: tab.projectID)
+                    .padding(10)
+            } else {
+                ScrollView {
+                    content.padding(10)
+                }
             }
         }
     }
@@ -81,7 +87,7 @@ struct RequestEditor: View {
             KvEditor(rows: Binding(get: { tab.draft.headers }, set: { h in tabs.edit { $0.draft.headers = h } }),
                      names: HeaderHints.names, valuesFor: HeaderHints.values(for:))
         case .body:
-            Text(t("body.none")).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+            EmptyView()
         }
     }
 

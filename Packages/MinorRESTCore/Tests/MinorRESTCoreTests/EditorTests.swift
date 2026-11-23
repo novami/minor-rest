@@ -69,3 +69,22 @@ func pathParamNames(url: String, names: [String]) {
     #expect(HeaderHints.complete("acc", in: HeaderHints.names) == ["Accept", "Accept-Charset", "Accept-Encoding", "Accept-Language"])
     #expect(HeaderHints.complete("Accept", in: HeaderHints.names).count == 3)
 }
+
+/// Tokeny jako `druh:text` pro čitelné porovnání.
+private func syntax(_ text: String, _ lang: SyntaxLang) -> String {
+    let ns = text as NSString
+    return Syntax.tokens(text, lang).map { "\($0.kind):\(ns.substring(with: $0.range))" }.joined(separator: " ")
+}
+
+@Test(arguments: [
+    (#"{"jméno": "Žluť 😀", "n": -1.5e3, "ok": true, "x": null, "id": {{id}}}"#, SyntaxLang.json,
+     #"property:"jméno" string:"Žluť 😀" property:"n" number:-1.5e3 property:"ok" keyword:true property:"x" keyword:null property:"id""#),
+    (#"{"a\"b" : "rozepsan"#, .json, #"property:"a\"b" string:"rozepsan"#),
+    (#"<?xml v="1"?><!-- c --><a:b x="1" y='2'>t<![CDATA[<z>]]></a:b>"#, .xml,
+     #"comment:<?xml v="1"?> comment:<!-- c --> keyword:a:b property:x string:"1" property:y string:'2' string:<![CDATA[<z>]]> keyword:a:b"#),
+    ("<p>a < b</p>", .html, "keyword:p keyword:p"),
+    ("{\"a\": 1}", .text, ""),
+])
+func syntaxTokens(text: String, lang: SyntaxLang, expected: String) {
+    #expect(syntax(text, lang) == expected)
+}

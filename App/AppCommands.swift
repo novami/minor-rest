@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Hlavní menu a zkratky (PLAN 8.7) – jediný zdroj zkratek.
@@ -31,11 +32,28 @@ struct AppCommands: Commands {
             Divider()
             item("menu.environment", "e")
         }
+        CommandGroup(after: .textEditing) {
+            Divider()
+            find("menu.find", .showFindInterface, "f")
+            find("menu.findNext", .nextMatch, "g")
+            find("menu.findPrevious", .previousMatch, "g", [.command, .shift])
+        }
         CommandGroup(replacing: .sidebar) {
             Button(t("menu.toggleSidebar")) { model.toggleSidebar() }
                 .keyboardShortcut("b")
             item("menu.palette", "k")
         }
+    }
+
+    /// Hledání v textovém poli s fokusem (`NSTextFinder` v `CodeTextView`); akce čte `tag` odesílatele.
+    private func find(_ key: String, _ action: NSTextFinder.Action, _ shortcut: KeyEquivalent,
+                      _ modifiers: EventModifiers = .command) -> some View {
+        Button(t(key)) {
+            let sender = NSMenuItem()
+            sender.tag = action.rawValue
+            NSApp.sendAction(#selector(NSTextView.performTextFinderAction(_:)), to: nil, from: sender)
+        }
+        .keyboardShortcut(shortcut, modifiers: modifiers)
     }
 
     private func item(_ key: String, _ shortcut: KeyEquivalent, _ modifiers: EventModifiers = .command) -> some View {

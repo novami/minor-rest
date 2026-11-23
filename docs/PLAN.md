@@ -85,7 +85,7 @@ minor-rest/
 7. **Ukončení s neuloženými změnami:** `NSApplicationDelegateAdaptor` → `applicationShouldTerminate` vrátí `.terminateLater`, zobrazí `NSAlert` Uložit / Neukládat / Zrušit, po uložení `reply(toApplicationShouldTerminate:)`. Zavření okna: `NSWindowDelegate.windowShouldClose`. `isDocumentEdited` okna = tečka v zavíracím tlačítku.
 8. **Strom:** `NSOutlineView` (spolehlivý drag & drop, inline přejmenování, kontextové menu, klávesnice, výkon u velkých stromů) – SwiftUI `List`/`OutlineGroup` tohle neumí dobře.
 9. **Jednořádková pole s proměnnými (`VarField`):** `NSTextField` s vlastním field editorem (`NSTextView`), zvýraznění přes `layoutManager` temporary attributes (nemění text ani undo). Ne `CodeTextView`.
-10. **Editor kódu (`CodeTextView`):** `NSTextView` v `NSScrollView` (TextKit 2), vlastní jednoduché lexery (JSON, XML/HTML, markdown, text), hledání přes vestavěný `NSTextFinder` (Cmd+F), `allowsUndo`. Velké texty: zvýraznění jen viditelné oblasti / do limitu, vypnout automatické nahrazování (uvozovky, pomlčky, kontrola pravopisu) – **všude** v textových polích s kódem a URL.
+10. **Editor kódu (`CodeTextView`):** `NSTextView` v `NSScrollView` (TextKit 2, barvy přes `renderingAttributesValidator` – jen vykreslované fragmenty), vlastní jednoduché lexery (JSON, XML/HTML, markdown, text), hledání přes vestavěný `NSTextFinder` (Cmd+F), `allowsUndo`. Velké texty: zvýraznění jen viditelné oblasti / do limitu, vypnout automatické nahrazování (uvozovky, pomlčky, kontrola pravopisu) – **všude** v textových polích s kódem a URL.
 11. **Fonty dle displeje:** `NSWindow.backingScaleFactor` (sledovat `NSWindow.didChangeBackingPropertiesNotification` a `didChangeScreenNotification`) → `@Environment` hodnota s fonty UI/kódu.
 12. **i18n:** String Catalog; jazyk `auto | cs | en` za běhu: helper `t(_ key: String, _ args…)` hledá v `Bundle` pro zvolené `.lproj`. Nativní menu se překreslí samo (SwiftUI). Klíče stejné jako v rev. 2 (`errors.NET_DNS`, `request.send`…) – lze převzít z `git show go-wails-f4:frontend/src/lib/i18n/cs.json`.
 13. **Ověřování UI:** Debug build má přepínače `--snapshot <png>` (vykreslí okno do PNG bez oprávnění k nahrávání obrazovky), `--dump-menu <txt>` (menu se zkratkami) a `--quit-after-debug`; jazyk `-AppleLanguages '(en)'`. Interakci (kliky, psaní) zatím jen přes computer-use, pokud je v relaci dostupné; stav raději ověřovat testy jádra. Testovací projekty zakládat ve scratch adresáři a po testu je zavřít (workspace je ve skutečném `~/Library/Application Support/MinorREST/`).
@@ -491,6 +491,7 @@ struct VarToken { range: NSRange (UTF-16), name, kind: .variable | .dynamic; sta
 enum KVBulk { static text(_ rows: [KV]) -> String; static parse(_ text:, prev: [KV], allowBare: Bool) -> [KV] }   // F3/2
 enum PathParams { static names(_ url:) -> [String]; static sync(_ url:, _ path: [PathParam]) -> [PathParam]? }
 enum HeaderHints { static names; static values(for:) -> [String]; static complete(_ prefix:, in:) -> [String] }
+enum Syntax { static tokens(_ text:, _ lang: SyntaxLang) -> [SyntaxToken] }   // zvýraznění v CodeTextView (F3/3); SyntaxLang(bodyType:)
 
 // JSON (F1/F3)
 enum JSONFormatter { static func format(_ text: String) throws -> String; static func validate(_:) -> CoreError? }
