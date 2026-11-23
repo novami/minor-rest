@@ -190,6 +190,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 | 2026-11-23 | F3/1 (Swift) | f9a0ece | taby, uložení, metoda, varfield, url bar |
 | 2026-11-23 | F3/2 (Swift) | 3930103 | kveditor, bulk, params/headers, path params, našeptávač |
 | 2026-11-23 | F6/1 (Swift) | a35eb70 | keychain, crud prostředí a globálních, výběr prostředí, prepare |
+| 2026-11-23 | audit | 6fafe27, 6046edb | členění App/ do Application/Features/Shared, CI (macos-26, SHA piny, cache), SwiftLint, SECURITY/CONTRIBUTING/CHANGELOG |
 
 ## Rozhodnutí uživatele
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
@@ -222,3 +223,5 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 - Tělo: drop souboru do multipart/binary zatím není (Wails `OnFileDrop` – doplnit v F13 nebo dle potřeby). Text varování nevalidního JSON je z `JSON.parse` prohlížeče (WebKit má jiné znění a bez pozice). Výběr souboru (nativní dialog) v prohlížeči neověřen, jen v kódu.
 - httpclient: hlavičky odpovědi jsou seřazené podle názvu (net/http nedrží pořadí ze serveru, plán chce „pořadí dle serveru“ – pro HTTP/1 by šlo jen vlastním čtením). Proxy zatím `ProxyFromEnvironment` z klonu `DefaultTransport` (F4/4). Multipart soubory se načítají celé do paměti.
 - F4/3 ověřeno v `wails dev` (prohlížeč) proti lokálnímu serveru: dědičnost hlaviček projekt/složka, vypnutý UA (pošle se prázdný), vypnutá zděděná hlavička, path param s diakritikou, nevyhodnocená proměnná v query (varování), `VAR_UNRESOLVED_HOST`, zrušení tlačítkem, `RUN_NOT_FOUND`. Konfigurace projektu (`minorrest.yaml`) se drží v paměti a změna zvenku se nenačte (až restart) – řešit s bindingy `Get/SaveProjectConfig` v F6 (+ reload z watcheru). Bindingy `Get/SaveFolderConfig`, `Get/SaveProjectConfig` zatím nejsou. Výsledky běhů ve frontendu (`runs`) se při zavření tabu nemažou. Vypnutý řádek `Accept` apod. v requestu vypne i automatickou hlavičku (dle kap. 8.3), i když ho uživatel jen „odškrtl“.
+
+- Audit (2026-11-23): CI v GitHubu zatím neběžel (ověřen jen YAML lokálně) – po pushi zkontrolovat joby a cache. Aplikace není sandboxovaná a bez hardened runtime (ad-hoc podpis, ATS povoleno kvůli REST klientu). Auto-update (Sparkle) stále F12.
