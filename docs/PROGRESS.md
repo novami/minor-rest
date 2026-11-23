@@ -2,8 +2,9 @@
 
 ## Aktuálně
 - **Změna zadání (2026-11-22):** aplikace se přepisuje do Swiftu (SwiftUI + AppKit, URLSession, macOS 15+). Plán revize 3 v `docs/PLAN.md`, Go/Wails stav v tagu `go-wails-f4` (lokální, nepushnutý).
-- **Fáze:** F3, krok 1 hotový (f9a0ece).
-- **Další krok:** F3, krok 2 – `KvEditor` (NSTableView nebo SwiftUI `Table`/`Grid` – rozhodnout podle fokusu „ducha“ a DnD řádků; buňky hodnoty = `VarField`), Bulk edit (`klíč: hodnota`, `//` = vypnutý, popisy podle klíče, bez `:` = `bare` jen u query – logiku do jádra s testy), záložky Parametry | Tělo | Hlavičky s počty, Params: query tabulka ↔ URL bar (`RequestTab.urlText` se zahodí sám, když text neodpovídá draftu), path params podle `:name` v URL (hodnoty podle názvu; pravidla jako `URLBuilder`), Headers s našeptávačem (názvy/hodnoty – `git show go-wails-f4:frontend/src/lib/util/headers.ts`). Reference: Go F3/2 níže, `git show go-wails-f4:frontend/src/lib/components/KvEditor.svelte`, `util/kv.ts`.
+- **Fáze:** F3, krok 2 hotový (3930103).
+- **Další krok:** F3, krok 3 – Body: `CodeTextView` (NSTextView, TextKit 1, lexery JSON/XML/HTML/text, zvýraznění `{{…}}`, read-only, téma světlé/tmavé, NSTextFinder), přepínač 8 typů těla (data ostatních typů se zachovají), JSON Formátovat (`JSONFormatter`) + varování nevalidního JSON, form = `KvEditor`, multipart = `KvEditor` s text/soubor a sloupcem Content-Type (`MultipartPart` – KvEditor bude potřebovat variantu), binary = výběr souboru (`NSOpenPanel` → `Project.fileRef`). Záložka Tělo je zatím placeholder v `RequestEditor.content`. Reference Go F3/3 níže.
+- **F3/2 (Swift):** jádro `Editor/KVText.swift` – `KVBulk` (text/parse, popisy podle názvu, `bare` jen query), `PathParams` (names/sync), `HeaderHints` (názvy, hodnoty, `complete`). UI `KvEditor` (SwiftUI, řádky podle indexu → duch řádek se stane skutečným bez ztráty fokusu; přetažení za úchyt `onDrag`/`DropDelegate` s čarou před/za; Hromadná úprava = `TextEditor`; `fixed` = path). `VarField.completions` = našeptávač přes `NSTextView.complete` (field editor `VarFieldEditor` nahrazuje celý text, spouští se jen při přidání textu a jen když jsou návrhy – jinak pípá). `RequestEditor`: záložky Parametry | Tělo | Hlavičky s počty (zapnuté s názvem; poslední záložka v `RequestTab.section`), path řádky se zobrazují podle URL, ukládají se do draftu až při úpravě URL/hodnoty (načtení tab nezašpiní). Ověřeno snímky (Parametry, Hlavičky). **Neověřeno (chybí klikání):** psaní do ducha, přetažení řádků, našeptávač, hromadná úprava. Známé: během hromadné úpravy se změna query z URL baru do textu nepromítne (přepíše ji další úprava textu).
 - **Prostředí:** Xcode 27.2, Swift 6.4.2, XcodeGen 2.48.0 (Homebrew), Yams 6.2.2. Příkazy `make gen|build|run|test|clean`.
 
 ### Co existuje (Swift)
@@ -151,6 +152,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 | 2026-11-22 | F2/3 (Swift) | adde3ac | drag & drop, hledání ve stromu |
 | 2026-11-22 | F2/4 (Swift) | 7cb9a00 | watcher projektů |
 | 2026-11-23 | F3/1 (Swift) | f9a0ece | taby, uložení, metoda, varfield, url bar |
+| 2026-11-23 | F3/2 (Swift) | 3930103 | kveditor, bulk, params/headers, path params, našeptávač |
 
 ## Rozhodnutí uživatele
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
