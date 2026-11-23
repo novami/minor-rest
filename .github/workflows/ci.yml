@@ -15,6 +15,13 @@ jobs:
           xcode-version: latest-stable
       - name: Install XcodeGen
         run: brew install xcodegen
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            Packages/MinorRESTCore/.build
+          key: ${{ runner.os }}-spm-${{ hashFiles('Packages/MinorRESTCore/Package.swift', 'Packages/MinorRESTCore/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-
       - name: Test core
         run: make test
       - name: Build app
