@@ -16,6 +16,8 @@ public struct Workspace: Hashable, Sendable {
     public var tabs: [String: [String]] = [:]
     /// ID projektu → aktivní tab (ID requestu).
     public var activeTab: [String: String] = [:]
+    /// ID projektu → aktivní prostředí (ID); chybí = žádné.
+    public var activeEnvironment: [String: String] = [:]
     public var sidebarHidden = false
     public var sidebarWidth = defaultSidebarWidth
     public var responseHeight = defaultResponseHeight
@@ -61,6 +63,8 @@ extension Workspace: YAMLCodable {
         m.add("expanded", .map(expanded.keys.sorted().map { YEntry(key: $0, value: strings(expanded[$0]!)) }))
         m.add("tabs", .map(tabs.keys.sorted().map { YEntry(key: $0, value: strings(tabs[$0]!)) }))
         m.add("activeTab", .map(activeTab.keys.sorted().map { YEntry(key: $0, value: .string(activeTab[$0]!)) }))
+        m.add("activeEnvironment",
+              .map(activeEnvironment.keys.sorted().map { YEntry(key: $0, value: .string(activeEnvironment[$0]!)) }))
         m.add("sidebarHidden", sidebarHidden)
         m.add("sidebarWidth", sidebarWidth)
         m.add("responseHeight", responseHeight)
@@ -74,6 +78,7 @@ extension Workspace: YAMLCodable {
         expanded = try o.stringListMap("expanded")
         tabs = try o.stringListMap("tabs")
         activeTab = try o.stringMap("activeTab")
+        activeEnvironment = try o.stringMap("activeEnvironment")
         sidebarHidden = try o.bool("sidebarHidden")
         sidebarWidth = try o.int("sidebarWidth")
         responseHeight = try o.int("responseHeight")

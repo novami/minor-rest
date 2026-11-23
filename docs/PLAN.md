@@ -481,7 +481,7 @@ final class Project: @unchecked Sendable {                       // operace seri
   func absoluteURL(_ rel: String) throws -> URL
 }
 struct Workspace { projects, activeProject, expanded [projectID: [rel]], tabs [projectID: [requestID]],
-                   activeTab [projectID: requestID], sidebarHidden, sidebarWidth, responseHeight }  // activeEnvironment přibude v F6
+                   activeTab [projectID: requestID], sidebarHidden, sidebarWidth, responseHeight, activeEnvironment [projectID: envID] }
   // static load(from: URL) throws, save(to: URL) throws, appDirectory, defaultProjectsDirectory
 final class ProjectWatcher { init(ignoreSelf: Bool = true, onChange: @Sendable (projectID, [rel]?) -> Void); add(id:root:); remove(id:) }  // onChange na vlastní frontě
 
@@ -524,9 +524,15 @@ enum MarkupFormatter { static format(_ text:, html: Bool) -> String }   // Prett
 enum HTMLPreview { static sandboxed(_ html:) -> String }                // CSP bez sítě a skriptů pro Náhled
 
 // Proměnné a prostředí (F6)
-Project: listEnvironments(), saveEnvironment(_:), deleteEnvironment(id:)
-Globals: load() / save(_:)
-Secrets: get / set / delete(account:)                                // Keychain přes SecItem
+extension Project { listEnvironments() throws -> [EnvironmentConfig]          // dle názvu, bez tajných hodnot; chybějící/duplicitní ID doplní
+                    saveEnvironment(_:secrets:) throws -> EnvironmentConfig   // "" id = nové; tajné → SecretStore, změna názvu = nový soubor
+                    deleteEnvironment(id:secrets:) throws; secretAccount(envID:) -> (String) -> String }
+enum Globals { static load(from: URL) throws -> [Var]; static save(_ vars:, to: URL, secrets:) throws }   // globals.yaml = jen `vars`
+protocol SecretStore: Sendable { get(account:) throws -> String?; set(account:value:) /* "" = smazat */; delete(account:) }
+  // + fill(_ vars:, account:) (Keychain přebíjí hodnotu z YAML), sync(old:new:account:), deleteAll(_:account:)
+struct Secrets: SecretStore { init(service: = "MinorREST"); static account(projectID:envID:name:), globalAccount(_:) }  // SecItem, SECRET_ERROR
+final class MemorySecrets: SecretStore                                // testy
+// Workspace.activeEnvironment [projectID: envID]
 Vars.explain(…) -> [VarInfo]; RuntimeVars (per projekt, v paměti)
 
 // Auth (F7)

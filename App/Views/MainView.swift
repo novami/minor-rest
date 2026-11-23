@@ -25,6 +25,9 @@ struct MainView: View {
                     EmptyState(title: t("response.empty"), hint: t("response.emptyHint"))
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) { EnvironmentPicker() }
+            }
         }
         .toolbar {
             ToolbarItem(placement: .navigation) { ProjectSwitcher() }

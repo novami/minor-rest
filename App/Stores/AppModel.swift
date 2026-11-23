@@ -10,14 +10,17 @@ final class AppModel {
     let tree: TreeStore
     let tabs: TabsStore
     let runs: RunStore
+    let environments: EnvironmentsStore
 
     init() {
         projects = ProjectsStore(workspace: workspace, toasts: toasts)
         tree = TreeStore(workspace: workspace, projects: projects, toasts: toasts)
         tabs = TabsStore(workspace: workspace, projects: projects, toasts: toasts)
-        runs = RunStore(projects: projects, toasts: toasts, appDir: workspace.directory)
-        projects.onDiskChange = { [tree, tabs] id, rels in
+        environments = EnvironmentsStore(workspace: workspace, projects: projects, toasts: toasts)
+        runs = RunStore(projects: projects, environments: environments, toasts: toasts, appDir: workspace.directory)
+        projects.onDiskChange = { [tree, tabs, environments] id, rels in
             tree.diskChanged(id)
+            Task { await environments.diskChanged(id, rels) }
             Task { await tabs.changedOnDisk(id, rels) }
         }
         tree.onLoaded = { [tabs] id, root in await tabs.treeLoaded(id, root) }
@@ -53,6 +56,7 @@ final class AppModel {
         guard let p = projects.list.first(where: { $0.id == id }),
               await tabs.confirmCloseProject(id, name: p.name) else { return }
         await projects.close(id)
+        environments.projectClosed(id)
     }
 
     /// Dočasně pro akce menu, které ještě nejsou implementované.

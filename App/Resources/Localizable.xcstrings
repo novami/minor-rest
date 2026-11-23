@@ -392,6 +392,57 @@
         }
       }
     },
+    "env.manage": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spravovat prostředí…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Environments…"
+          }
+        }
+      }
+    },
+    "env.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bez prostředí"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No environment"
+          }
+        }
+      }
+    },
+    "env.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prostředí: {name}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Environment: {name}"
+          }
+        }
+      }
+    },
     "errors.BODY_NOT_ALLOWED": {
       "extractionState": "manual",
       "localizations": {
@@ -762,6 +813,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "The run result is no longer available"
+          }
+        }
+      }
+    },
+    "errors.SECRET_ERROR": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Přístup ke Klíčence selhal"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keychain access failed"
           }
         }
       }

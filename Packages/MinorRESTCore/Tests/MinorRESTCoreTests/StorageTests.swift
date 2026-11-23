@@ -226,6 +226,7 @@ private func write(_ text: String, to url: URL) throws {
         w.expanded = ["P1": ["uzivatele", "uzivatele/detail"], "P2": []]
         w.tabs = ["P1": ["R1", "R2"]]
         w.activeTab = ["P1": "R2"]
+        w.activeEnvironment = ["P1": "E1"]
         w.sidebarHidden = true
         w.sidebarWidth = 300
         try w.save(to: tmp.url)

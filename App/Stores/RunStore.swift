@@ -36,6 +36,7 @@ final class RunStore {
     var filters: [String: String] = [:]
     @ObservationIgnored let engine = HTTPEngine()
     @ObservationIgnored private let projects: ProjectsStore
+    @ObservationIgnored private let environments: EnvironmentsStore
     @ObservationIgnored private let toasts: ToastCenter
     @ObservationIgnored private let appDir: URL
     @ObservationIgnored private var jars: [String: CookieJar] = [:]
@@ -43,8 +44,9 @@ final class RunStore {
 
     static let userAgent = "MinorREST/" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0")
 
-    init(projects: ProjectsStore, toasts: ToastCenter, appDir: URL) {
+    init(projects: ProjectsStore, environments: EnvironmentsStore, toasts: ToastCenter, appDir: URL) {
         self.projects = projects
+        self.environments = environments
         self.toasts = toasts
         self.appDir = appDir
         history = History(dir: appDir.appending(path: "history"))
@@ -67,8 +69,10 @@ final class RunStore {
         runs[tab.id] = Run(runID: runID)
         do {
             let project = try await projects.project(tab.projectID)
+            let vars = try await environments.varsForSend(tab.projectID)
             let prepared = try await Prepare.prepare(PrepareInput(
                 request: tab.draft, project: project.config, folders: try project.folderChain(tab.rel),
+                environment: vars.environment, globals: vars.globals,
                 baseDir: project.root.path, userAgent: Self.userAgent))
             update(tab.id, runID) { $0.unresolved = prepared.unresolved }
             let jar = jar(tab.projectID)
