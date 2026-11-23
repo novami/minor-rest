@@ -2,8 +2,8 @@
 
 ## Aktuálně
 - **Změna zadání (2026-11-22):** aplikace se přepisuje do Swiftu (SwiftUI + AppKit, URLSession, macOS 15+). Plán revize 3 v `docs/PLAN.md`, Go/Wails stav v tagu `go-wails-f4` (lokální, nepushnutý).
-- **Fáze:** F2 hotová (krok 4: 7cb9a00).
-- **Další krok:** F3, krok 1 – `TabsStore` (otevřít – dvojklik/Enter ve stromu, zavřít, dirty, obnovení z `workspace.tabs/activeTab`, sledování přejmenování/přesunu – identita podle ID requestu, ne `rel`), TabBar, načtení/uložení (`Project.loadRequest/saveRequest`, ⌘S), `MethodPicker`, `VarField` (jen syntaktické zvýraznění `{{…}}`), URL bar ↔ query. Nový request ze stromu se otevře v tabu (PLAN 8.2). Reference chování: Go F3 níže a `git show go-wails-f4:frontend/src/…`.
+- **Fáze:** F3, krok 1 hotový (f9a0ece).
+- **Další krok:** F3, krok 2 – `KvEditor` (NSTableView nebo SwiftUI `Table`/`Grid` – rozhodnout podle fokusu „ducha“ a DnD řádků; buňky hodnoty = `VarField`), Bulk edit (`klíč: hodnota`, `//` = vypnutý, popisy podle klíče, bez `:` = `bare` jen u query – logiku do jádra s testy), záložky Parametry | Tělo | Hlavičky s počty, Params: query tabulka ↔ URL bar (`RequestTab.urlText` se zahodí sám, když text neodpovídá draftu), path params podle `:name` v URL (hodnoty podle názvu; pravidla jako `URLBuilder`), Headers s našeptávačem (názvy/hodnoty – `git show go-wails-f4:frontend/src/lib/util/headers.ts`). Reference: Go F3/2 níže, `git show go-wails-f4:frontend/src/lib/components/KvEditor.svelte`, `util/kv.ts`.
 - **Prostředí:** Xcode 27.2, Swift 6.4.2, XcodeGen 2.48.0 (Homebrew), Yams 6.2.2. Příkazy `make gen|build|run|test|clean`.
 
 ### Co existuje (Swift)
@@ -51,6 +51,10 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 - F2/4: jádro `Watch/ProjectWatcher` (FSEvents `FileEvents | NoDefer | UseCFTypes` + `IgnoreSelf` volitelně, latence 0,3 s, stream na projekt na vlastní sériové frontě, kořen přes `realPath`, skryté segmenty ignoruje, příznaky MustScanSubDirs/Dropped/RootChanged → `nil` = načíst vše) + testy (relativní cesty, cizí zápis hlášen, vlastní s `IgnoreSelf` ne; 34 testů). `ProjectsStore` sleduje projekty ze `sync` (jen dosud nesledované), `close` stream zastaví; změna `minorrest.yaml` (nebo `nil`) → `reloadConfig()` + `list`; pak `onDiskChange` → `TreeStore.diskChanged` (jen aktivní projekt; při inline editaci `editing` z koordinátoru reload odloží na konec editace).
 - `DebugTools`: `--snapshot-delay <s>`.
 - Ověřeno snímkem (scratch projekt, změny 3 s po startu z shellu): nový request ve složce, změna `name` v souboru, přejmenování projektu v `minorrest.yaml` → projeví se, rozbalení zůstává. **Neověřeno:** odložení reloadu během editace (chybí klikání), tažení myší během reloadu (reload může zrušit rozběhnutý drag – zatím neřešeno). Smazání adresáře projektu zvenku → toast chyby při každé změně, projekt se nezavře (`WatchRoot` nepoužit).
+- F3/1: jádro `URLBar` (`compose`/`parse` dle Go `urlbar.ts`; navíc zapnuté prázdné řádky zůstávají na místě), `VarToken.scan` (rozsahy UTF-16, `\{{` literál), `TreeNode.findRequest(id:)` + testy (37). `TabsStore` (tab = ID requestu + `rel`, `draft`/`saved`, dirty = `draft != saved`; `open`, `close` s `NSAlert` Uložit/Zahodit/Zrušit, ⌘W bez tabu zavře okno, `save` → reload stromu, `treeLoaded` – zahodí taby zavřených projektů, dorovná `rel` podle ID, smazaný čistý tab zavře, jednou za běh obnoví taby z `workspace.tabs`, neplatný aktivní → první). `TreeStore.onLoaded/onOpen`, dvojklik/Enter na requestu otevře tab, nový request se otevře v tabu (název dál v inline editaci ve stromu). `TabBar` (metoda, název ze stromu, tečka/×, + nový request), `RequestEditor` (`MethodPicker` = `Menu` v barvě metody, URL `VarField`, Odeslat → zatím toast), `VarField` (`NSTextField` + vlastní field editor TextKit 1 z `VarFieldCell.fieldEditor(for:)`, temporary attributes; mimo editaci obarvený `attributedStringValue`; bez automatických náhrad). Menu ⌘S, ⌘W, ⌘L napojeno.
+- Ověřeno snímky a dočasným háčkem (necommitnut): obnova tabů z workspace (neexistující ID vyřazeno), zvýraznění `{{…}}` zeleně / `{{$…}}` modře, vypnutý query parametr v URL není, rozepsané `…&wsdl&` zůstane v URL baru, uložení → YAML (`bare: true`, popisy/vypnuté řádky na místě), přejmenování ve stromu → název tabu, tečka u neuloženého tabu, nový request v tabu. **Neověřeno** (chybí klikání): psaní do `VarField` (field editor, zvýraznění během psaní, undo), menu metody, ×/najetí myší, `NSAlert` při zavření neuloženého tabu, ⌘L.
+- Pozor: request bez `auth`/`body` v souboru se načte s `type: ""` a uloží jako `auth: {type: ""}` (stejně jako Go) – editor auth (F7) má `""` brát jako `inherit`, tělo jako `none`.
+- Uložení/zavření s neuloženými taby při zavření projektu/okna/⌘Q a banner „Změněno na disku“ zatím chybí (F3/4).
 - Změny `_folder.yaml` a prostředí zatím jen reloadují strom; reload konfigurace složek/prostředí a tabů (banner „Změněno na disku“) přijde v F3/4 a F6.
 
 ### Co existuje (F0)
@@ -145,6 +149,8 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 | 2026-11-22 | F2/1 (Swift) | fc7ca0f | workspace, projekty, přepínač, výška odpovědi |
 | 2026-11-22 | F2/2 (Swift) | 59688ae | strom (NSOutlineView), operace nad uzly, kontextové menu |
 | 2026-11-22 | F2/3 (Swift) | adde3ac | drag & drop, hledání ve stromu |
+| 2026-11-22 | F2/4 (Swift) | 7cb9a00 | watcher projektů |
+| 2026-11-23 | F3/1 (Swift) | f9a0ece | taby, uložení, metoda, varfield, url bar |
 
 ## Rozhodnutí uživatele
 - ~~Wails v2 + Svelte 5~~ → **Swift (SwiftUI + AppKit), URLSession, macOS 15+, tag + přepis na main** (2026-11-22). YAML soubory, UI cs+en, zatím bez Apple Developer ID (ad-hoc podpis), MIT, auto-update výchozí zapnuto.
