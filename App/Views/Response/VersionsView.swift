@@ -109,6 +109,8 @@ struct SavedResponseSheet: View {
     var openRequest: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appFonts) private var fonts
+    @Environment(AppModel.self) private var model
+    private var toasts: ToastCenter { model.toasts }
 
     var body: some View {
         let e = entry
@@ -135,6 +137,10 @@ struct SavedResponseSheet: View {
             HStack {
                 if let openRequest {
                     Button(t("history.openRequest")) { dismiss(); openRequest() }
+                }
+                Button(t("curl.copy")) {
+                    copyText(Export.curl(entry))
+                    toasts.show(t("curl.copied"))
                 }
                 Spacer()
                 Button(t("common.close")) { dismiss() }.keyboardShortcut(.cancelAction)

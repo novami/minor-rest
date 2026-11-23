@@ -237,6 +237,9 @@ struct TreeOutlineView: NSViewRepresentable {
             menu.addItem(.separator())
             add("tree.rename") { [weak self] in self?.beginEditing(rel) }
             add("tree.duplicate") { [store] in Task { await store.duplicate(rel) } }
+            if store.root?.find(rel)?.kind == .request {
+                add("tree.copyCurl") { [store] in store.onCopyCurl?(rel) }
+            }
             menu.addItem(.separator())
             if let node = store.root?.find(rel), node.kind == .folder {
                 add("tree.settings") { [store] in store.openSettings(rel) }

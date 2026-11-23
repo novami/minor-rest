@@ -31,6 +31,14 @@ final class AppModel {
         }
         tree.onLoaded = { [tabs] id, root in await tabs.treeLoaded(id, root) }
         tree.onSettings = { [unowned self] rel, name in openScopeSettings(.folder(rel: rel, name: name)) }
+        tree.onCopyCurl = { [unowned self] rel in
+            let pid = projects.activeID
+            Task {
+                guard let project = try? await projects.project(pid), let req = try? project.loadRequest(rel) else { return }
+                let d = UserDefaults.standard
+                await runs.copyCurl(pid, rel, req, multiline: d.object(forKey: "curlMultiline") as? Bool ?? true, mask: d.bool(forKey: "curlMask"))
+            }
+        }
         tree.onOpen = { [tabs] rel in await tabs.open(rel) }
         tabs.onSaved = { [tree] in await tree.reload() }
         tabs.treeRoot = { [tree] in tree.root }

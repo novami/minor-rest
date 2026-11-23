@@ -89,12 +89,7 @@ final class RunStore {
         let runID = ULID.make()
         runs[tab.id] = Run(runID: runID)
         do {
-            let project = try await projects.project(tab.projectID)
-            let vars = try await environments.varsForSend(tab.projectID)
-            let prepared = try await Prepare.prepare(PrepareInput(
-                request: tab.draft, project: project.config, folders: try project.folderChain(tab.rel),
-                runtime: self.vars.runtimeVars(tab.projectID), environment: vars.environment, globals: vars.globals,
-                baseDir: project.root.path, userAgent: Self.userAgent, oauth: oauth))
+            let prepared = try await prepare(tab.projectID, tab.rel, tab.draft)
             update(tab.id, runID) { $0.unresolved = prepared.unresolved }
             let jar = jar(tab.projectID)
             let result = await engine.send(runID: runID, prepared.request, prepared.options, jar: jar)
@@ -115,6 +110,27 @@ final class RunStore {
                 $0.running = false
                 $0.error = ErrorParts(error)
             }
+        }
+    }
+
+    /// Připraví request (proměnné, auth, path params) přesně tak, jak se odešle.
+    private func prepare(_ projectID: String, _ rel: String, _ draft: Request) async throws -> Prepared {
+        let project = try await projects.project(projectID)
+        let vars = try await environments.varsForSend(projectID)
+        return try await Prepare.prepare(PrepareInput(
+            request: draft, project: project.config, folders: try project.folderChain(rel),
+            runtime: self.vars.runtimeVars(projectID), environment: vars.environment, globals: vars.globals,
+            baseDir: project.root.path, userAgent: Self.userAgent, oauth: oauth))
+    }
+
+    /// cURL requestu do schránky; chyba přípravy = toast.
+    func copyCurl(_ projectID: String, _ rel: String, _ draft: Request, multiline: Bool, mask: Bool) async {
+        do {
+            let p = try await prepare(projectID, rel, draft)
+            copyText(Export.curl(p.request, options: p.options, multiline: multiline, mask: mask, secrets: p.secrets))
+            toasts.show(t("curl.copied"))
+        } catch {
+            toasts.show(errorText(error), isError: true)
         }
     }
 

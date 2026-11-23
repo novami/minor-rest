@@ -163,6 +163,7 @@ final class TreeStore {
 
     /// Nastavení složky (napojeno v `AppModel`).
     var onSettings: ((String, String) -> Void)?
+    var onCopyCurl: ((String) -> Void)?
 
     func openSettings(_ rel: String) {
         if let node = root?.find(rel) { onSettings?(rel, node.name) }

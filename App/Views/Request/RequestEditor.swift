@@ -7,6 +7,8 @@ struct RequestEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.appFonts) private var fonts
     let tab: RequestTab
+    @AppStorage("curlMultiline") private var curlMultiline = true
+    @AppStorage("curlMask") private var curlMask = false
     @State private var inherited: HTTPSettings?
     @State private var inheritedAuth: InheritedAuth?
 
@@ -29,6 +31,20 @@ struct RequestEditor: View {
                                              set: { m in tabs.edit { $0.draft.method = m } }))
                 VarField(text: urlText, placeholder: t("request.urlPlaceholder"), font: fonts.codeNSFont,
                          focusRequest: tabs.focusURLRequest, onSubmit: send)
+                Menu {
+                    Picker("", selection: $curlMultiline) {
+                        Text(t("curl.multiline")).tag(true)
+                        Text(t("curl.oneline")).tag(false)
+                    }
+                    .pickerStyle(.inline)
+                    Toggle(t("curl.mask"), isOn: $curlMask)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                } primaryAction: {
+                    Task { await model.runs.copyCurl(tab.projectID, tab.rel, tab.draft, multiline: curlMultiline, mask: curlMask) }
+                }
+                .menuStyle(.button).fixedSize()
+                .help(t("curl.copy"))
                 if model.runs.isRunning(tab.id) {
                     Button(t("request.cancel")) { model.cancelRun() }
                 } else {

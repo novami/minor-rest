@@ -34,7 +34,7 @@ struct Payload: Sendable {
                 preview: String(decoding: d.prefix(previewLimit), as: UTF8.self))
     }
 
-    private static let rawTypes = [
+    static let rawTypes = [
         BodyType.json: "application/json; charset=utf-8",
         BodyType.xml: "application/xml; charset=utf-8",
         BodyType.text: "text/plain; charset=utf-8",
