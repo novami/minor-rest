@@ -31,6 +31,8 @@ struct TreeOutlineView: NSViewRepresentable {
         outline.delegate = context.coordinator
         outline.registerForDraggedTypes([.treeRel])
         outline.setDraggingSourceOperationMask(.move, forLocal: true)
+        outline.target = context.coordinator
+        outline.doubleAction = #selector(Coordinator.doubleClicked)
         context.coordinator.outline = outline
 
         let scroll = NSScrollView()
@@ -207,6 +209,18 @@ struct TreeOutlineView: NSViewRepresentable {
 
         // MARK: Klávesy a menu
 
+        @objc func doubleClicked() {
+            guard let outline, outline.clickedRow >= 0,
+                  let i = outline.item(atRow: outline.clickedRow) as? TreeItem else { return }
+            if i.node.kind == .request { Task { await store.open(i.node.rel) } } else { toggle(i.node.rel) }
+        }
+
+        /// Enter: složku rozbalí/sbalí, request otevře v tabu.
+        func activate(_ rel: String?) {
+            guard let rel, let i = item(rel) else { return }
+            if i.node.kind == .request { Task { await store.open(rel) } } else { toggle(rel) }
+        }
+
         func toggle(_ rel: String?) {
             guard let outline, let rel, let item = item(rel), item.node.kind == .folder else { return }
             if outline.isItemExpanded(item) { outline.collapseItem(item) } else { outline.expandItem(item) }
@@ -356,7 +370,7 @@ final class TreeCellView: NSTableCellView {
     }
 }
 
-/// Outline s klávesami: Enter = rozbalit/sbalit, F2 = přejmenovat, Cmd+Backspace/Delete = smazat.
+/// Outline s klávesami: Enter = rozbalit/sbalit složku, otevřít request, F2 = přejmenovat, Cmd+Backspace/Delete = smazat.
 final class TreeOutline: NSOutlineView {
     weak var coordinator: TreeOutlineView.Coordinator?
 
@@ -365,7 +379,7 @@ final class TreeOutline: NSOutlineView {
         let rel = c.selectedRel
         let cmd = event.modifierFlags.contains(.command)
         switch event.keyCode {
-        case 36, 76: c.toggle(rel)                                     // Return, Enter
+        case 36, 76: c.activate(rel)                                   // Return, Enter
         case 120: if let rel, !rel.isEmpty { c.beginEditing(rel) }     // F2
         case 51 where cmd, 117: Task { await c.store.delete(rel) }     // Cmd+Backspace, Delete (fwd)
         default: super.keyDown(with: event)

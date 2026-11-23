@@ -24,6 +24,10 @@ final class TreeStore {
     @ObservationIgnored private let workspace: WorkspaceStore
     @ObservationIgnored private let projects: ProjectsStore
     @ObservationIgnored private let toasts: ToastCenter
+    /// Po každém načtení stromu (taby dorovnají `rel`).
+    @ObservationIgnored var onLoaded: ((String, TreeNode?) async -> Void)?
+    /// Otevření requestu v tabu.
+    @ObservationIgnored var onOpen: ((String) async -> Void)?
 
     init(workspace: WorkspaceStore, projects: ProjectsStore, toasts: ToastCenter) {
         self.workspace = workspace
@@ -44,6 +48,7 @@ final class TreeStore {
         guard !id.isEmpty, let project = try? await projects.project(id) else {
             root = nil
             version += 1
+            await onLoaded?(id, nil)
             return
         }
         do {
@@ -53,6 +58,7 @@ final class TreeStore {
             toasts.show(errorText(error), isError: true, seconds: 5)
         }
         version += 1
+        await onLoaded?(id, root)
     }
 
     func reload() async { await load(projectID) }
@@ -92,8 +98,16 @@ final class TreeStore {
 
     // MARK: - Operace
 
+    /// Otevře request v tabu (dvojklik / Enter).
+    func open(_ rel: String?) async {
+        guard let rel, node(rel)?.kind == .request else { return }
+        await onOpen?(rel)
+    }
+
+    /// Nový request se hned otevře v tabu, název zůstane v inline editaci ve stromu.
     func createRequest(near rel: String?) async {
         await create(near: rel) { try $0.createRequest(parent: $1, name: t("tree.newRequestName")) }
+        if let created = pendingEdit { await onOpen?(created) }
     }
 
     func createFolder(near rel: String?) async {

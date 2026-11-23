@@ -17,7 +17,7 @@ struct MainView: View {
                 .navigationSplitViewColumnWidth(min: 180, ideal: 260, max: 600)
         } detail: {
             ResponseSplit(height: responseHeight) {
-                EmptyState(title: t("request.empty"), hint: t("request.emptyHint"))
+                requestPane
             } bottom: {
                 EmptyState(title: t("response.empty"), hint: t("response.emptyHint"))
             }
@@ -36,6 +36,17 @@ struct MainView: View {
             #if DEBUG
             DebugTools.runIfRequested()
             #endif
+        }
+    }
+
+    @ViewBuilder private var requestPane: some View {
+        VStack(spacing: 0) {
+            if model.projects.active != nil { TabBar() }
+            if let tab = model.tabs.active {
+                RequestEditor(tab: tab).id(tab.projectID + "/" + tab.id)
+            } else {
+                EmptyState(title: t("request.empty"), hint: t("request.emptyHint"))
+            }
         }
     }
 

@@ -12,10 +12,12 @@ struct AppCommands: Commands {
                 .keyboardShortcut("n", modifiers: [.command, .shift])
         }
         CommandGroup(replacing: .saveItem) {
-            item("menu.save", "s")
+            Button(t("menu.save")) { Task { await model.tabs.save() } }
+                .keyboardShortcut("s")
             item("menu.saveResponse", "s", [.command, .shift])
             Divider()
-            item("menu.closeTab", "w")
+            Button(t("menu.closeTab")) { Task { await model.tabs.close() } }
+                .keyboardShortcut("w")
         }
         CommandMenu(t("menu.request")) {
             item("menu.send", .return)
@@ -24,7 +26,8 @@ struct AppCommands: Commands {
             item("menu.copyCurl", "c", [.command, .shift])
             Button(t("menu.duplicate")) { Task { await model.tree.duplicate(model.tree.selection) } }
                 .keyboardShortcut("d")
-            item("menu.focusUrl", "l")
+            Button(t("menu.focusUrl")) { model.tabs.focusURL() }
+                .keyboardShortcut("l")
             Divider()
             item("menu.environment", "e")
         }

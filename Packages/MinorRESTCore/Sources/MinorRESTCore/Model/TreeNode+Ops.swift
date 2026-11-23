@@ -14,6 +14,15 @@ extension TreeNode {
         return nil
     }
 
+    /// Request podle ID (identita tabu přežije přejmenování a přesun).
+    public func findRequest(id: String) -> TreeNode? {
+        if kind == .request && self.id == id { return self }
+        for c in children {
+            if let hit = c.findRequest(id: id) { return hit }
+        }
+        return nil
+    }
+
     /// Text bez diakritiky a velikosti písmen pro hledání.
     public static func fold(_ s: String) -> String {
         s.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)

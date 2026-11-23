@@ -8,11 +8,17 @@ final class AppModel {
     let workspace = WorkspaceStore()
     let projects: ProjectsStore
     let tree: TreeStore
+    let tabs: TabsStore
 
     init() {
         projects = ProjectsStore(workspace: workspace, toasts: toasts)
         tree = TreeStore(workspace: workspace, projects: projects, toasts: toasts)
+        tabs = TabsStore(workspace: workspace, projects: projects, toasts: toasts)
         projects.onDiskChange = { [tree] id in tree.diskChanged(id) }
+        tree.onLoaded = { [tabs] id, root in await tabs.treeLoaded(id, root) }
+        tree.onOpen = { [tabs] rel in await tabs.open(rel) }
+        tabs.onSaved = { [tree] in await tree.reload() }
+        tabs.treeRoot = { [tree] in tree.root }
     }
 
     /// Viditelnost sidebaru (uložená ve workspace).

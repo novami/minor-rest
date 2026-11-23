@@ -485,6 +485,9 @@ final class ProjectWatcher { init(ignoreSelf: Bool = true, onChange: @Sendable (
 
 extension TreeNode { static parent(of:), find(_ rel:), static fold(_:), filtered(_ query:) -> TreeNode,
                     moveIndex(of: dragged, before child: Int?) -> Int? }   // hledání a DnD ve stromu (F2/3)
+extension TreeNode { findRequest(id:) -> TreeNode? }               // taby podle ID (F3/1)
+enum URLBar { static compose(url:query:) -> String; static parse(_ text:, query:) -> (url, query) }   // F3/1
+struct VarToken { range: NSRange (UTF-16), name, kind: .variable | .dynamic; static scan(_:) -> [VarToken] }  // zvýraznění
 
 // JSON (F1/F3)
 enum JSONFormatter { static func format(_ text: String) throws -> String; static func validate(_:) -> CoreError? }
