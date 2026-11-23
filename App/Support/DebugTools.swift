@@ -2,6 +2,7 @@ import AppKit
 
 /// Ladicí přepínače pro ověřování UI z příkazové řádky (jen Debug build, bez oprávnění k nahrávání obrazovky):
 /// `--snapshot <soubor.png>` vykreslí hlavní okno do PNG, `--dump-menu <soubor.txt>` vypíše menu,
+/// `--snapshot-delay <s>` odloží snímek (výchozí 1,5 s),
 /// `--quit-after-debug` pak aplikaci ukončí, `--workspace-dir <adresář>` použije jiný adresář pro
 /// `workspace.yaml` (testy nesahají na skutečný). Jazyk lze vynutit standardním `-AppleLanguages '(en)'`.
 enum DebugTools {
@@ -28,7 +29,7 @@ extension DebugTools {
         let snapshot = value("--snapshot"), menu = value("--dump-menu")
         guard snapshot != nil || menu != nil else { return }
         Task {
-            try? await Task.sleep(for: .seconds(1.5))
+            try? await Task.sleep(for: .seconds(value("--snapshot-delay").flatMap(Double.init) ?? 1.5))
             if let snapshot { writeSnapshot(to: snapshot) }
             if let menu { try? dumpMenu().write(toFile: menu, atomically: true, encoding: .utf8) }
             if args.contains("--quit-after-debug") { NSApp.terminate(nil) }

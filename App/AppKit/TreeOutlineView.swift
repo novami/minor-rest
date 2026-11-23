@@ -71,7 +71,9 @@ struct TreeOutlineView: NSViewRepresentable {
         var font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
         private var root: TreeItem?
         private var restoring = false
-        private var editingRel: String?
+        private var editingRel: String? {
+            didSet { store.editing = editingRel != nil }
+        }
         private var editCancelled = false
 
         init(store: TreeStore) { self.store = store }

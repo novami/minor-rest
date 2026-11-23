@@ -12,6 +12,7 @@ final class AppModel {
     init() {
         projects = ProjectsStore(workspace: workspace, toasts: toasts)
         tree = TreeStore(workspace: workspace, projects: projects, toasts: toasts)
+        projects.onDiskChange = { [tree] id in tree.diskChanged(id) }
     }
 
     /// Viditelnost sidebaru (uložená ve workspace).

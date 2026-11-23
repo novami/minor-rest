@@ -11,10 +11,17 @@ final class ProjectsStore {
     @ObservationIgnored let registry = ProjectRegistry()
     @ObservationIgnored private let workspace: WorkspaceStore
     @ObservationIgnored private let toasts: ToastCenter
+    @ObservationIgnored private var watcher: ProjectWatcher?
+    @ObservationIgnored private var watched: Set<String> = []
+    /// Změna souborů projektu na disku (volá se na hlavním vlákně).
+    @ObservationIgnored var onDiskChange: ((String) -> Void)?
 
     init(workspace: WorkspaceStore, toasts: ToastCenter) {
         self.workspace = workspace
         self.toasts = toasts
+        watcher = ProjectWatcher { [weak self] id, rels in
+            Task { @MainActor in await self?.diskChanged(id, rels) }
+        }
     }
 
     var activeID: String { workspace.ws.activeProject }
@@ -78,6 +85,8 @@ final class ProjectsStore {
     }
 
     func close(_ id: String) async {
+        watcher?.remove(id: id)
+        watched.remove(id)
         try? await registry.close(id)
         workspace.update {
             $0.expanded[id] = nil
@@ -94,11 +103,29 @@ final class ProjectsStore {
     /// Načte seznam z registru, zapíše cesty do workspace; neplatný aktivní projekt nahradí prvním.
     private func sync(activate id: String?) async {
         list = await registry.list()
+        for info in list where !watched.contains(info.id) {
+            watcher?.add(id: info.id, root: URL(fileURLWithPath: info.path))
+            watched.insert(info.id)
+        }
         let paths = await registry.paths()
         workspace.update { ws in
             ws.projects = paths
             if let id { ws.activeProject = id }
             if !list.contains(where: { $0.id == ws.activeProject }) { ws.activeProject = list.first?.id ?? "" }
         }
+    }
+
+    /// Změna `minorrest.yaml` (nebo neznámý rozsah) → znovu načíst konfiguraci a seznam; pak strom.
+    private func diskChanged(_ id: String, _ rels: [String]?) async {
+        guard let project = try? await registry.project(id) else { return }
+        if rels?.contains(ProjectFormat.projectFile) ?? true {
+            do {
+                try project.reloadConfig()
+            } catch {
+                log.error("konfigurace projektu \(id, privacy: .public) nelze načíst: \(String(describing: error))")
+            }
+            list = await registry.list()
+        }
+        onDiskChange?(id)
     }
 }

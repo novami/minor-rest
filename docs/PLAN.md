@@ -481,7 +481,7 @@ final class Project: @unchecked Sendable {                       // operace seri
 struct Workspace { projects, activeProject, expanded [projectID: [rel]], tabs [projectID: [requestID]],
                    activeTab [projectID: requestID], sidebarHidden, sidebarWidth, responseHeight }  // activeEnvironment přibude v F6
   // static load(from: URL) throws, save(to: URL) throws, appDirectory, defaultProjectsDirectory
-final class ProjectWatcher { init(onChange: @Sendable (projectID, [rel]?) -> Void); add(id, root); remove(id) }
+final class ProjectWatcher { init(ignoreSelf: Bool = true, onChange: @Sendable (projectID, [rel]?) -> Void); add(id:root:); remove(id:) }  // onChange na vlastní frontě
 
 extension TreeNode { static parent(of:), find(_ rel:), static fold(_:), filtered(_ query:) -> TreeNode,
                     moveIndex(of: dragged, before child: Int?) -> Int? }   // hledání a DnD ve stromu (F2/3)

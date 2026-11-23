@@ -57,6 +57,18 @@ final class TreeStore {
 
     func reload() async { await load(projectID) }
 
+    /// Probíhá inline editace názvu (reload by zahodil field editor a přejmenoval na rozepsaný text).
+    @ObservationIgnored var editing = false {
+        didSet { if !editing && reloadPending { reloadPending = false; Task { await reload() } } }
+    }
+    @ObservationIgnored private var reloadPending = false
+
+    /// Změna na disku (watcher); během editace se reload odloží na její konec.
+    func diskChanged(_ id: String) {
+        guard id == projectID else { return }
+        if editing { reloadPending = true } else { Task { await reload() } }
+    }
+
     func setExpanded(_ rel: String, _ on: Bool) {
         guard !projectID.isEmpty else { return }
         editExpanded { list in
