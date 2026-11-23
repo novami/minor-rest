@@ -440,13 +440,13 @@ Změny se projeví ihned bez restartu. Priorita HTTP nastavení: request → pro
 
 Repozitář a releasy jsou veřejné → updater nepotřebuje token.
 
-- Verze: `CFBundleShortVersionString` z tagu (`MARKETING_VERSION` při buildu), vývojový build `dev` (kontrola aktualizací vypnutá).
+- Verze: vždy jen `MAJOR.MINOR.PATCH` (např. `0.3.5`) – bez `v`, bez hashe a čísla buildu; stejný tvar má i git tag. `MARKETING_VERSION` = `CURRENT_PROJECT_VERSION` = verze z tagu (About panel pak nezobrazuje „(build)“), vývojový build `0.0.0` (kontrola aktualizací vypnutá).
 - **Sparkle 2** (SwiftPM): appcast `appcast.xml` jako asset posledního releasu (`SUFeedURL` = `https://github.com/novami/minor-rest/releases/latest/download/appcast.xml`), EdDSA podpis (`generate_keys`, `sign_update`; veřejný klíč `SUPublicEDKey` v `Info.plist`, privátní v GitHub Secret `SPARKLE_ED_KEY`). Automatická kontrola a stažení dle nastavení, „Zkontrolovat nyní“ v menu i Nastavení.
 - **Ověřit v F12/1 s ad-hoc podpisem** (Sparkle u aplikací bez Developer ID spoléhá jen na EdDSA). Pokud nebude fungovat, záložní varianta = vlastní updater dle rev. 2 kap. 10 (`git show go-wails-f4:docs/PLAN.md`).
 - Nelze aktualizovat z translokované cesty (`/AppTranslocation/`) → vyzvat k přesunu do `/Applications`.
 - **První ruční instalace (README):** aplikace není notarizovaná → po přetažení do `/Applications` buď `xattr -dr com.apple.quarantine /Applications/MinorREST.app`, nebo Nastavení systému → Soukromí a zabezpečení → „Přesto otevřít“.
 - **`ci.yml`** (push/PR, `macos-15`+): `swift test` v `Packages/MinorRESTCore`; `brew install xcodegen && make build`.
-- **`release.yml`** (tag `v*`, `permissions: contents: write`): `make release VERSION=$TAG` (xcodegen, `xcodebuild -configuration Release`, `codesign --force --deep -s -`, `ditto -c -k --keepParent` → zip, `hdiutil … -format UDZO` → dmg, `sign_update` → appcast), `gh release create "$TAG" --generate-notes <zip dmg appcast.xml>`.
+- **`release.yml`** (tag `[0-9]+.[0-9]+.[0-9]+`, `permissions: contents: write`): `make release VERSION=$TAG` (xcodegen, `xcodebuild -configuration Release`, `codesign --force --deep -s -`, `ditto -c -k --keepParent` → zip, `hdiutil … -format UDZO` → dmg, `sign_update` → appcast), `gh release create "$TAG" --generate-notes <zip dmg appcast.xml>`.
 - `Info.plist`: `LSMinimumSystemVersion` 15.0, `CFBundleIdentifier` viz kap. 0.
 
 ## 11. API jádra pro UI (`MinorRESTCore`)
