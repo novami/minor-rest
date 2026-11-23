@@ -441,8 +441,7 @@ Změny se projeví ihned bez restartu. Priorita HTTP nastavení: request → pro
 Repozitář a releasy jsou veřejné → updater nepotřebuje token.
 
 - Verze: vždy jen `MAJOR.MINOR.PATCH` (např. `0.3.5`) – bez `v`, bez hashe a čísla buildu; stejný tvar má i git tag. `MARKETING_VERSION` = `CURRENT_PROJECT_VERSION` = verze z tagu (About panel pak nezobrazuje „(build)“), vývojový build `0.0.0` (kontrola aktualizací vypnutá).
-- **Sparkle 2** (SwiftPM): appcast `appcast.xml` jako asset posledního releasu (`SUFeedURL` = `https://github.com/novami/minor-rest/releases/latest/download/appcast.xml`), EdDSA podpis (`generate_keys`, `sign_update`; veřejný klíč `SUPublicEDKey` v `Info.plist`, privátní v GitHub Secret `SPARKLE_ED_KEY`). Automatická kontrola a stažení dle nastavení, „Zkontrolovat nyní“ v menu i Nastavení.
-- **Ověřit v F12/1 s ad-hoc podpisem** (Sparkle u aplikací bez Developer ID spoléhá jen na EdDSA). Pokud nebude fungovat, záložní varianta = vlastní updater dle rev. 2 kap. 10 (`git show go-wails-f4:docs/PLAN.md`).
+- **Vlastní updater (rozhodnutí uživatele 2026-11-23, místo Sparkle):** `MinorRESTCore/Updates` – kontrola `releases/latest` (GitHub API, ETag), assety `MinorREST-<verze>-macos-arm64.zip` + `.zip.sig` (ed25519, base64), ověření veřejným klíčem `MRUpdatePublicKey` v `Info.plist` (privátní v Secret `UPDATE_SIGNING_KEY`), kontrola bundle ID a verze, výměna bundlu při ukončení/„Restartovat“ s rollbackem. UI: `App/Features/Updates` (`UpdateStore`), sekce v Nastavení, menu. Podrobně `docs/RELEASE.md`.
 - Nelze aktualizovat z translokované cesty (`/AppTranslocation/`) → vyzvat k přesunu do `/Applications`.
 - **První ruční instalace (README):** aplikace není notarizovaná → po přetažení do `/Applications` buď `xattr -dr com.apple.quarantine /Applications/MinorREST.app`, nebo Nastavení systému → Soukromí a zabezpečení → „Přesto otevřít“.
 - **`ci.yml`** (push/PR, `macos-15`+): `swift test` v `Packages/MinorRESTCore`; `brew install xcodegen && make build`.
@@ -655,10 +654,10 @@ Testy: hlavní cesta + nejdůležitější edge case, parametrizované `@Test(ar
 2. Kontrola úplnosti překladů, přepnutí jazyka za běhu (UI i menu).
 
 ### F12 – Auto-update a release
-1. Sparkle + ověření s ad-hoc podpisem (jinak vlastní updater, viz kap. 10).
+1. ~~Sparkle~~ → vlastní updater (kap. 10): jádro + UI hotové, zbývá reálný cyklus proti release.
 2. UI (menu „Zkontrolovat aktualizace…“, sekce v Nastavení).
 3. `scripts/release.sh`, `release.yml`, README (instalace, první spuštění, build ze zdrojů).
-**Vyžaduje uživatele:** vygenerovat EdDSA klíč (`generate_keys`), privátní do GitHub Secrets, veřejný do `Info.plist`; schválit push a tag. **Hotovo:** lokální build s nižší verzí najde release, ověří, nainstaluje a restartuje se.
+**Vyžaduje uživatele:** vygenerovat klíč (`swift scripts/sign-update.swift --gen`), privátní do GitHub Secret `UPDATE_SIGNING_KEY`, veřejný do `project.yml` (`MRUpdatePublicKey`); schválit push a tag. **Hotovo:** lokální build s nižší verzí najde release, ověří, nainstaluje a restartuje se.
 
 ### F13 – Dotažení
 Command palette (Cmd+K: requesty napříč projekty + akce), prázdné stavy, ukázkový projekt při prvním spuštění, a11y (VoiceOver popisky, fokus), výkon stromu nad 500 položek, QA checklist.
@@ -683,7 +682,7 @@ Command palette (Cmd+K: requesty napříč projekty + akce), prázdné stavy, uk
 - **Vypnutý `User-Agent`, GET s tělem, `Authorization`** – chování URLSession ověřit v F4/1 a F7/1, výsledek zapsat sem.
 - **Bez notarizace:** první spuštění vyžaduje ruční povolení (kap. 10). Lze doplnit později (Developer ID + `notarytool`).
 - **Keychain přes SecItem bez Developer ID:** po každé aktualizaci jeden dotaz na přístup ke Keychainu na položku (ACL vázané na podpis). S Developer ID lze přejít na data protection keychain + access group bez dotazů.
-- **Sparkle s ad-hoc podpisem** – ověřit v F12/1, záloha vlastní updater.
+- **Vlastní updater** – reálný cyklus (release → stažení → výměna → restart) ověřit po vydání první verze.
 - **Vlastní editor kódu** (`NSTextView` + jednoduché lexery): bez foldingu; výkon zvýraznění u 5 MB JSON hlídat (zvýrazňovat jen viditelnou oblast).
 - **Literály v auth polích** končí v YAML (a tedy v gitu) – řeší jen varování a převod na secret proměnnou.
 - **OAuth2 authorization code:** servery vyžadující přesnou redirect URI → pole `redirectPort`.

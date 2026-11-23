@@ -38,6 +38,13 @@ public struct ErrorCode: RawRepresentable, Hashable, Sendable, CustomStringConve
     // OAuth2 (F7)
     public static let oauthLoginRequired = ErrorCode(rawValue: "OAUTH_LOGIN_REQUIRED")
     public static let oauthTokenError = ErrorCode(rawValue: "OAUTH_TOKEN_ERROR")
+    // Aktualizace (F12)
+    public static let updateFeed = ErrorCode(rawValue: "UPDATE_FEED")
+    public static let updateDownload = ErrorCode(rawValue: "UPDATE_DOWNLOAD")
+    public static let updateBadSignature = ErrorCode(rawValue: "UPDATE_BAD_SIGNATURE")
+    public static let updateBadBundle = ErrorCode(rawValue: "UPDATE_BAD_BUNDLE")
+    public static let updateNotConfigured = ErrorCode(rawValue: "UPDATE_NOT_CONFIGURED")
+    public static let updateInstall = ErrorCode(rawValue: "UPDATE_INSTALL")
 }
 
 /// Chyba jádra: kód pro UI a technický detail.

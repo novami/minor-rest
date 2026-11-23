@@ -18,6 +18,7 @@ struct MinorRESTApp: App {
 
         Settings {
             SettingsView()
+                .environment(model)
         }
     }
 }
@@ -27,10 +28,13 @@ struct MinorRESTApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
 
+    func applicationDidFinishLaunching(_ notification: Notification) { model.updates.start() }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     /// Smaže temp soubory těl odpovědí; engine běží mimo hlavní vlákno, čekání je omezené.
     func applicationWillTerminate(_ notification: Notification) {
+        model.updates.installIfReadyOnQuit()
         let done = DispatchSemaphore(value: 0)
         let engine = model.runs.engine
         Task.detached {

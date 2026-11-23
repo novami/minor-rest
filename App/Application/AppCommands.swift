@@ -6,6 +6,13 @@ struct AppCommands: Commands {
     let model: AppModel
 
     var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            if case .ready(let info) = model.updates.state {
+                Button(t("updates.menuRestart", ["version": info.version.description])) { model.updates.installAndRestart() }
+            } else {
+                Button(t("updates.menuCheck")) { Task { await model.updates.check(manual: true) } }
+            }
+        }
         CommandGroup(replacing: .newItem) {
             Button(t("menu.newRequest")) { Task { await model.tree.createRequest(near: nil) } }
                 .keyboardShortcut("n")

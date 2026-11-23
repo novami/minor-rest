@@ -12,10 +12,12 @@ final class AppModel {
     let runs: RunStore
     let environments: EnvironmentsStore
     let vars: VarsStore
+    let updates: UpdateStore
     var showEnvironments = false
     var scopeSettings: ScopeTarget?
 
     init() {
+        updates = UpdateStore(toasts: toasts)
         projects = ProjectsStore(workspace: workspace, toasts: toasts)
         tree = TreeStore(workspace: workspace, projects: projects, toasts: toasts)
         tabs = TabsStore(workspace: workspace, projects: projects, toasts: toasts)
