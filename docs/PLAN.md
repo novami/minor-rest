@@ -491,7 +491,8 @@ struct VarToken { range: NSRange (UTF-16), name, kind: .variable | .dynamic; sta
 enum KVBulk { static text(_ rows: [KV]) -> String; static parse(_ text:, prev: [KV], allowBare: Bool) -> [KV] }   // F3/2
 enum PathParams { static names(_ url:) -> [String]; static sync(_ url:, _ path: [PathParam]) -> [PathParam]? }
 enum HeaderHints { static names; static values(for:) -> [String]; static complete(_ prefix:, in:) -> [String] }
-enum Syntax { static tokens(_ text:, _ lang: SyntaxLang) -> [SyntaxToken] }   // zvýraznění v CodeTextView (F3/3); SyntaxLang(bodyType:)
+enum Syntax { static tokens(_ text:, _ lang: SyntaxLang) -> [SyntaxToken] }   // zvýraznění v CodeTextView (F3/3); SyntaxLang(bodyType:), .markdown (F3/4)
+extension HTTPSettings { static let builtin; func over(_ base:) -> HTTPSettings }   // zděděné hodnoty v záložce Nastavení (F3/4)
 
 // JSON (F1/F3)
 enum JSONFormatter { static func format(_ text: String) throws -> String; static func validate(_:) -> CoreError? }

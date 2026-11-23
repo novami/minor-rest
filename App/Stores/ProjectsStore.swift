@@ -14,7 +14,7 @@ final class ProjectsStore {
     @ObservationIgnored private var watcher: ProjectWatcher?
     @ObservationIgnored private var watched: Set<String> = []
     /// Změna souborů projektu na disku (volá se na hlavním vlákně).
-    @ObservationIgnored var onDiskChange: ((String) -> Void)?
+    @ObservationIgnored var onDiskChange: ((String, [String]?) -> Void)?
 
     init(workspace: WorkspaceStore, toasts: ToastCenter) {
         self.workspace = workspace
@@ -126,6 +126,6 @@ final class ProjectsStore {
             }
             list = await registry.list()
         }
-        onDiskChange?(id)
+        onDiskChange?(id, rels)
     }
 }

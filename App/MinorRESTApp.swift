@@ -1,8 +1,10 @@
+import AppKit
 import SwiftUI
 
 @main
 struct MinorRESTApp: App {
-    @State private var model = AppModel()
+    @NSApplicationDelegateAdaptor private var delegate: AppDelegate
+    private var model: AppModel { delegate.model }
 
     var body: some Scene {
         Window("MinorREST", id: "main") {
@@ -16,6 +18,24 @@ struct MinorRESTApp: App {
 
         Settings {
             SettingsView()
+        }
+    }
+}
+
+/// Ukončení (Cmd+Q, zavření hlavního okna) s neuloženými taby: Uložit / Neukládat / Zrušit.
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let model = AppModel()
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        switch model.tabs.askBeforeQuit() {
+        case nil: return .terminateCancel
+        case false?: return .terminateNow
+        case true?:
+            Task { NSApp.reply(toApplicationShouldTerminate: await model.tabs.saveAll()) }
+            return .terminateLater
         }
     }
 }

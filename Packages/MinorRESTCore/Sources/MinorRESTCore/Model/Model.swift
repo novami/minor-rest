@@ -93,6 +93,10 @@ public struct HTTPSettings: Hashable, Sendable {
 
     public var isEmpty: Bool { self == HTTPSettings() }
 
+    /// Vestavěné výchozí hodnoty (globální nastavení aplikace přibude v F11).
+    public static let builtin = HTTPSettings(httpVersion: "auto", followRedirects: true, maxRedirects: 10,
+                                             timeoutMs: 30_000, verifyTLS: true, cookieJar: true)
+
     /// Doplní nevyplněné (zděděné) položky z `base`.
     public func over(_ base: HTTPSettings) -> HTTPSettings {
         HTTPSettings(httpVersion: httpVersion ?? base.httpVersion,

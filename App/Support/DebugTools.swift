@@ -4,12 +4,22 @@ import AppKit
 /// `--snapshot <soubor.png>` vykreslí hlavní okno do PNG, `--dump-menu <soubor.txt>` vypíše menu,
 /// `--snapshot-delay <s>` odloží snímek (výchozí 1,5 s),
 /// `--quit-after-debug` pak aplikaci ukončí, `--workspace-dir <adresář>` použije jiný adresář pro
-/// `workspace.yaml` (testy nesahají na skutečný). Jazyk lze vynutit standardním `-AppleLanguages '(en)'`.
+/// `workspace.yaml` (testy nesahají na skutečný), `--section <params|body|headers|settings|docs>` výchozí záložka
+/// otevřených tabů, `--debug-edit-docs <text>` po startu přepíše dokumentaci aktivního tabu (neuložený stav). Jazyk lze vynutit standardním `-AppleLanguages '(en)'`.
 enum DebugTools {
     /// Náhradní adresář workspace (`--workspace-dir`), v Release vždy `nil`.
     static var workspaceDirectory: URL? {
         #if DEBUG
         value("--workspace-dir").map { URL(fileURLWithPath: $0) }
+        #else
+        nil
+        #endif
+    }
+
+    /// Výchozí záložka editoru (`--section`), v Release vždy `nil`.
+    static var initialSection: String? {
+        #if DEBUG
+        value("--section")
         #else
         nil
         #endif
@@ -24,8 +34,14 @@ enum DebugTools {
 #if DEBUG
 @MainActor
 extension DebugTools {
-    static func runIfRequested() {
+    static func runIfRequested(_ model: AppModel) {
         let args = ProcessInfo.processInfo.arguments
+        if let docs = value("--debug-edit-docs") {
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                model.tabs.edit { $0.draft.docs = docs }
+            }
+        }
         let snapshot = value("--snapshot"), menu = value("--dump-menu")
         guard snapshot != nil || menu != nil else { return }
         Task {

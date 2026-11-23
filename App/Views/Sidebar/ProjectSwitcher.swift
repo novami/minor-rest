@@ -25,7 +25,7 @@ struct ProjectSwitcher: View {
             Button(t("project.open")) { Task { await projects.openDirectory() } }
             Divider()
             Button(t("project.close")) {
-                Task { await projects.close(projects.activeID) }
+                Task { await model.closeProject(projects.activeID) }
             }
             .disabled(projects.active == nil)
         } label: {

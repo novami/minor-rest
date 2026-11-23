@@ -84,6 +84,8 @@ private func syntax(_ text: String, _ lang: SyntaxLang) -> String {
      #"comment:<?xml v="1"?> comment:<!-- c --> keyword:a:b property:x string:"1" property:y string:'2' string:<![CDATA[<z>]]> keyword:a:b"#),
     ("<p>a < b</p>", .html, "keyword:p keyword:p"),
     ("{\"a\": 1}", .text, ""),
+    ("# Nadpis\n- `x` a [odkaz](http://a)\n1. b\n> c\n```\n# ne\n```\n```\nrozepsáno", .markdown,
+     "keyword:# Nadpis number:- string:`x` property:(http://a) number:1. comment:> c string:```\n# ne\n``` string:```\nrozepsáno"),
 ])
 func syntaxTokens(text: String, lang: SyntaxLang, expected: String) {
     #expect(syntax(text, lang) == expected)

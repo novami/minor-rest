@@ -14,12 +14,14 @@ struct RequestTab: Identifiable, Equatable {
     var urlText: String?
     /// Poslední záložka editoru (jen v paměti).
     var section: RequestSection = .params
+    /// Novější verze z disku, zatímco tab má neuložené změny (banner Načíst z disku / Ponechat moje).
+    var diskChanged: Request?
 
     var dirty: Bool { draft != saved }
 }
 
 enum RequestSection: String, CaseIterable {
-    case params, body, headers
+    case params, body, headers, settings, docs
 }
 
 /// Taby per projekt; seznam a aktivní tab se ukládají do workspace.
@@ -35,6 +37,8 @@ final class TabsStore {
     @ObservationIgnored private var restored: Set<String> = []
     /// Po uložení se znovu načte strom (metoda a URL ve stromu).
     @ObservationIgnored var onSaved: (() async -> Void)?
+    /// Hlavní okno (Cmd+W v jiném okně zavře to okno).
+    @ObservationIgnored weak var mainWindow: NSWindow?
     /// Aktuální strom projektu (názvy tabů, dorovnání `rel`).
     @ObservationIgnored var treeRoot: () -> TreeNode? = { nil }
 
@@ -90,12 +94,18 @@ final class TabsStore {
     @discardableResult
     func save(_ id: String? = nil) async -> Bool {
         guard let i = index(id ?? activeID) else { return false }
-        let tab = list[i]
+        return await save(list[i])
+    }
+
+    private func save(_ tab: RequestTab, reloadTree: Bool = true) async -> Bool {
         do {
             let project = try await projects.project(tab.projectID)
             try project.saveRequest(tab.rel, tab.draft)
-            if let j = index(tab.id, tab.projectID) { list[j].saved = tab.draft }
-            await onSaved?()
+            if let j = index(tab.id, tab.projectID) {
+                list[j].saved = tab.draft
+                list[j].diskChanged = nil
+            }
+            if reloadTree { await onSaved?() }
             return true
         } catch {
             toasts.show(errorText(error), isError: true, seconds: 5)
@@ -103,27 +113,105 @@ final class TabsStore {
         }
     }
 
+    /// Uloží neuložené taby (jednoho projektu, nebo všechny); `false`, když některé uložení selhalo.
+    func saveAll(projectID pid: String? = nil) async -> Bool {
+        var ok = true
+        for tab in list where tab.dirty && (pid == nil || tab.projectID == pid) {
+            ok = await save(tab, reloadTree: false) && ok
+        }
+        await onSaved?()
+        return ok
+    }
+
+    /// Před zavřením projektu s neuloženými taby: Uložit vše / Zahodit / Zrušit. `true` = pokračovat.
+    func confirmCloseProject(_ pid: String, name: String) async -> Bool {
+        guard list.contains(where: { $0.projectID == pid && $0.dirty }) else { return true }
+        switch ask(t("tabs.unsavedTitle"), t("tabs.unsavedProject", ["name": name]),
+                   save: t("tabs.saveAll"), discard: t("tabs.discard")) {
+        case .alertFirstButtonReturn: guard await saveAll(projectID: pid) else { return false }
+        case .alertSecondButtonReturn: break
+        default: return false
+        }
+        list.removeAll { $0.projectID == pid }
+        return true
+    }
+
+    /// Dotaz před ukončením: `nil` = zrušit, `true` = nejdřív uložit vše, `false` = ukončit bez uložení.
+    func askBeforeQuit() -> Bool? {
+        guard anyDirty else { return false }
+        switch ask(t("quit.title"), t("quit.message"), save: t("tabs.save"), discard: t("quit.dontSave")) {
+        case .alertFirstButtonReturn: return true
+        case .alertSecondButtonReturn: return false
+        default: return nil
+        }
+    }
+
+    private func ask(_ title: String, _ message: String, save: String, discard: String) -> NSApplication.ModalResponse {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: save)
+        alert.addButton(withTitle: discard).hasDestructiveAction = true
+        alert.addButton(withTitle: t("common.cancel"))
+        return alert.runModal()
+    }
+
     /// Zavře tab; neuložený se nejdřív zeptá Uložit / Zahodit / Zrušit.
     func close(_ id: String? = nil) async {
+        if id == nil, let w = NSApp.keyWindow, w !== mainWindow {   // Cmd+W v jiném okně (Nastavení)
+            w.performClose(nil)
+            return
+        }
         guard let i = index(id ?? activeID) else {
-            if id == nil { NSApp.keyWindow?.performClose(nil) }   // Cmd+W bez tabu zavře okno
+            if id == nil { NSApp.terminate(nil) }   // Cmd+W bez tabu zavře okno = ukončí aplikaci
             return
         }
         let tab = list[i]
         if tab.dirty {
-            let alert = NSAlert()
-            alert.messageText = t("tabs.unsavedTitle")
-            alert.informativeText = t("tabs.unsavedMessage", ["name": name(tab)])
-            alert.addButton(withTitle: t("tabs.save"))
-            alert.addButton(withTitle: t("tabs.discard")).hasDestructiveAction = true
-            alert.addButton(withTitle: t("common.cancel"))
-            switch alert.runModal() {
+            switch ask(t("tabs.unsavedTitle"), t("tabs.unsavedMessage", ["name": name(tab)]),
+                       save: t("tabs.save"), discard: t("tabs.discard")) {
             case .alertFirstButtonReturn: guard await save(tab.id) else { return }
             case .alertSecondButtonReturn: break
             default: return
             }
         }
         remove(tab.id)
+    }
+
+    // MARK: - Změna na disku
+
+    /// Soubory projektu se změnily zvenku (`rels == nil` = neznámý rozsah): čistý tab se tiše znovu načte,
+    /// neuložený dostane banner. Smazaný/přesunutý request řeší synchronizace se stromem.
+    func changedOnDisk(_ pid: String, _ rels: [String]?) async {
+        let changed = rels.map(Set.init)
+        for tab in list where tab.projectID == pid && (changed?.contains(tab.rel) ?? true) {
+            guard let r = try? await projects.project(pid).loadRequest(tab.rel),
+                  let i = index(tab.id, pid) else { continue }
+            if r == list[i].saved {
+                list[i].diskChanged = nil
+            } else if list[i].dirty {
+                list[i].diskChanged = r
+            } else {
+                list[i].draft = r
+                list[i].saved = r
+                list[i].urlText = nil
+            }
+        }
+    }
+
+    func reloadFromDisk(_ id: String) {
+        guard let i = index(id), let r = list[i].diskChanged else { return }
+        list[i].draft = r
+        list[i].saved = r
+        list[i].urlText = nil
+        list[i].diskChanged = nil
+    }
+
+    /// Ponechá lokální úpravy; verze z disku se stane výchozí, takže tab zůstane neuložený vůči ní.
+    func keepMine(_ id: String) {
+        guard let i = index(id), let r = list[i].diskChanged else { return }
+        list[i].saved = r
+        list[i].diskChanged = nil
     }
 
     // MARK: - Synchronizace se stromem
@@ -164,7 +252,9 @@ final class TabsStore {
     private func load(_ pid: String, _ id: String, _ rel: String) async -> RequestTab? {
         do {
             let r = try await projects.project(pid).loadRequest(rel)
-            return RequestTab(id: id, projectID: pid, rel: rel, draft: r, saved: r)
+            var tab = RequestTab(id: id, projectID: pid, rel: rel, draft: r, saved: r)
+            if let s = DebugTools.initialSection.flatMap(RequestSection.init) { tab.section = s }
+            return tab
         } catch {
             toasts.show(errorText(error), isError: true, seconds: 5)
             return nil

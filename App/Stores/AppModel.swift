@@ -14,7 +14,10 @@ final class AppModel {
         projects = ProjectsStore(workspace: workspace, toasts: toasts)
         tree = TreeStore(workspace: workspace, projects: projects, toasts: toasts)
         tabs = TabsStore(workspace: workspace, projects: projects, toasts: toasts)
-        projects.onDiskChange = { [tree] id in tree.diskChanged(id) }
+        projects.onDiskChange = { [tree, tabs] id, rels in
+            tree.diskChanged(id)
+            Task { await tabs.changedOnDisk(id, rels) }
+        }
         tree.onLoaded = { [tabs] id, root in await tabs.treeLoaded(id, root) }
         tree.onOpen = { [tabs] rel in await tabs.open(rel) }
         tabs.onSaved = { [tree] in await tree.reload() }
@@ -29,6 +32,13 @@ final class AppModel {
 
     func toggleSidebar() {
         columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+    }
+
+    /// Zavře projekt; neuložené taby projektu se nejdřív nabídnou k uložení.
+    func closeProject(_ id: String) async {
+        guard let p = projects.list.first(where: { $0.id == id }),
+              await tabs.confirmCloseProject(id, name: p.name) else { return }
+        await projects.close(id)
     }
 
     /// Dočasně pro akce menu, které ještě nejsou implementované.

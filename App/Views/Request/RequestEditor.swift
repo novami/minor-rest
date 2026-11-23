@@ -1,15 +1,28 @@
 import MinorRESTCore
 import SwiftUI
 
-/// Editor aktivního tabu: metoda, URL bar (URL + zapnuté query), Odeslat; záložky Parametry | Tělo | Hlavičky.
+/// Editor aktivního tabu: metoda, URL bar (URL + zapnuté query), Odeslat; záložky Parametry | Tělo | Hlavičky |
+/// Nastavení | Dokumentace; banner, když se request změnil na disku a tab má neuložené změny.
 struct RequestEditor: View {
     @Environment(AppModel.self) private var model
     @Environment(\.appFonts) private var fonts
     let tab: RequestTab
+    @State private var inherited: HTTPSettings?
 
     var body: some View {
         let tabs = model.tabs
         VStack(spacing: 0) {
+            if tab.diskChanged != nil {
+                HStack(spacing: 8) {
+                    Text(t("request.changedOnDisk"))
+                    Spacer()
+                    Button(t("request.loadFromDisk")) { tabs.reloadFromDisk(tab.id) }
+                    Button(t("request.keepMine")) { tabs.keepMine(tab.id) }
+                }
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(Color.accentColor.opacity(0.15))
+                Divider()
+            }
             HStack(spacing: 8) {
                 MethodPicker(method: Binding(get: { tab.draft.method },
                                              set: { m in tabs.edit { $0.draft.method = m } }))
@@ -23,6 +36,11 @@ struct RequestEditor: View {
             if tab.section == .body {
                 BodyEditor(requestBody: Binding(get: { tab.draft.body }, set: { b in tabs.edit { $0.draft.body = b } }),
                            tabID: tab.id, projectID: tab.projectID)
+                    .padding(10)
+            } else if tab.section == .docs {
+                CodeTextView(text: Binding(get: { tab.draft.docs }, set: { d in tabs.edit { $0.draft.docs = d } }),
+                             lang: .markdown, font: fonts.codeNSFont)
+                    .id(tab.id + "/docs")
                     .padding(10)
             } else {
                 ScrollView {
@@ -38,7 +56,8 @@ struct RequestEditor: View {
                 Button { model.tabs.edit { $0.section = s } } label: {
                     HStack(spacing: 4) {
                         Text(t("request.section.\(s.rawValue)"))
-                        if s == .body, tab.draft.body.type != "none", !tab.draft.body.type.isEmpty {
+                        if (s == .body && tab.draft.body.type != "none" && !tab.draft.body.type.isEmpty)
+                            || (s == .docs && !tab.draft.docs.isEmpty) {
                             Circle().fill(Color.accentColor).frame(width: 5, height: 5)
                         }
                         if let n = count(s), n > 0 {
@@ -61,7 +80,11 @@ struct RequestEditor: View {
         switch s {
         case .params: return on(tab.draft.params.query) + pathRows.count
         case .headers: return on(tab.draft.headers)
-        case .body: return nil
+        case .settings:
+            let st = tab.draft.settings
+            return [st.httpVersion != nil, st.followRedirects != nil, st.maxRedirects != nil,
+                    st.timeoutMs != nil, st.verifyTLS != nil, st.cookieJar != nil].filter { $0 }.count
+        case .body, .docs: return nil
         }
     }
 
@@ -86,7 +109,13 @@ struct RequestEditor: View {
         case .headers:
             KvEditor(rows: Binding(get: { tab.draft.headers }, set: { h in tabs.edit { $0.draft.headers = h } }),
                      names: HeaderHints.names, valuesFor: HeaderHints.values(for:))
-        case .body:
+        case .settings:
+            SettingsEditor(settings: Binding(get: { tab.draft.settings }, set: { st in tabs.edit { $0.draft.settings = st } }),
+                           inherited: inherited)
+                .task(id: tab.projectID) {
+                    inherited = (try? await model.projects.project(tab.projectID))?.config.settings.over(.builtin)
+                }
+        case .body, .docs:
             EmptyView()
         }
     }

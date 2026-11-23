@@ -28,13 +28,14 @@ struct MainView: View {
         .toolbar(removing: .title)
         .overlay(alignment: .bottom) { ToastStack(center: model.toasts) }
         .background(BackingScaleReader(scale: $scale))
+        .background(MainWindowHook(edited: model.tabs.anyDirty) { [tabs = model.tabs] in tabs.mainWindow = $0 })
         .environment(\.appFonts, fonts)
         .font(fonts.ui)
         .frame(minWidth: 900, minHeight: 600)
         .task {
             await model.projects.restore()
             #if DEBUG
-            DebugTools.runIfRequested()
+            DebugTools.runIfRequested(model)
             #endif
         }
     }

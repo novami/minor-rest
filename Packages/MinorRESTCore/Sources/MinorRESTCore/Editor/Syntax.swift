@@ -2,7 +2,7 @@ import Foundation
 
 /// Jazyk zvýraznění v `CodeTextView`.
 public enum SyntaxLang: String, Sendable {
-    case json, xml, html, text
+    case json, xml, html, text, markdown
 
     /// Jazyk raw těla (`nil` = typ bez textového editoru).
     public init?(bodyType: String) {
@@ -35,6 +35,7 @@ public enum Syntax {
         switch lang {
         case .json: return json(s)
         case .xml, .html: return markup(s)
+        case .markdown: return markdown(s)
         case .text: return []
         }
     }
@@ -143,5 +144,66 @@ public enum Syntax {
             }
         }
         return out
+    }
+
+    // MARK: Markdown
+
+    /// Nadpis → keyword, blok/inline kód → string, značka seznamu → number, `(url)` odkazu → property, citace → comment.
+    private static func markdown(_ s: [UInt16]) -> [SyntaxToken] {
+        var out: [SyntaxToken] = []
+        let n = s.count
+        var i = 0
+        var fence: Int?   // začátek otevřeného bloku ```
+        while i < n {
+            var e = i
+            while e < n, s[e] != 0x0A { e += 1 }
+            var k = i
+            while k < e, s[k] == 0x20 { k += 1 }
+            let isFence = k + 3 <= e && s[k] == ch("`") && s[k + 1] == ch("`") && s[k + 2] == ch("`")
+            if let f = fence {
+                if isFence { out.append(SyntaxToken(f, e - f, .string)); fence = nil }
+            } else if isFence {
+                fence = i
+            } else if k < e, s[k] == ch("#") {
+                out.append(SyntaxToken(i, e - i, .keyword))
+            } else if k < e, s[k] == ch(">") {
+                out.append(SyntaxToken(i, e - i, .comment))
+            } else {
+                var j = k
+                if j + 1 < e, s[j] == ch("-") || s[j] == ch("*") || s[j] == ch("+"), s[j + 1] == 0x20 {
+                    out.append(SyntaxToken(j, 1, .number)); j += 2
+                } else {
+                    while j < e, s[j] >= 0x30, s[j] <= 0x39 { j += 1 }
+                    if j > k, j + 1 < e, s[j] == ch("."), s[j + 1] == 0x20 {
+                        out.append(SyntaxToken(k, j + 1 - k, .number)); j += 2
+                    } else {
+                        j = k
+                    }
+                }
+                inlineMarkdown(s, j, e, &out)
+            }
+            i = e + 1
+        }
+        if let f = fence { out.append(SyntaxToken(f, n - f, .string)) }
+        return out
+    }
+
+    private static func inlineMarkdown(_ s: [UInt16], _ from: Int, _ end: Int, _ out: inout [SyntaxToken]) {
+        var j = from
+        while j < end {
+            if s[j] == ch("`") {
+                var k = j + 1
+                while k < end, s[k] != ch("`") { k += 1 }
+                guard k < end else { return }
+                out.append(SyntaxToken(j, k + 1 - j, .string)); j = k + 1
+            } else if s[j] == ch("]"), j + 1 < end, s[j + 1] == ch("(") {
+                var k = j + 2
+                while k < end, s[k] != ch(")") { k += 1 }
+                guard k < end else { return }
+                out.append(SyntaxToken(j + 1, k + 1 - (j + 1), .property)); j = k + 1
+            } else {
+                j += 1
+            }
+        }
     }
 }
