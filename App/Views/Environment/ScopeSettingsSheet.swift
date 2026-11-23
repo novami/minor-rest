@@ -44,6 +44,10 @@ struct ScopeSettingsSheet: View {
 
     private var projectID: String { model.projects.activeID }
     private var isProject: Bool { target == .project }
+    private var oauthRel: String? {
+        if case .folder(let rel, _) = target { return rel + "/_" }
+        return nil
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -73,7 +77,7 @@ struct ScopeSettingsSheet: View {
                                    inherited: inheritedAuth,
                                    manualAuthorization: draft.headers.contains {
                                        $0.enabled && $0.name.caseInsensitiveCompare("Authorization") == .orderedSame
-                                   })
+                                   }, oauthRel: oauthRel)
                     }
                 case .http:
                     projectHTTP

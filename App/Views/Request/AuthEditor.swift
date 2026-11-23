@@ -34,18 +34,26 @@ struct AuthEditor: View {
     var inherited: InheritedAuth?
     /// Vlastní zapnutá hlavička `Authorization` na téže úrovni (má přednost).
     var manualAuthorization = false
+    /// Cesta, od které se pro proměnné skládají složky (request: jeho cesta, složka: `<složka>/_`, projekt: nil).
+    var oauthRel: String?
 
     private var types: [String] {
-        var all = [AuthType.none, AuthType.basic, AuthType.bearer, AuthType.apiKey]
+        var all = [AuthType.none, AuthType.basic, AuthType.bearer, AuthType.apiKey, AuthType.oauth2]
         if scope != .project { all.insert(AuthType.inherit, at: 0) }
-        if auth.type == AuthType.oauth2 { all.append(AuthType.oauth2) }
         return all
     }
 
     private var type: Binding<String> {
         Binding(get: {
             AuthApply.isInherit(auth) ? (scope == .project ? AuthType.none : AuthType.inherit) : auth.type
-        }, set: { auth.type = $0 })
+        }, set: { v in
+            auth.type = v
+            if v == AuthType.oauth2 && auth.oauth2 == nil {
+                var o = OAuth2Auth()
+                (o.grantType, o.clientAuth, o.tokenPlacement, o.autoRefresh) = (OAuthParams.clientCredentials, "header", "header", true)
+                auth.oauth2 = o
+            }
+        })
     }
 
     var body: some View {
@@ -55,7 +63,7 @@ struct AuthEditor: View {
             }
             .fixedSize()
             fields
-            if manualAuthorization && [AuthType.basic, AuthType.bearer].contains(auth.type) {
+            if manualAuthorization && [AuthType.basic, AuthType.bearer, AuthType.oauth2].contains(auth.type) {
                 Label(t("auth.manualHeader"), systemImage: "info.circle")
                     .font(fonts.small).foregroundStyle(.secondary)
             }
@@ -100,8 +108,64 @@ struct AuthEditor: View {
                 }
             }
         default:
-            Text(t("auth.oauth2Later")).foregroundStyle(.secondary)
+            oauthFields
         }
+    }
+
+    private var oauthGrant: String { auth.oauth2?.grantType.isEmpty == false ? auth.oauth2!.grantType : OAuthParams.clientCredentials }
+
+    @ViewBuilder
+    private var oauthFields: some View {
+        let o = auth.oauth2 ?? OAuth2Auth()
+        grid {
+            GridRow {
+                Text(t("auth.oauth.grant")).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+                Picker("", selection: Binding(get: { oauthGrant }, set: { v in update(\.oauth2, OAuth2Auth()) { $0.grantType = v } })) {
+                    ForEach([OAuthParams.clientCredentials, OAuthParams.password, OAuthParams.authorizationCode], id: \.self) {
+                        Text(t("auth.oauth.grant." + $0)).tag($0)
+                    }
+                }
+                .labelsHidden().fixedSize()
+            }
+            row("auth.oauth.tokenURL", field(\.oauth2, OAuth2Auth(), \.tokenURL, placeholder: "{{baseUrl}}/oauth/token"))
+            row("auth.oauth.clientID", field(\.oauth2, OAuth2Auth(), \.clientID))
+            row("auth.oauth.clientSecret", field(\.oauth2, OAuth2Auth(), \.clientSecret), literal: o.clientSecret, name: "clientSecret")
+            row("auth.oauth.scope", field(\.oauth2, OAuth2Auth(), \.scope))
+            if oauthGrant == OAuthParams.password {
+                row("auth.username", field(\.oauth2, OAuth2Auth(), \.username))
+                row("auth.password", field(\.oauth2, OAuth2Auth(), \.password), literal: o.password, name: "password")
+            }
+            GridRow {
+                Text(t("auth.oauth.clientAuth")).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+                Picker("", selection: Binding(get: { o.clientAuth == "body" ? "body" : "header" },
+                                              set: { v in update(\.oauth2, OAuth2Auth()) { $0.clientAuth = v } })) {
+                    Text(t("auth.oauth.clientAuth.header")).tag("header")
+                    Text(t("auth.oauth.clientAuth.body")).tag("body")
+                }
+                .labelsHidden().pickerStyle(.segmented).fixedSize()
+            }
+            GridRow {
+                Text(t("auth.oauth.placement")).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+                Picker("", selection: Binding(get: { o.tokenPlacement == "query" ? "query" : "header" },
+                                              set: { v in update(\.oauth2, OAuth2Auth()) { $0.tokenPlacement = v } })) {
+                    Text(t("auth.location.header")).tag("header")
+                    Text(t("auth.location.query")).tag("query")
+                }
+                .labelsHidden().pickerStyle(.segmented).fixedSize()
+            }
+            if o.tokenPlacement != "query" {
+                row("auth.prefix", field(\.oauth2, OAuth2Auth(), \.headerPrefix, placeholder: "Bearer"))
+            }
+            GridRow {
+                Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                Toggle(t("auth.oauth.autoRefresh"), isOn: Binding(get: { o.autoRefresh },
+                                                                  set: { v in update(\.oauth2, OAuth2Auth()) { $0.autoRefresh = v } }))
+            }
+        }
+        if oauthGrant == OAuthParams.authorizationCode {
+            Text(t("auth.oauth.codeLater")).foregroundStyle(.secondary)
+        }
+        OAuthPanel(auth: o, projectID: projectID, rel: oauthRel)
     }
 
     private func grid(@ViewBuilder _ rows: () -> some View) -> some View {
@@ -144,6 +208,11 @@ struct AuthEditor: View {
         case AuthType.basic: update(\.basic, BasicAuth()) { if $0.password == old { $0.password = new } }
         case AuthType.bearer: update(\.bearer, BearerAuth()) { if $0.token == old { $0.token = new } }
         case AuthType.apiKey: update(\.apiKey, APIKeyAuth()) { if $0.value == old { $0.value = new } }
+        case AuthType.oauth2:
+            update(\.oauth2, OAuth2Auth()) {
+                if $0.clientSecret == old { $0.clientSecret = new }
+                if $0.password == old { $0.password = new }
+            }
         default: break
         }
     }
@@ -214,6 +283,66 @@ private struct LiteralWarning: View {
             converted(n)
         } catch {
             self.error = errorText(error)
+        }
+    }
+}
+
+/// Stav tokenu OAuth2 a akce Získat / Obnovit / Smazat (PLAN 8.5).
+private struct OAuthPanel: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.appFonts) private var fonts
+    let auth: OAuth2Auth
+    let projectID: String
+    let rel: String?
+
+    @State private var info: TokenInfo?
+    @State private var error: String?
+    @State private var busy = false
+
+    private var grant: String { auth.grantType.isEmpty ? OAuthParams.clientCredentials : auth.grantType }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(status).foregroundStyle(.secondary)
+                Spacer().frame(width: 8)
+                Button(t("auth.oauth.get")) { run { p, o, c in _ = try await c.fetchToken(p, options: o) } }
+                    .disabled(busy || grant == OAuthParams.authorizationCode)
+                Button(t("auth.oauth.refresh")) { run { p, o, c in _ = try await c.refresh(p, options: o) } }
+                    .disabled(busy || info?.hasRefresh != true)
+                Button(t("auth.oauth.clear")) { run { p, _, c in try await c.clearToken(p) } }
+                    .disabled(busy || info == nil)
+                if busy { ProgressView().controlSize(.small) }
+            }
+            if let error { Text(error).foregroundStyle(.red).font(fonts.small).textSelection(.enabled) }
+        }
+        .task(id: "\(auth.hashValue)|\(model.vars.revision)") { await reload() }
+    }
+
+    private var status: String {
+        guard let info else { return t("auth.oauth.state.none") }
+        guard let e = info.expiresAt else { return t("auth.oauth.state.noExpiry") }
+        let when = e.formatted(date: .abbreviated, time: .standard)
+        return info.isExpired() ? t("auth.oauth.state.expired", ["when": when]) : t("auth.oauth.state.valid", ["when": when])
+    }
+
+    private func reload() async {
+        guard let (p, _) = try? await model.runs.oauthParams(auth, projectID: projectID, rel: rel) else { info = nil; return }
+        info = await model.runs.oauth.tokenInfo(p)
+    }
+
+    private func run(_ action: @escaping (OAuthParams, HTTPEngine.Options, OAuthClient) async throws -> Void) {
+        busy = true
+        error = nil
+        Task {
+            defer { busy = false }
+            do {
+                let (p, o) = try await model.runs.oauthParams(auth, projectID: projectID, rel: rel)
+                try await action(p, o, model.runs.oauth)
+            } catch {
+                self.error = errorText(error)
+            }
+            await reload()
         }
     }
 }

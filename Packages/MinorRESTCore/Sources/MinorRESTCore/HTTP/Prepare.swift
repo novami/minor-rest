@@ -24,10 +24,13 @@ public struct PrepareInput: Sendable {
     public var defaults: HTTPSettings
     public var baseDir: String
     public var userAgent: String
+    /// OAuth2 klient; bez něj se OAuth2 auth nepřidá.
+    public var oauth: OAuthClient?
 
     public init(request: Request, project: ProjectConfig = ProjectConfig(), folders: [PrepareFolder] = [],
                 runtime: [Var] = [], environment: [Var] = [], globals: [Var] = [],
-                defaults: HTTPSettings = .builtin, baseDir: String = "", userAgent: String = "") {
+                defaults: HTTPSettings = .builtin, baseDir: String = "", userAgent: String = "",
+                oauth: OAuthClient? = nil) {
         self.request = request
         self.project = project
         self.folders = folders
@@ -37,6 +40,7 @@ public struct PrepareInput: Sendable {
         self.defaults = defaults
         self.baseDir = baseDir
         self.userAgent = userAgent
+        self.oauth = oauth
     }
 }
 
@@ -72,17 +76,24 @@ public enum Prepare {
 
         let auth = AuthApply.effective(req.auth, folders: input.folders, project: input.project.auth)
         let queryNames = Set(try req.params.query.filter(\.enabled).map { try r.resolve($0.name).value })
-        let applied = try AuthApply.apply(auth.auth, headers: &headers, queryNames: queryNames, r)
+        let s = req.settings.over(input.project.settings).over(input.defaults)
+        let options = HTTPEngine.Options(s, userAgent: input.userAgent)
+        let applied: (query: KV?, secrets: [String])
+        if auth.auth.type == AuthType.oauth2, let client = input.oauth {
+            applied = try await AuthApply.applyOAuth(auth.auth.oauth2 ?? OAuth2Auth(), client: client, options: options,
+                                                     headers: &headers, queryNames: queryNames, r)
+        } else {
+            applied = try AuthApply.apply(auth.auth, headers: &headers, queryNames: queryNames, r)
+        }
         if let q = applied.query {
             url += (url.contains("?") ? "&" : "?") + URLBuilder.encodeQuery([q])
         }
 
-        let s = req.settings.over(input.project.settings).over(input.defaults)
         return Prepared(
             request: PreparedRequest(method: req.method.trimmingCharacters(in: .whitespaces).uppercased(),
                                      url: url, headers: headers, body: body,
                                      baseDir: input.baseDir, noAuto: noAuto),
-            options: HTTPEngine.Options(s, userAgent: input.userAgent),
+            options: options,
             unresolved: r.unresolved, authSource: auth.source,
             secrets: sc.flatMap(\.vars).filter { $0.secret && !$0.value.isEmpty }.map(\.value) + applied.secrets)
     }
@@ -100,6 +111,12 @@ public enum Prepare {
             return scope
         }
         return Resolver(scopes: sc).explain()
+    }
+
+    /// Vyhodnocená pole OAuth2 pro panel tokenu (stejné proměnné jako při odeslání).
+    public static func oauthParams(_ a: OAuth2Auth, _ input: PrepareInput) throws -> OAuthParams {
+        let r = Resolver(scopes: scopes(input))
+        return try OAuthParams(a) { try r.resolve($0).value }
     }
 
     static func scopes(_ i: PrepareInput) -> [VarScope] {

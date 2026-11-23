@@ -127,7 +127,7 @@ struct RequestEditor: View {
                        scope: .request, projectID: tab.projectID, inherited: inheritedAuth,
                        manualAuthorization: tab.draft.headers.contains {
                            $0.enabled && $0.name.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare("Authorization") == .orderedSame
-                       })
+                       }, oauthRel: tab.rel)
                 .task(id: "\(tab.projectID)|\(tab.rel)|\(model.vars.revision)") {
                     guard let project = try? await model.projects.project(tab.projectID) else { return }
                     let rel = tab.rel

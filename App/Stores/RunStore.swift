@@ -35,6 +35,7 @@ final class RunStore {
     /// JSONPath výraz per tab (platí i pro další běhy).
     var filters: [String: String] = [:]
     @ObservationIgnored let engine = HTTPEngine()
+    @ObservationIgnored let oauth: OAuthClient
     @ObservationIgnored private let projects: ProjectsStore
     @ObservationIgnored private let environments: EnvironmentsStore
     @ObservationIgnored private let vars: VarsStore
@@ -51,6 +52,7 @@ final class RunStore {
         self.vars = vars
         self.toasts = toasts
         self.appDir = appDir
+        oauth = OAuthClient(engine: engine, secrets: Secrets())
         history = History(dir: appDir.appending(path: "history"))
     }
 
@@ -59,6 +61,17 @@ final class RunStore {
         let j = CookieJar(file: CookieJar.file(projectID: projectID, in: appDir))
         jars[projectID] = j
         return j
+    }
+
+    /// Vyhodnocená OAuth2 pole a nastavení odeslání pro panel tokenu; `rel` = cesta, od které se skládají složky.
+    func oauthParams(_ a: OAuth2Auth, projectID: String, rel: String?) async throws -> (OAuthParams, HTTPEngine.Options) {
+        let project = try await projects.project(projectID)
+        let vars = try await environments.varsForSend(projectID)
+        let input = PrepareInput(
+            request: Request(), project: project.config, folders: try rel.map { try project.folderChain($0) } ?? [],
+            runtime: self.vars.runtimeVars(projectID), environment: vars.environment, globals: vars.globals)
+        return (try Prepare.oauthParams(a, input),
+                HTTPEngine.Options(project.config.settings.over(.builtin), userAgent: Self.userAgent))
     }
 
     func run(_ tabID: String) -> Run? { runs[tabID] }
@@ -75,7 +88,7 @@ final class RunStore {
             let prepared = try await Prepare.prepare(PrepareInput(
                 request: tab.draft, project: project.config, folders: try project.folderChain(tab.rel),
                 runtime: self.vars.runtimeVars(tab.projectID), environment: vars.environment, globals: vars.globals,
-                baseDir: project.root.path, userAgent: Self.userAgent))
+                baseDir: project.root.path, userAgent: Self.userAgent, oauth: oauth))
             update(tab.id, runID) { $0.unresolved = prepared.unresolved }
             let jar = jar(tab.projectID)
             let result = await engine.send(runID: runID, prepared.request, prepared.options, jar: jar)

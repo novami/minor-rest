@@ -32,6 +32,9 @@ public struct ErrorCode: RawRepresentable, Hashable, Sendable, CustomStringConve
     public static let bodyNotAllowed = ErrorCode(rawValue: "BODY_NOT_ALLOWED")
     public static let runNotFound = ErrorCode(rawValue: "RUN_NOT_FOUND")
     public static let secretError = ErrorCode(rawValue: "SECRET_ERROR")
+    // OAuth2 (F7)
+    public static let oauthLoginRequired = ErrorCode(rawValue: "OAUTH_LOGIN_REQUIRED")
+    public static let oauthTokenError = ErrorCode(rawValue: "OAUTH_TOKEN_ERROR")
 }
 
 /// Chyba jádra: kód pro UI a technický detail.

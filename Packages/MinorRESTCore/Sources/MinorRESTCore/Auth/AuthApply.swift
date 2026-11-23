@@ -60,4 +60,26 @@ public enum AuthApply {
         }
         return (nil, [])
     }
+
+    /// OAuth2: token z cache / refresh / nový; přidá ho jako hlavičku (`headerPrefix`) nebo query `access_token`.
+    /// Ručně zadaná `Authorization` či query `access_token` má přednost (token se ani nezískává).
+    static func applyOAuth(_ a: OAuth2Auth, client: OAuthClient, options: HTTPEngine.Options,
+                           headers: inout [KV], queryNames: Set<String>,
+                           _ r: Resolver) async throws -> (query: KV?, secrets: [String]) {
+        let p = try OAuthParams(a) { try r.resolve($0).value }
+        guard !p.tokenURL.isEmpty else { return (nil, []) }
+        let inHeader = p.tokenPlacement == "header"
+        if inHeader {
+            guard !headers.contains(where: { $0.name.caseInsensitiveCompare("Authorization") == .orderedSame })
+            else { return (nil, []) }
+        } else if queryNames.contains("access_token") {
+            return (nil, [])
+        }
+        let token = try await client.accessToken(p, options: options)
+        if inHeader {
+            headers.append(KV(name: "Authorization", value: p.headerPrefix + " " + token))
+            return (nil, [token])
+        }
+        return (KV(name: "access_token", value: token), [token])
+    }
 }

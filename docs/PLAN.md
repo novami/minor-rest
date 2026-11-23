@@ -310,7 +310,7 @@ Ověřeno v F4/1: GET/HEAD s tělem URLSession odmítne (`NSURLErrorDataLengthEx
 - **oauth2** (vlastní implementace, token endpoint přes stejný engine – stejné TLS/proxy nastavení jako request):
   - `clientAuth`: `header` (Basic `client_id:client_secret`, URL-encoded dle RFC 6749) / `body`.
   - authorization_code: `NWListener` na `127.0.0.1:<redirectPort>`, `state` (náhodných 32 B) + PKCE S256 (`CryptoKit.SHA256`), otevřít prohlížeč (`NSWorkspace.open`), čekat na `/callback` max 5 min (zrušitelné z UI), odpovědět HTML stránkou „Hotovo, okno můžete zavřít“, vyměnit code za token.
-  - Cache: klíč `sha256(tokenUrl|clientId|scope|grantType|username)[:16]`; do Keychain zvlášť `…/oauth/<klíč>/access` a `…/refresh`, expirace a typ do paměti + `workspace.yaml`.
+  - Cache: klíč `sha256(tokenUrl|clientId|scope|grantType|username)[:16]`; do Keychain zvlášť `…/oauth/<klíč>/access` a `…/refresh`, expirace, typ a scope jako JSON v třetí položce `…/oauth/<klíč>/meta` (+ paměť; `workspace.yaml` se nepoužije – jednodušší, bez zápisu do gitu). `tokenPlacement: query` posílá `access_token=<token>`. Chyba token endpointu = `OAUTH_TOKEN_ERROR` (detail `HTTP <status>: <error> – <popis>`).
   - Před odesláním: platný token použít; expirovaný (rezerva 30 s) → refresh, při neúspěchu u client_credentials/password získat nový automaticky, u authorization_code vrátit `OAUTH_LOGIN_REQUIRED` (UI nabídne „Přihlásit“).
 - Digest = backlog.
 
@@ -538,7 +538,7 @@ Prepare.explain(_ input: PrepareInput) -> [VarInfo]   // tajné bez načtené ho
 
 // Auth (F7)
 enum AuthApply { static effective(_ auth:, folders:, project:) -> (auth: Auth, source: String) /* request | folder:<rel> | project */; static isLiteral(_:) -> Bool }   // apply volá Prepare; hodnota API klíče jde do Prepared.secrets
-OAuth: fetchToken(…) async throws -> TokenInfo; cancel(); clearToken(…); tokenInfo(…)
+OAuth (F7/2): actor OAuthClient(engine:secrets:) { accessToken(_ p: OAuthParams, options:) async throws -> String; fetchToken; refresh; tokenInfo(_:) -> TokenInfo?; clearToken }; Prepare.oauthParams(_:_:); PrepareInput.oauth; cancel + authorization_code login = F7/3
 
 // Uložené odpovědi (F8)
 Responses: save(runID:label:) -> SavedInfo; list(requestID:) ; get(requestID:version:) ; body(…pretty:) -> BodyView ; setLabel ; delete
