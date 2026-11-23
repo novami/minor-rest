@@ -34,17 +34,17 @@ minor-rest/
 ├── project.yml                     # XcodeGen: cíl MinorREST (app), závislost na Packages/MinorRESTCore
 ├── Makefile                        # gen, build, run, test, release
 ├── App/                            # cíl aplikace – tenká vrstva nad jádrem
-│   ├── MinorRESTApp.swift          # @main App, scény (hlavní okno, Settings), Commands (menu + zkratky)
-│   ├── Stores/                     # @Observable @MainActor stav UI: Workspace, Projects, Tabs, Runs, Environments…
-│   ├── Views/
-│   │   ├── Sidebar/                # ProjectSwitcher, strom, hledání, historie
-│   │   ├── Request/                # URL bar, KvEditor, BodyEditor, Auth, Settings, Docs
-│   │   ├── Response/               # meta bar, tělo, hlavičky, časování, verze
-│   │   ├── Environment/            # editor prostředí a proměnných
-│   │   ├── Settings/               # okno Nastavení (Cmd+,)
-│   │   └── Common/                 # MethodBadge, StatusBadge, Toast, Banner…
-│   ├── AppKit/                     # NSViewRepresentable: TreeOutlineView, VarField, CodeTextView
-│   ├── Support/                    # L10n (t()), formátování čísel, fonty dle displeje
+│   ├── Application/                # MinorRESTApp (@main, scény, Commands), AppModel, WorkspaceStore, MainView, MainWindowHook
+│   ├── Features/                   # členění podle funkce; každá: views + @Observable @MainActor store
+│   │   ├── Sidebar/                # ProjectSwitcher, strom (TreeOutlineView), TreeStore, ProjectsStore, historie
+│   │   ├── Request/                # taby (TabsStore), URL bar, KvEditor, BodyEditor, Auth, Settings, Docs
+│   │   ├── Response/               # RunStore, meta bar, tělo, hlavičky, časování, verze
+│   │   ├── Environment/            # EnvironmentsStore, VarsStore, editor prostředí a proměnných
+│   │   └── Settings/               # okno Nastavení (Cmd+,)
+│   ├── Shared/
+│   │   ├── Components/             # MethodBadge, StatusBadge, Toast, Banner…
+│   │   ├── AppKit/                 # NSViewRepresentable: VarField, CodeTextView
+│   │   └── Support/                # L10n (t()), formátování čísel, fonty dle displeje
 │   └── Resources/                  # Localizable.xcstrings, Assets.xcassets (ikona), Info.plist
 ├── Packages/MinorRESTCore/         # SwiftPM, bez SwiftUI/AppKit (jen Foundation, Security, CoreServices, Network)
 │   ├── Package.swift               # závislost Yams
