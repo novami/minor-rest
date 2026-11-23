@@ -2,8 +2,8 @@
 
 ## Aktuálně
 - **Změna zadání (2026-11-22):** aplikace se přepisuje do Swiftu (SwiftUI + AppKit, URLSession, macOS 15+). Plán revize 3 v `docs/PLAN.md`, Go/Wails stav v tagu `go-wails-f4` (lokální, nepushnutý).
-- **Fáze:** F2, krok 3 hotový (adde3ac).
-- **Další krok:** F2, krok 4 – `Watch/ProjectWatcher` v jádře (PLAN 8.2 a 11.1: `FSEventStreamCreate` s `FileEvents | IgnoreSelf | NoDefer`, latence 0,3 s, jeden stream na projekt, `add(id, root)`/`remove(id)`, ignorovat `.git`, `.responses`, `.tmp-*`, callback `onChange(projectID, [rel]?)`, stav za zámkem, dispatch queue) + test (zápis souboru → callback do ~1 s; vlastní zápis s `IgnoreSelf` – v testu stejný proces, proto ověřit jen cizím zápisem přes `Process`/`/bin/sh` nebo IgnoreSelf vypnout parametrem). App: `ProjectsStore` přidává/odebírá projekty ve watcheru (restore, create, open, close), změna aktivního projektu → `TreeStore.reload()` – **během inline editace reload odložit** (viz pozn. F2/2), změna `minorrest.yaml` → `reloadConfig()` + obnova `list` (název projektu). Hotovo F2 = změna ve Finderu se do 1 s projeví (ověřit `touch`/`mv` ve scratch projektu a snímkem).
+- **Fáze:** F2 hotová (krok 4: 7cb9a00).
+- **Další krok:** F3, krok 1 – `TabsStore` (otevřít – dvojklik/Enter ve stromu, zavřít, dirty, obnovení z `workspace.tabs/activeTab`, sledování přejmenování/přesunu – identita podle ID requestu, ne `rel`), TabBar, načtení/uložení (`Project.loadRequest/saveRequest`, ⌘S), `MethodPicker`, `VarField` (jen syntaktické zvýraznění `{{…}}`), URL bar ↔ query. Nový request ze stromu se otevře v tabu (PLAN 8.2). Reference chování: Go F3 níže a `git show go-wails-f4:frontend/src/…`.
 - **Prostředí:** Xcode 27.2, Swift 6.4.2, XcodeGen 2.48.0 (Homebrew), Yams 6.2.2. Příkazy `make gen|build|run|test|clean`.
 
 ### Co existuje (Swift)
@@ -47,6 +47,11 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 
 - F2/3: jádro `TreeNode+Ops` (`filtered`, `moveIndex`, `find`, `parent(of:)`, `fold`) + testy (31 celkem). `TreeSidebar` – pole hledání (`TextField`, Esc vymaže / prázdné vrátí fokus do stromu, ↓/Enter fokus do stromu přes `TreeStore.focusTree()` → `focusRequest`), překryv `tree.noMatches`. Během filtru je strom celý rozbalený, rozbalení se do workspace nezapisuje a DnD je vypnutý; vytvoření uzlu filtr zruší. DnD přes pasteboard typ `com.github.novami.minorrest.tree-rel`: návrh `NSOutlineView` se přemapuje (request na složku = dovnitř, request na request = za něj, složka na request = do jeho složky, složky jen mezi složky / requesty mezi requesty, složka ne do sebe, stejné místo = zakázáno); rozbalení při podržení dělá `NSOutlineView` sám. `TreeStore.move` přepíše rozbalené cesty a výběr.
 - Ověřeno dočasným háčkem a snímky: přesun složky do jiné složky (přepis `expanded`), přesun requestu, filtr „smaz“ (shoda s nadřazenou složkou), prázdný výsledek. **Neověřeno** skutečné tažení myší (indikátor, automatické rozbalení), klávesy v poli hledání.
+
+- F2/4: jádro `Watch/ProjectWatcher` (FSEvents `FileEvents | NoDefer | UseCFTypes` + `IgnoreSelf` volitelně, latence 0,3 s, stream na projekt na vlastní sériové frontě, kořen přes `realPath`, skryté segmenty ignoruje, příznaky MustScanSubDirs/Dropped/RootChanged → `nil` = načíst vše) + testy (relativní cesty, cizí zápis hlášen, vlastní s `IgnoreSelf` ne; 34 testů). `ProjectsStore` sleduje projekty ze `sync` (jen dosud nesledované), `close` stream zastaví; změna `minorrest.yaml` (nebo `nil`) → `reloadConfig()` + `list`; pak `onDiskChange` → `TreeStore.diskChanged` (jen aktivní projekt; při inline editaci `editing` z koordinátoru reload odloží na konec editace).
+- `DebugTools`: `--snapshot-delay <s>`.
+- Ověřeno snímkem (scratch projekt, změny 3 s po startu z shellu): nový request ve složce, změna `name` v souboru, přejmenování projektu v `minorrest.yaml` → projeví se, rozbalení zůstává. **Neověřeno:** odložení reloadu během editace (chybí klikání), tažení myší během reloadu (reload může zrušit rozběhnutý drag – zatím neřešeno). Smazání adresáře projektu zvenku → toast chyby při každé změně, projekt se nezavře (`WatchRoot` nepoužit).
+- Změny `_folder.yaml` a prostředí zatím jen reloadují strom; reload konfigurace složek/prostředí a tabů (banner „Změněno na disku“) přijde v F3/4 a F6.
 
 ### Co existuje (F0)
 - `main.go` (okno 1280×800, HiddenInset titlebar, About), `menu.go` (nativní menu cs/en dle systému, položky emitují `menu:<akce>`), `app.go` (`SetDirty`, `GetVersion`, potvrzení zavření při neuložených změnách).
