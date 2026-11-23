@@ -29,6 +29,15 @@ enum DebugTools {
         #endif
     }
 
+    /// Výchozí záložka sidebaru (`--sidebar-tab history`), v Release vždy 0.
+    static var initialSidebarTab: Int {
+        #if DEBUG
+        value("--sidebar-tab") == "history" ? 1 : 0
+        #else
+        0
+        #endif
+    }
+
     private static func value(_ flag: String) -> String? {
         let args = ProcessInfo.processInfo.arguments
         return args.firstIndex(of: flag).flatMap { args.indices.contains($0 + 1) ? args[$0 + 1] : nil }
@@ -62,6 +71,25 @@ extension DebugTools {
                 }
                 if let expr = value("--response-filter"), let tab = model.tabs.active {
                     model.runs.filters[tab.id] = expr
+                }
+                if let section = value("--response-section").flatMap(ResponseSection.init) {
+                    model.tabs.edit { $0.responseSection = section }
+                }
+            }
+        }
+        if args.contains("--debug-sequence") {
+            // Odešle všechny otevřené taby popořadě; `--debug-save N` pak uloží N verzí odpovědi posledního tabu.
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                for tab in model.tabs.list {
+                    model.tabs.activate(tab.id)
+                    model.send()
+                    try? await Task.sleep(for: .seconds(1.5))
+                }
+                if let n = value("--debug-save").flatMap(Int.init), let tab = model.tabs.active {
+                    for _ in 0..<n {
+                        await model.runs.saveResponse(tab.id, projectID: tab.projectID, requestID: tab.draft.id)
+                    }
                 }
                 if let section = value("--response-section").flatMap(ResponseSection.init) {
                     model.tabs.edit { $0.responseSection = section }

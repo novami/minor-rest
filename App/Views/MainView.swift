@@ -5,7 +5,7 @@ import SwiftUI
 struct MainView: View {
     @Environment(AppModel.self) private var model
     @State private var scale: CGFloat = 2
-    @State private var sidebarTab = 0
+    @State private var sidebarTab = DebugTools.initialSidebarTab
 
     var body: some View {
         @Bindable var model = model

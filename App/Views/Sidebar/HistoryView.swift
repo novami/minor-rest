@@ -47,7 +47,7 @@ struct HistoryView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(i.method).font(fonts.small.weight(.semibold)).foregroundStyle(methodColor(i.method))
-                    Text(i.requestName.isEmpty ? i.url : i.requestName).lineLimit(1)
+                    Text(i.requestName.isEmpty ? i.url : i.requestName).font(fonts.ui).lineLimit(1)
                     Spacer()
                     Text(i.error.isEmpty ? String(i.status) : "✕")
                         .font(fonts.small).foregroundStyle(i.error.isEmpty ? Color.secondary : Color.red)
@@ -55,6 +55,7 @@ struct HistoryView: View {
                 Text(i.url).font(fonts.small).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                 Text(VersionsView.time(i.savedAt)).font(fonts.small).foregroundStyle(.tertiary)
             }
+            .padding(.vertical, 3).padding(.horizontal, 4)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
