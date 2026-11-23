@@ -12,8 +12,14 @@ struct RequestTab: Identifiable, Equatable {
     var saved: Request
     /// Vlastní text URL baru (např. rozepsané `?`), dokud odpovídá `draft`.
     var urlText: String?
+    /// Poslední záložka editoru (jen v paměti).
+    var section: RequestSection = .params
 
     var dirty: Bool { draft != saved }
+}
+
+enum RequestSection: String, CaseIterable {
+    case params, body, headers
 }
 
 /// Taby per projekt; seznam a aktivní tab se ukládají do workspace.

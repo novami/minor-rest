@@ -11,6 +11,8 @@ struct VarField: NSViewRepresentable {
     /// Zvýšení = vzít fokus.
     var focusRequest = 0
     var onSubmit: (() -> Void)?
+    /// Našeptávač: návrhy k celému textu pole (nabízí se při psaní).
+    var completions: ((String) -> [String])?
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -61,13 +63,35 @@ struct VarField: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: VarField
         var focusRequest = 0
+        private var completing = false
+        private var lastLength = 0
 
         init(_ parent: VarField) { self.parent = parent }
 
+        func controlTextDidBeginEditing(_ notification: Notification) {
+            lastLength = (notification.object as? NSTextField)?.stringValue.utf16.count ?? 0
+        }
+
         func controlTextDidChange(_ notification: Notification) {
             guard let field = notification.object as? NSTextField else { return }
-            if let editor = field.currentEditor() as? NSTextView { Highlighter.apply(editor) }
+            let editor = field.currentEditor() as? NSTextView
+            if let editor { Highlighter.apply(editor) }
             if parent.text != field.stringValue { parent.text = field.stringValue }
+            // návrhy jen při přidání textu (ne při mazání) a ne během vložení vybraného návrhu
+            let length = field.stringValue.utf16.count
+            defer { lastLength = length }
+            guard let completions = parent.completions, !completing, length > lastLength, let editor,
+                  !((editor as? VarFieldEditor)?.insertingCompletion ?? false),
+                  !completions(editor.string).isEmpty else { return }   // bez návrhů by complete() pípnul
+            completing = true
+            editor.complete(nil)
+            completing = false
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, completions words: [String],
+                     forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String] {
+            index.pointee = -1   // nic nevkládat, dokud uživatel návrh nevybere
+            return parent.completions?(textView.string) ?? []
         }
 
         func controlTextDidEndEditing(_ notification: Notification) {
@@ -104,7 +128,7 @@ final class VarFieldCell: NSTextFieldCell {
 
     override func fieldEditor(for controlView: NSView) -> NSTextView? {
         if let editor { return editor }
-        let tv = NSTextView(usingTextLayoutManager: false)
+        let tv = VarFieldEditor(usingTextLayoutManager: false)
         tv.isFieldEditor = true
         tv.isRichText = false
         tv.importsGraphics = false
@@ -120,6 +144,21 @@ final class VarFieldCell: NSTextFieldCell {
         tv.smartInsertDeleteEnabled = false
         editor = tv
         return tv
+    }
+}
+
+/// Field editor: návrh nahrazuje celý text pole (názvy hlaviček obsahují `-`).
+final class VarFieldEditor: NSTextView {
+    override var rangeForUserCompletion: NSRange { NSRange(location: 0, length: (string as NSString).length) }
+
+    /// Vkládá se návrh z nabídky (šipky, Enter) – nespouštět nové našeptávání.
+    private(set) var insertingCompletion = false
+
+    override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange,
+                                   movement: Int, isFinal flag: Bool) {
+        insertingCompletion = true
+        defer { insertingCompletion = false }
+        super.insertCompletion(word, forPartialWordRange: charRange, movement: movement, isFinal: flag)
     }
 }
 

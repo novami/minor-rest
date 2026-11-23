@@ -36,3 +36,36 @@ func urlBarParse(text: String, query: [KV], url: String, expected: String) {
     #expect((s as NSString).substring(with: toks[0].range) == "{{base}}")
     #expect((s as NSString).substring(with: toks[1].range) == "{{ $uuid }}")
 }
+
+@Test func bulkRoundTrip() {
+    let rows = [KV(name: "Accept", value: "*/*", description: "typ"), KV(name: "X-A", value: "a: b", enabled: false),
+                KV(name: "wsdl", bare: true)]
+    let text = KVBulk.text(rows)
+    #expect(text == "Accept: */*\n//X-A: a: b\nwsdl")
+    #expect(KVBulk.parse(text, prev: rows, allowBare: true) == rows)
+    // bez allowBare je řádek bez `:` obyčejný s prázdnou hodnotou; prázdné řádky se vynechají
+    #expect(KVBulk.parse("\n  wsdl \n\n// x:1", prev: []) == [KV(name: "wsdl"), KV(name: "x", value: "1", enabled: false)])
+}
+
+@Test(arguments: [
+    ("{{base}}/users/:id/posts/:post_id?x=:no", ["id", "post_id"]),
+    ("http://localhost:8080/a/:id/:id", ["id"]),
+    ("localhost:8080", []),
+    ("http://x/:", []),
+])
+func pathParamNames(url: String, names: [String]) {
+    #expect(PathParams.names(url) == names)
+}
+
+@Test func pathParamSyncKeepsValues() {
+    let path = [PathParam(name: "id", value: "1", description: "d")]
+    #expect(PathParams.sync("http://x/:id", path) == nil)
+    #expect(PathParams.sync("http://x/:v/:id", path) == [PathParam(name: "v"), path[0]])
+    #expect(PathParams.sync("http://x/", path) == [])
+}
+
+@Test func headerHints() {
+    #expect(HeaderHints.values(for: " content-type ").first == "application/json")
+    #expect(HeaderHints.complete("acc", in: HeaderHints.names) == ["Accept", "Accept-Charset", "Accept-Encoding", "Accept-Language"])
+    #expect(HeaderHints.complete("Accept", in: HeaderHints.names).count == 3)
+}

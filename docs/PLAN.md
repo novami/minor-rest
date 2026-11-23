@@ -488,6 +488,9 @@ extension TreeNode { static parent(of:), find(_ rel:), static fold(_:), filtered
 extension TreeNode { findRequest(id:) -> TreeNode? }               // taby podle ID (F3/1)
 enum URLBar { static compose(url:query:) -> String; static parse(_ text:, query:) -> (url, query) }   // F3/1
 struct VarToken { range: NSRange (UTF-16), name, kind: .variable | .dynamic; static scan(_:) -> [VarToken] }  // zvýraznění
+enum KVBulk { static text(_ rows: [KV]) -> String; static parse(_ text:, prev: [KV], allowBare: Bool) -> [KV] }   // F3/2
+enum PathParams { static names(_ url:) -> [String]; static sync(_ url:, _ path: [PathParam]) -> [PathParam]? }
+enum HeaderHints { static names; static values(for:) -> [String]; static complete(_ prefix:, in:) -> [String] }
 
 // JSON (F1/F3)
 enum JSONFormatter { static func format(_ text: String) throws -> String; static func validate(_:) -> CoreError? }
