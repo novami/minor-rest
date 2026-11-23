@@ -657,7 +657,7 @@ Testy: hlavní cesta + nejdůležitější edge case, parametrizované `@Test(ar
 1. ~~Sparkle~~ → vlastní updater (kap. 10): jádro + UI hotové, zbývá reálný cyklus proti release.
 2. UI (menu „Zkontrolovat aktualizace…“, sekce v Nastavení).
 3. `scripts/release.sh`, README (instalace, první spuštění, build ze zdrojů).
-**Vyžaduje uživatele:** vygenerovat klíč (`swift scripts/sign-update.swift --gen`), privátní do GitHub Secret `UPDATE_SIGNING_KEY`, veřejný do `project.yml` (`MRUpdatePublicKey`); schválit push a tag. **Hotovo:** lokální build s nižší verzí najde release, ověří, nainstaluje a restartuje se.
+**Vyžaduje uživatele:** zjistit veřejný klíč MinorUpdate (`swift scripts/minorupdate.swift keygen`) a vložit do `project.yml` (`MRUpdatePublicKey`); schválit push a tag. **Hotovo:** lokální build s nižší verzí najde release, ověří, nainstaluje a restartuje se.
 
 ### F13 – Dotažení
 Command palette (Cmd+K: requesty napříč projekty + akce), prázdné stavy, ukázkový projekt při prvním spuštění, a11y (VoiceOver popisky, fokus), výkon stromu nad 500 položek, QA checklist.
