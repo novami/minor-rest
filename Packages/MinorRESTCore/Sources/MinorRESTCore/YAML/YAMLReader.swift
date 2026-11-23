@@ -75,6 +75,12 @@ public struct YAMLObject {
         return i
     }
 
+    public func double(_ key: String) throws -> Double {
+        guard let v = try value(key) else { return 0 }
+        guard let d = v.float else { throw invalid(keyPath(key), "expected number") }
+        return d
+    }
+
     public func bool(_ key: String, default fallback: Bool = false) throws -> Bool {
         try optionalBool(key) ?? fallback
     }

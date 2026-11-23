@@ -80,16 +80,28 @@ public struct SentRequest: Sendable, Equatable {
     public init() {}
 }
 
-public struct Cookie: Sendable, Equatable {
+/// Cookie z `Set-Cookie`; `domain` s tečkou na začátku = i subdomény, bez ní jen daný host.
+public struct Cookie: Codable, Sendable, Equatable {
     public var name: String
     public var value: String
     public var domain: String
     public var path: String
-    public init(name: String, value: String, domain: String = "", path: String = "") {
+    /// RFC 3339; prázdné = do konce relace (v jaru zůstává do smazání).
+    public var expires: String
+    public var secure: Bool
+    public var httpOnly: Bool
+    public var sameSite: String
+
+    public init(name: String, value: String, domain: String = "", path: String = "/", expires: String = "",
+                secure: Bool = false, httpOnly: Bool = false, sameSite: String = "") {
         self.name = name
         self.value = value
         self.domain = domain
         self.path = path
+        self.expires = expires
+        self.secure = secure
+        self.httpOnly = httpOnly
+        self.sameSite = sameSite
     }
 }
 
@@ -132,20 +144,46 @@ extension HTTPEngine {
         public var verifyTLS = true
         public var userAgent = ""
         public var maxBodyBytes: Int64 = 100 << 20
+        /// Použít cookie jar předaný do `send` (posílat i ukládat cookies).
+        public var cookieJar = true
+        public var proxy = Proxy.system
 
         public init(followRedirects: Bool = true, maxRedirects: Int = 10, timeoutMs: Int = 30_000,
-                    verifyTLS: Bool = true, userAgent: String = "") {
+                    verifyTLS: Bool = true, userAgent: String = "", cookieJar: Bool = true, proxy: Proxy = .system) {
             self.followRedirects = followRedirects
             self.maxRedirects = maxRedirects
             self.timeoutMs = timeoutMs
             self.verifyTLS = verifyTLS
             self.userAgent = userAgent
+            self.cookieJar = cookieJar
+            self.proxy = proxy
         }
 
         /// Z nastavení složeného přes `over(.builtin)` (chybějící položky = výchozí hodnoty).
         public init(_ s: HTTPSettings, userAgent: String) {
             self.init(followRedirects: s.followRedirects ?? true, maxRedirects: s.maxRedirects ?? 10,
-                      timeoutMs: s.timeoutMs ?? 30_000, verifyTLS: s.verifyTLS ?? true, userAgent: userAgent)
+                      timeoutMs: s.timeoutMs ?? 30_000, verifyTLS: s.verifyTLS ?? true, userAgent: userAgent,
+                      cookieJar: s.cookieJar ?? true)
+        }
+    }
+
+    /// Proxy odeslání (globální nastavení, kap. 9).
+    public enum Proxy: Sendable, Equatable {
+        /// Systémové nastavení včetně PAC.
+        case system
+        case none
+        /// HTTP proxy pro http i https (CONNECT).
+        case manual(host: String, port: Int)
+
+        /// `connectionProxyDictionary`; nil = systémové.
+        var dictionary: [AnyHashable: Any]? {
+            switch self {
+            case .system: return nil
+            case .none: return [:]
+            case .manual(let host, let port):
+                return [kCFNetworkProxiesHTTPEnable: 1, kCFNetworkProxiesHTTPProxy: host, kCFNetworkProxiesHTTPPort: port,
+                        kCFNetworkProxiesHTTPSEnable: 1, kCFNetworkProxiesHTTPSProxy: host, kCFNetworkProxiesHTTPSPort: port]
+            }
         }
     }
 }

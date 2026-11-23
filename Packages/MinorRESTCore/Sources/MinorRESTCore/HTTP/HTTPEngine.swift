@@ -36,14 +36,18 @@ public actor HTTPEngine {
     }
 
     /// Odešle request; chyby jsou v `RunResult.error` (s částečným výsledkem).
-    public func send(runID: String, _ r: PreparedRequest, _ o: Options) async -> RunResult {
+    /// `jar` se použije jen při `o.cookieJar` (doplní `Cookie`, uloží `Set-Cookie` i ze skoků redirectu; na disk ne).
+    public func send(runID: String, _ r: PreparedRequest, _ o: Options, jar: CookieJar? = nil) async -> RunResult {
         var res = RunResult(runID: runID)
-        let req: URLRequest, payload: Payload
+        var req: URLRequest, payload: Payload
         do { (req, payload) = try Self.makeRequest(r, o) } catch { res.error = error; return res }
         res.sent.bodySize = payload.size
         res.sent.bodyPreview = payload.preview
+        let jar = o.cookieJar ? jar : nil
+        let userCookie = req.value(forHTTPHeaderField: "Cookie")
+        if let jar, let u = req.url { req.setValue(Self.cookieHeader(userCookie, jar.header(for: u)), forHTTPHeaderField: "Cookie") }
 
-        let d = RunDelegate(options: o, payload: payload)
+        let d = RunDelegate(options: o, payload: payload, jar: jar, userCookie: userCookie)
         runs[runID] = d
         defer { if runs[runID] === d { runs[runID] = nil } }
         let timeout: Task<Void, Never>? = o.timeoutMs > 0 ? Task { [d] in
@@ -78,6 +82,7 @@ public actor HTTPEngine {
         res.proto = out.proto
         res.tls = out.tls
         res.headers = out.headers
+        res.cookies = out.cookies
         res.truncated = out.truncated
 
         let ct = out.headers.first { $0.name.lowercased() == "content-type" }?.value ?? ""
@@ -114,6 +119,11 @@ public actor HTTPEngine {
         try stored(runID).body.read()
     }
 
+    /// Začátek surového těla (historie, uložení odpovědi).
+    public func rawBody(runID: String, limit: Int) throws(CoreError) -> Data {
+        try stored(runID).body.read(limit: limit)
+    }
+
     func stored(_ runID: String) throws(CoreError) -> Stored {
         guard let s = results[runID] else { throw CoreError(.runNotFound, runID) }
         return s
@@ -130,6 +140,12 @@ public actor HTTPEngine {
     }
 
     // MARK: - Sestavení URLRequest
+
+    /// Uživatelská hlavička `Cookie` + cookies z jaru; nil = žádná.
+    static func cookieHeader(_ user: String?, _ jar: String) -> String? {
+        let parts = [user ?? "", jar].filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: "; ")
+    }
 
     private static let tokenChars = Set("!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
@@ -199,6 +215,8 @@ struct RunOutcome: Sendable {
     var status = 0
     var proto = ""
     var headers: [KV] = []
+    /// Přijaté cookies celého běhu (i ze skoků redirectu).
+    var cookies: [Cookie] = []
     var body = ResponseBody.data(Data())
     var truncated = false
     var redirects: [Redirect] = []
@@ -219,6 +237,9 @@ final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
         var cause: CoreError?
         var sink: BodySink
         var redirects: [Redirect] = []
+        var cookies: [Cookie] = []
+        /// `Authorization` původního requestu a jeho host (URLSession ji při redirectu zahodí vždy).
+        var authorization: (host: String, value: String)?
         var proto = ""
         var metrics = RunOutcome()
         /// Leaf certifikát podle hostu (subjekt, vydavatel, expirace).
@@ -228,10 +249,14 @@ final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private let state: Mutex<State>
     private let options: HTTPEngine.Options
     private let payload: Payload
+    private let jar: CookieJar?
+    private let userCookie: String?
 
-    init(options: HTTPEngine.Options, payload: Payload) {
+    init(options: HTTPEngine.Options, payload: Payload, jar: CookieJar? = nil, userCookie: String? = nil) {
         self.options = options
         self.payload = payload
+        self.jar = jar
+        self.userCookie = userCookie
         state = Mutex(State(sink: BodySink(max: options.maxBodyBytes)))
     }
 
@@ -245,9 +270,13 @@ final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
             // Celkový limit hlídá engine; tohle je jen limit nečinnosti.
             cfg.timeoutIntervalForRequest = options.timeoutMs > 0 ? Double(options.timeoutMs) / 1000 + 5 : 7 * 86400
             cfg.timeoutIntervalForResource = 7 * 86400
+            if let p = options.proxy.dictionary { cfg.connectionProxyDictionary = p }
             let session = URLSession(configuration: cfg, delegate: self, delegateQueue: nil)
             let task = session.dataTask(with: req)
             let canceled = state.withLock { s in
+                if let v = req.value(forHTTPHeaderField: "Authorization"), let h = req.url?.host()?.lowercased() {
+                    s.authorization = (h, v)
+                }
                 s.continuation = c
                 s.task = task
                 return s.cause != nil
@@ -283,8 +312,23 @@ final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
         }
     }
 
+    /// Cookies z odpovědi: do výsledku běhu a do jaru.
+    private func receiveCookies(_ r: HTTPURLResponse) {
+        guard let v = r.value(forHTTPHeaderField: "Set-Cookie"), let u = r.url else { return }
+        let got = SetCookie.parse(SetCookie.split(v), for: u)
+        guard !got.isEmpty else { return }
+        jar?.store(got)
+        state.withLock { s in
+            for c in got {
+                s.cookies.removeAll { $0.name == c.name && $0.domain == c.domain && $0.path == c.path }
+                s.cookies.append(c)
+            }
+        }
+    }
+
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
+        receiveCookies(response)
         guard options.followRedirects else { return completionHandler(nil) }
         let prev = task.currentRequest
         let hop = Redirect(status: response.statusCode, method: prev?.httpMethod ?? "",
@@ -299,7 +343,10 @@ final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
             return completionHandler(nil)
         }
         var next = request
-        if prev?.url?.host() != request.url?.host() { next.setValue(nil, forHTTPHeaderField: "Authorization") }
+        // Jen na původní host (při změně hostu se neposílá).
+        let auth = state.withLock { $0.authorization }
+        next.setValue(auth.flatMap { $0.host == request.url?.host()?.lowercased() ? $0.value : nil }, forHTTPHeaderField: "Authorization")
+        if let jar, let u = request.url { next.setValue(HTTPEngine.cookieHeader(userCookie, jar.header(for: u)), forHTTPHeaderField: "Cookie") }
         completionHandler(next)
     }
 
@@ -355,10 +402,12 @@ final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
         session.finishTasksAndInvalidate()
+        if let r = task.response as? HTTPURLResponse { receiveCookies(r) }
         let sent = task.currentRequest
         let c = state.withLock { s -> (CheckedContinuation<RunOutcome, Never>?, RunOutcome) in
             var out = s.metrics
             out.redirects = s.redirects
+            out.cookies = s.cookies
             out.proto = HTTPStatus.proto(s.proto)
             if let cause = s.cause {
                 out.error = cause
@@ -392,8 +441,11 @@ final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecked Sendable {
         c.0?.resume(returning: out)
     }
 
+    /// Řádky seřazené podle názvu; sloučené `Set-Cookie` rozdělí na samostatné řádky.
     static func rows(_ h: [String: String]) -> [KV] {
-        h.sorted { $0.key.lowercased() < $1.key.lowercased() }.map { KV(name: $0.key, value: $0.value) }
+        h.sorted { $0.key.lowercased() < $1.key.lowercased() }.flatMap { k, v in
+            k.lowercased() == "set-cookie" ? SetCookie.split(v).map { KV(name: k, value: $0) } : [KV(name: k, value: v)]
+        }
     }
 
     /// Hlavičky z `currentRequest` (bez prázdných – ty se neodešlou) + odvozené `Host`, `Connection`, `Cache-Control`.

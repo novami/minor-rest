@@ -279,7 +279,7 @@ Vstup `PreparedRequest{method, url, headers [KV] (pořadí), body, baseDir, noAu
 - **Nová `URLSession` pro každé odeslání** (`URLSessionConfiguration.ephemeral`, vlastní delegát, `urlCache = nil`, `httpCookieStorage = nil`, `httpShouldSetCookies = false`, `requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData`) → žádné sdílení spojení mezi běhy, kompletní časování; po dokončení `finishTasksAndInvalidate()`.
 - **HTTP verze:** vyjedná URLSession (ALPN: HTTP/1.1 / HTTP/2 / případně HTTP/3). Skutečná verze z `URLSessionTaskTransactionMetrics.networkProtocolName` (`http/1.1`, `h2`, `h3`) → `proto` `HTTP/1.1` / `HTTP/2` / `HTTP/3`.
 - **TLS:** ověřování vypnuté (`verifyTLS = false`) → v `urlSession(_:didReceive:completionHandler:)` pro `NSURLAuthenticationMethodServerTrust` vrátit `URLCredential(trust:)`. Info z metrik (`negotiatedTLSProtocolVersion`, `negotiatedTLSCipherSuite`) + z `SecTrust` leaf certifikátu (subjekt, vydavatel, expirace přes `SecCertificateCopyValues`), SNI = host.
-- **Redirecty:** `urlSession(_:task:willPerformHTTPRedirection:newRequest:)` – při `followRedirects = false` vrátit `nil` (odpovědí je 3xx); jinak limit `maxRedirects` (překročení → zrušit s `REDIRECT_LIMIT`). Každý skok `{status, method, url, location}`. Nový request po 307/308 zachová metodu a tělo, po 301–303 URLSession přepne na GET (zaznamenat). Uživatelské hlavičky přenést do nového requestu (kromě `Authorization` při změně hostu); cookie jar doplní cookies pro nový host.
+- **Redirecty:** `urlSession(_:task:willPerformHTTPRedirection:newRequest:)` – při `followRedirects = false` vrátit `nil` (odpovědí je 3xx); jinak limit `maxRedirects` (překročení → zrušit s `REDIRECT_LIMIT`). Každý skok `{status, method, url, location}`. Nový request po 307/308 zachová metodu a tělo, po 301–303 URLSession přepne na GET (zaznamenat). Uživatelské hlavičky přenést do nového requestu (kromě `Authorization` při změně hostu – URLSession ji při redirectu zahodí vždy, engine ji vrací jen pro původní host, ověřeno v F4/4); cookie jar doplní cookies pro nový host.
 - **Timing:** `urlSession(_:task:didFinishCollecting:)` → `transactionMetrics` (jedna transakce na skok); do `timing` jde **poslední skok**: `dnsMs` (domainLookupStart→End), `connectMs` (connectStart→End bez TLS), `tlsMs` (secureConnectionStart→End), `ttfbMs` (requestEnd→responseStart), `downloadMs` (responseStart→responseEnd), `totalMs` = `taskInterval` (+ čtení těla); `reused` = `isReusedConnection`.
 - **IP adresy:** `remoteAddress`/`remotePort`, `localAddress`/`localPort` posledního skoku. `resolvedAddrs` (všechny adresy z DNS) URLSession nedává → vypuštěno.
 - **Odeslané hlavičky:** `task.currentRequest?.allHTTPHeaderFields` + hlavičky, které doplní systém a lze je odvodit (`Host`, `Connection: keep-alive` u HTTP/1.1, `Cache-Control: no-cache` kvůli politice cache; `Content-Length`, `Accept-Encoding`, `Accept-Language` už v `currentRequest` jsou – ověřeno v F4/2 proti echo serveru). Pořadí odeslání ani HTTP/2 pseudo-hlavičky nejsou dostupné → záložka „Odesláno“ to uvádí poznámkou. Velikosti hlaviček z metrik (`countOfRequestHeaderBytesSent`).
@@ -291,7 +291,7 @@ Vstup `PreparedRequest{method, url, headers [KV] (pořadí), body, baseDir, noAu
 - **Tělo requestu:** JSON/XML/text/HTML jako UTF-8, `Content-Type` s `; charset=utf-8` (jen pokud ho doplňujeme). Form-urlencoded: vlastní encoder se zachováním pořadí (plné kódování). Multipart: vlastní builder (boundary, `filename="…"` v UTF-8, `Content-Type` části z přípony přes `UTType`), soubory streamem (`httpBodyStream` / `uploadTask(fromFile:)` pro binary). Uživatelský `multipart/…` Content-Type bez boundary → boundary doplnit. Relativní cesty vůči `baseDir`. Chybějící soubor → `FILE_NOT_FOUND`. GET/HEAD s tělem: ověřit chování URLSession v F4/1 (případně chyba `BODY_NOT_ALLOWED`).
 - **Zrušení/timeout:** celkový timeout přes vlastní `Task` s limitem (ne `timeoutIntervalForRequest`, ten je jen na nečinnost) → `task.cancel()` s příčinou; `cancel(runID)` → `CANCELED`, vypršení → `NET_TIMEOUT`. Při chybě vrátit i částečný výsledek (odeslané, timing, redirecty).
 - **Mapování chyb (`URLError.Code`):** `.cannotFindHost`, `.dnsLookupFailed` → `NET_DNS`; `.cannotConnectToHost` → `NET_REFUSED`; `.timedOut` → `NET_TIMEOUT`; `.serverCertificate*`, `.clientCertificate*` → `TLS_VERIFY`; `.secureConnectionFailed` → `TLS_ERROR`; `.cancelled` → `CANCELED` (dle příčiny); `.httpTooManyRedirects` → `REDIRECT_LIMIT`; `.badURL`, `.unsupportedURL` → `URL_INVALID`; jinak `NET_ERROR` (+ `localizedDescription` jako detail).
-- **Cookies:** vlastní jar per projekt (`[HTTPCookie]` + `HTTPCookie.cookies(withResponseHeaderFields:for:)` / `requestHeaderFields(with:)`), uplatnit i na skoky redirectu, perzistence `cookies/<projectId>.json` po každém odeslání; vypnutelné (`cookieJar`).
+- **Cookies:** vlastní jar per projekt (`[Cookie]`, parsování přes `HTTPCookie.cookies(withResponseHeaderFields:for:)` po jednotlivých `Set-Cookie`, párování domény/cesty/Secure/expirace vlastní dle RFC 6265 – `HTTPCookie` přijme i cizí `Domain`), uplatnit i na skoky redirectu, perzistence `cookies/<projectId>.json` (JSON pole `Cookie`, i relační cookies) po každém odeslání; vypnutelné (`cookieJar`). Uživatelská hlavička `Cookie` se odešle a cookies z jaru se připojí za ni. Sloučené `Set-Cookie` z `allHeaderFields` se dělí na čárce před `název=` (čárka v `Expires` zůstane) → samostatné řádky v `headers`.
 - **Proxy:** `system` (výchozí – URLSession použije systémové nastavení **včetně PAC**), `none` (`connectionProxyDictionary = [:]`), `manual` (HTTP/HTTPS proxy host:port).
 
 ### 4.1 Omezení URLSession oproti rev. 2 (schváleno volbou URLSession)
@@ -501,17 +501,21 @@ enum JSONFormatter { static func format(_ text: String) throws -> String; static
 
 // Odeslání (F4, F5)
 actor HTTPEngine {                                                                  // Options = HTTPEngine.Options (init z HTTPSettings + userAgent)
-  func send(runID: String, _ r: PreparedRequest, _ o: Options) async -> RunResult   // chyby v RunResult.error
+  func send(runID: String, _ r: PreparedRequest, _ o: Options, jar: CookieJar? = nil) async -> RunResult   // chyby v RunResult.error; jar jen při o.cookieJar
+  func rawBody(runID: String, limit: Int) throws -> Data                            // začátek surového těla (historie)
   func cancel(runID: String)
   func body(runID: String, pretty: Bool) throws -> BodyView                         // RUN_NOT_FOUND
   func filter(runID: String, jsonPath: String) throws -> String
   func saveBody(runID: String, to: URL) throws
   func close()                                                                      // smaže výsledky a temp soubory (ukončení aplikace)
 }
-enum Prepare { static func prepare(_ in: PrepareInput) async throws -> Prepared }   // {request, options, unresolved, authSource}
+enum Prepare { static func prepare(_ in: PrepareInput) async throws -> Prepared }   // {request, options, unresolved, authSource, secrets}
   // PrepareInput{request, project: ProjectConfig, folders: [PrepareFolder{rel, config}] (od kořene), runtime, environment, globals, defaults = .builtin, baseDir, userAgent}
 extension Project { func folderChain(_ rel:) throws -> [PrepareFolder] }        // chybějící _folder.yaml = prázdná konfigurace
-struct History { list() -> [HistoryItem]; entry(id) throws -> SavedResponse; clear() throws }
+// Options: + cookieJar: Bool, proxy: Proxy (.system | .none | .manual(host:port:)) – proxy z globálního nastavení (F11)
+final class CookieJar: Sendable { init(file: URL?); static file(projectID:in:); cookies; header(for: URL) -> String; store([Cookie]); clear(); save() throws }  // save jen při změně
+struct History { init(dir:limit: = 200); add(_ e: SavedResponse, body: Data?) throws -> HistoryItem; list() -> [HistoryItem]; entry(id) throws -> SavedResponse; body(id) throws -> Data?; clear() throws }
+struct SavedResponse { init(_ r: RunResult, request: PreparedRequest, secrets: [String]) }   // formát 2.6 s maskováním; historie navíc id, projectId, requestId, requestName, error, errorDetail, truncated
 
 // Proměnné a prostředí (F6)
 Project: listEnvironments(), saveEnvironment(_:), deleteEnvironment(id:)

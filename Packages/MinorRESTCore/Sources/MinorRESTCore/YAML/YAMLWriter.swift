@@ -4,6 +4,7 @@ import Foundation
 public indirect enum YNode: Equatable, Sendable {
     case string(String)
     case int(Int)
+    case double(Double)
     case bool(Bool)
     case map([YEntry])
     case seq([YNode])
@@ -24,6 +25,7 @@ public struct YMap {
     /// Řetězce se zapisují v NFC.
     public mutating func add(_ key: String, _ value: String) { entries.append(YEntry(key: key, value: .string(value.nfc))) }
     public mutating func add(_ key: String, _ value: Int) { entries.append(YEntry(key: key, value: .int(value))) }
+    public mutating func add(_ key: String, _ value: Double) { entries.append(YEntry(key: key, value: .double(value))) }
     public mutating func add(_ key: String, _ value: Bool) { entries.append(YEntry(key: key, value: .bool(value))) }
     public mutating func add(_ key: String, _ node: YNode) { entries.append(YEntry(key: key, value: node)) }
 
@@ -94,6 +96,7 @@ enum YAMLWriter {
     private static func scalar(_ node: YNode, indent: Int) -> String {
         switch node {
         case .int(let v): return String(v)
+        case .double(let v): return v.isFinite ? String((v * 1000).rounded() / 1000) : "0"
         case .bool(let v): return v ? "true" : "false"
         case .map: return "{}"
         case .seq: return "[]"

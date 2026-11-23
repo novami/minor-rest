@@ -47,6 +47,8 @@ public struct Prepared: Sendable, Equatable {
     public var unresolved: [String]
     /// Odkud je auth (F7); zatím "".
     public var authSource: String
+    /// Hodnoty tajných proměnných (maskování historie a uložených odpovědí).
+    public var secrets: [String] = []
 }
 
 public enum Prepare {
@@ -57,7 +59,8 @@ public enum Prepare {
     /// stejný název bez ohledu na velikost písmen) a nastavení (request → projekt → výchozí).
     /// Auth zatím jen none. `async` kvůli OAuth (F7).
     public static func prepare(_ input: PrepareInput) async throws -> Prepared {
-        let r = Resolver(scopes: scopes(input))
+        let sc = scopes(input)
+        let r = Resolver(scopes: sc)
         let req = input.request
         let url = try URLBuilder.build(req.url, path: req.params.path, query: req.params.query, resolver: r)
 
@@ -73,7 +76,8 @@ public enum Prepare {
                                      url: url, headers: headers, body: body,
                                      baseDir: input.baseDir, noAuto: noAuto),
             options: HTTPEngine.Options(s, userAgent: input.userAgent),
-            unresolved: r.unresolved, authSource: "")
+            unresolved: r.unresolved, authSource: "",
+            secrets: sc.flatMap(\.vars).filter { $0.secret && !$0.value.isEmpty }.map(\.value))
     }
 
     static func scopes(_ i: PrepareInput) -> [VarScope] {

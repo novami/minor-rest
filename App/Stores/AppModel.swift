@@ -15,7 +15,7 @@ final class AppModel {
         projects = ProjectsStore(workspace: workspace, toasts: toasts)
         tree = TreeStore(workspace: workspace, projects: projects, toasts: toasts)
         tabs = TabsStore(workspace: workspace, projects: projects, toasts: toasts)
-        runs = RunStore(projects: projects)
+        runs = RunStore(projects: projects, toasts: toasts, appDir: workspace.directory)
         projects.onDiskChange = { [tree, tabs] id, rels in
             tree.diskChanged(id)
             Task { await tabs.changedOnDisk(id, rels) }
