@@ -3792,6 +3792,91 @@
         }
       }
     },
+    "curl.importOffer": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vložen příkaz cURL. Importovat ho do tohoto requestu?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A cURL command was pasted. Import it into this request?"
+          }
+        }
+      }
+    },
+    "curl.import": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importovat cURL"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import cURL"
+          }
+        }
+      }
+    },
+    "curl.keepText": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ponechat jako URL"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep as URL"
+          }
+        }
+      }
+    },
+    "curl.importWarnings": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import cURL: nepodporováno – {items}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cURL import: unsupported – {items}"
+          }
+        }
+      }
+    },
+    "errors.CURL_INVALID": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neplatný příkaz cURL"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid cURL command"
+          }
+        }
+      }
+    },
     "response.sent.note": {
       "extractionState": "manual",
       "localizations": {

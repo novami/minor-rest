@@ -11,6 +11,8 @@ struct RequestEditor: View {
     @AppStorage("curlMask") private var curlMask = false
     @State private var inherited: HTTPSettings?
     @State private var inheritedAuth: InheritedAuth?
+    /// Vložený příkaz cURL čekající na volbu (import / ponechat jako URL).
+    @State private var pendingCurl: String?
 
     var body: some View {
         let tabs = model.tabs
@@ -21,6 +23,18 @@ struct RequestEditor: View {
                     Spacer()
                     Button(t("request.loadFromDisk")) { tabs.reloadFromDisk(tab.id) }
                     Button(t("request.keepMine")) { tabs.keepMine(tab.id) }
+                }
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(Color.accentColor.opacity(0.15))
+                Divider()
+            }
+            if let curl = pendingCurl {
+                HStack {
+                    Text(t("curl.importOffer"))
+                    Spacer()
+                    Button(t("curl.import")) { importCurl(curl); pendingCurl = nil }
+                    Button(t("curl.keepText")) { applyURL(curl); pendingCurl = nil }
+                    Button(t("common.cancel")) { pendingCurl = nil }
                 }
                 .padding(.horizontal, 10).padding(.vertical, 6)
                 .background(Color.accentColor.opacity(0.15))
@@ -182,14 +196,41 @@ struct RequestEditor: View {
             let p = URLBar.parse(own, query: tab.draft.params.query)
             return URLBar.compose(url: p.url, query: p.query) == composed ? own : composed
         }, set: { text in
-            model.tabs.edit { t in
-                let p = URLBar.parse(text, query: t.draft.params.query)
-                t.urlText = text
-                t.draft.url = p.url
-                t.draft.params.query = p.query
-                if let path = PathParams.sync(p.url, t.draft.params.path) { t.draft.params.path = path }
-            }
+            if CurlImport.looksLikeCurl(text) { pendingCurl = text; return }
+            applyURL(text)
         })
+    }
+
+    private func applyURL(_ text: String) {
+        model.tabs.edit { t in
+            let p = URLBar.parse(text, query: t.draft.params.query)
+            t.urlText = text
+            t.draft.url = p.url
+            t.draft.params.query = p.query
+            if let path = PathParams.sync(p.url, t.draft.params.path) { t.draft.params.path = path }
+        }
+    }
+
+    /// Nahradí metodu, URL, parametry, hlavičky, auth, tělo a nastavení; id, název, proměnné, extract a docs zůstanou.
+    private func importCurl(_ text: String) {
+        do {
+            let (r, warnings) = try CurlImport.parse(text)
+            model.tabs.edit { t in
+                t.draft.method = r.method
+                t.draft.url = r.url
+                t.draft.params = r.params
+                t.draft.headers = r.headers
+                t.draft.auth = r.auth
+                t.draft.body = r.body
+                t.draft.settings = r.settings
+                t.urlText = nil
+            }
+            if !warnings.isEmpty {
+                model.toasts.show(t("curl.importWarnings", ["items": warnings.joined(separator: ", ")]))
+            }
+        } catch {
+            model.toasts.show(errorText(error), isError: true)
+        }
     }
 
     private func send() { model.send() }
