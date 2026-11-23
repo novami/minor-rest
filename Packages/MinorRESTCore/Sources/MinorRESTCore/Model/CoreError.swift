@@ -19,6 +19,8 @@ public struct ErrorCode: RawRepresentable, Hashable, Sendable, CustomStringConve
     public static let jsonInvalid = ErrorCode(rawValue: "JSON_INVALID")
     public static let jsonPathInvalid = ErrorCode(rawValue: "JSONPATH_INVALID")
     public static let curlInvalid = ErrorCode(rawValue: "CURL_INVALID")
+    public static let importInvalid = ErrorCode(rawValue: "IMPORT_INVALID")
+    public static let importFetch = ErrorCode(rawValue: "IMPORT_FETCH")
     // Odeslání (F4)
     public static let canceled = ErrorCode(rawValue: "CANCELED")
     public static let netTimeout = ErrorCode(rawValue: "NET_TIMEOUT")

@@ -1,0 +1,17 @@
+openapi: 3.1.0
+info: {title: Cycle}
+paths:
+  /nodes:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/Node"}
+components:
+  schemas:
+    Node:
+      type: object
+      properties:
+        name: {type: [string, "null"]}
+        parent: {$ref: "#/components/schemas/Node"}
+        kids: {type: array, items: {$ref: "#/components/schemas/Node"}}

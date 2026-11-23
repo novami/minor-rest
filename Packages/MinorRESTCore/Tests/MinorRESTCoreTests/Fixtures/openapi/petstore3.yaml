@@ -1,0 +1,44 @@
+openapi: 3.0.3
+info: {title: Petstore 3, description: d}
+servers:
+  - url: "https://{env}.example.com/api/v3"
+    variables: {env: {default: prod}}
+  - url: http://localhost:8080/api
+    description: Lokální
+tags: [{name: pet}]
+security: [{bearer: []}]
+paths:
+  /pet:
+    put:
+      tags: [pet]
+      summary: Update pet
+      requestBody:
+        content:
+          application/xml: {example: "<pet/>"}
+          application/json:
+            schema: {$ref: "#/components/schemas/Pet"}
+    get:
+      summary: List
+      parameters:
+        - {name: status, in: query, required: true, schema: {type: string, enum: [a, b]}}
+        - {name: page, in: query, schema: {type: integer, default: 2}}
+  /user/{name}/avatar:
+    post:
+      tags: [user]
+      security: [{basic: []}]
+      parameters: [{name: name, in: path, required: true, schema: {type: string}, example: bob}]
+      requestBody:
+        content:
+          multipart/form-data:
+            schema: {type: object, properties: {file: {type: string, format: binary}, note: {type: string}}}
+components:
+  securitySchemes:
+    bearer: {type: http, scheme: bearer}
+    basic: {type: http, scheme: basic}
+  schemas:
+    Pet:
+      allOf:
+        - {$ref: "#/components/schemas/Base"}
+        - type: object
+          properties: {name: {type: string}, ro: {type: string, readOnly: true}}
+    Base: {type: object, properties: {id: {type: integer, format: int64}}}

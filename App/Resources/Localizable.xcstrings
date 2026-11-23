@@ -3860,6 +3860,40 @@
         }
       }
     },
+    "errors.IMPORT_FETCH": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Specifikaci se nepodařilo načíst"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not load the specification"
+          }
+        }
+      }
+    },
+    "errors.IMPORT_INVALID": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soubor není platná specifikace OpenAPI / Swagger"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not a valid OpenAPI / Swagger specification"
+          }
+        }
+      }
+    },
     "errors.CURL_INVALID": {
       "extractionState": "manual",
       "localizations": {

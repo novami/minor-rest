@@ -1,0 +1,33 @@
+{
+  "swagger": "2.0",
+  "info": {"title": "Swagger Petstore", "description": "Demo"},
+  "host": "petstore.swagger.io", "basePath": "/v2", "schemes": ["http", "https"],
+  "securityDefinitions": {
+    "api_key": {"type": "apiKey", "name": "api_key", "in": "header"},
+    "petstore_auth": {"type": "oauth2", "flow": "implicit", "authorizationUrl": "https://x/oauth", "scopes": {"read:pets": "r"}}
+  },
+  "security": [{"api_key": []}],
+  "paths": {
+    "/pet": {
+      "post": {"tags": ["pet"], "summary": "Add a pet", "operationId": "addPet", "consumes": ["application/json"],
+        "parameters": [{"in": "body", "name": "body", "required": true, "schema": {"$ref": "#/definitions/Pet"}}]}
+    },
+    "/pet/{petId}": {
+      "get": {"tags": ["pet"], "operationId": "getPetById",
+        "parameters": [{"name": "petId", "in": "path", "required": true, "type": "integer", "format": "int64", "x-example": 7}]},
+      "post": {"tags": ["pet"], "summary": "Update pet", "consumes": ["application/x-www-form-urlencoded"],
+        "parameters": [{"name": "petId", "in": "path", "type": "integer"}, {"name": "name", "in": "formData", "type": "string"}]},
+      "delete": {"tags": ["pet"], "security": [], "parameters": [{"name": "petId", "in": "path", "type": "integer"}]}
+    },
+    "/store/inventory": {"get": {"tags": ["store"], "summary": "Inventory",
+      "parameters": [{"name": "limit", "in": "query", "type": "integer", "default": 10}, {"name": "X-Req", "in": "header", "required": true, "type": "string"}]}},
+    "/ping": {"get": {}}
+  },
+  "definitions": {
+    "Pet": {"type": "object", "properties": {
+      "id": {"type": "integer"}, "name": {"type": "string", "example": "doggie"},
+      "status": {"type": "string", "enum": ["available", "sold"]},
+      "tags": {"type": "array", "items": {"$ref": "#/definitions/Tag"}}}},
+    "Tag": {"type": "object", "properties": {"id": {"type": "integer"}, "at": {"type": "string", "format": "date-time"}}}
+  }
+}
