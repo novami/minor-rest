@@ -9,6 +9,8 @@ struct CodeTextView: NSViewRepresentable {
     var lang: SyntaxLang = .text
     var editable = true
     var font: NSFont
+    /// Změna hodnoty otevře find bar (tlačítko hledání v odpovědi).
+    var findTrigger = 0
 
     /// Nad tímto počtem UTF-16 jednotek se syntaxe nezvýrazňuje (proměnné ano).
     static let syntaxLimit = 1_000_000
@@ -54,6 +56,7 @@ struct CodeTextView: NSViewRepresentable {
         tv.string = text
         tv.isEditable = editable
         c.relex()
+        c.findTrigger = findTrigger
         return scroll
     }
 
@@ -69,12 +72,20 @@ struct CodeTextView: NSViewRepresentable {
             changed = true
         }
         if changed { c.relex() }
+        if c.findTrigger != findTrigger {
+            c.findTrigger = findTrigger
+            tv.window?.makeFirstResponder(tv)
+            let sender = NSMenuItem()
+            sender.tag = NSTextFinder.Action.showFindInterface.rawValue
+            tv.performTextFinderAction(sender)
+        }
     }
 
     @MainActor
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: CodeTextView
         weak var textView: NSTextView?
+        var findTrigger = 0
         private(set) var lang: SyntaxLang = .text
         /// Barevné úseky seřazené podle začátku; proměnné až za syntaxí (přebíjí ji).
         private var syntax: [(NSRange, NSColor)] = []

@@ -8,11 +8,16 @@ import Observation
 final class RunStore {
     struct Run {
         let runID: String
+        let started = Date()
         var running = true
         var result: RunResult?
+        /// Tělo bez úprav (Raw, Náhled) a odsazené (Pretty, načte se při prvním zobrazení).
         var body: BodyView?
+        var pretty: BodyView?
+        /// Pohled zvolený uživatelem; `nil` = výchozí podle Content-Type.
+        var mode: BodyMode?
         /// Chyba přípravy (proměnné, URL) nebo odeslání.
-        var error: String?
+        var error: ErrorParts?
         var unresolved: [String] = []
     }
 
@@ -61,7 +66,7 @@ final class RunStore {
                 $0.running = false
                 $0.result = result
                 $0.body = body
-                $0.error = result.error.map(errorText)
+                $0.error = result.error.map(ErrorParts.init)
             }
             var entry = SavedResponse(result, request: prepared.request, secrets: prepared.secrets)
             (entry.projectID, entry.requestID, entry.requestName) = (tab.projectID, tab.draft.id, tab.draft.name)
@@ -69,7 +74,7 @@ final class RunStore {
         } catch {
             update(tab.id, runID) {
                 $0.running = false
-                $0.error = errorText(error)
+                $0.error = ErrorParts(error)
             }
         }
     }
@@ -86,6 +91,18 @@ final class RunStore {
             } catch { return error }
         }.value
         if let err { toasts.show(errorText(err), isError: true) }
+    }
+
+    func setMode(_ tabID: String, _ mode: BodyMode) {
+        guard let r = runs[tabID] else { return }
+        update(tabID, r.runID) { $0.mode = mode }
+    }
+
+    /// Odsazené tělo pro Pretty (mimo hlavní vlákno v enginu); chyba = zůstane Raw.
+    func loadPretty(_ tabID: String) async {
+        guard let r = runs[tabID], !r.running, r.pretty == nil, r.body != nil else { return }
+        let v = try? await engine.body(runID: r.runID, pretty: true)
+        update(tabID, r.runID) { $0.pretty = v ?? $0.body }
     }
 
     func cancel(_ tabID: String) async {

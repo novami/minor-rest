@@ -97,20 +97,25 @@ public actor HTTPEngine {
         return res
     }
 
-    /// Tělo pro zobrazení v UTF-8; `pretty` odsadí JSON (nevalidní nechá beze změny).
+    /// Tělo pro zobrazení v UTF-8; `pretty` odsadí JSON (nevalidní nechá beze změny), XML a HTML.
     public func body(runID: String, pretty: Bool) throws(CoreError) -> BodyView {
         let s = try stored(runID)
         var v = BodyView()
         v.lang = BodyView.lang(s.contentType)
         v.size = s.body.size
         if s.isBinary {
-            if s.contentType.hasPrefix("image/") { v.image = try s.body.read() }
+            if s.contentType.hasPrefix("image/"), v.size <= BodyView.maxImage { v.image = try s.body.read() }
             return v
         }
         let b = try s.body.read(limit: BodyView.maxView)
         v.partial = v.size > Int64(b.count)
         v.text = ContentSniff.toUTF8(b, s.charset)
-        if pretty, v.lang == "json", !v.partial, let f = try? JSONFormatter.format(v.text) { v.text = f }
+        guard pretty, !v.partial else { return v }
+        switch v.lang {
+        case "json": if let f = try? JSONFormatter.format(v.text) { v.text = f }
+        case "xml", "html": v.text = MarkupFormatter.format(v.text, html: v.lang == "html")
+        default: break
+        }
         return v
     }
 

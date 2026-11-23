@@ -516,6 +516,9 @@ extension Project { func folderChain(_ rel:) throws -> [PrepareFolder] }        
 final class CookieJar: Sendable { init(file: URL?); static file(projectID:in:); cookies; header(for: URL) -> String; store([Cookie]); clear(); save() throws }  // save jen při změně
 struct History { init(dir:limit: = 200); add(_ e: SavedResponse, body: Data?) throws -> HistoryItem; list() -> [HistoryItem]; entry(id) throws -> SavedResponse; body(id) throws -> Data?; clear() throws }
 struct SavedResponse { init(_ r: RunResult, request: PreparedRequest, secrets: [String]) }   // formát 2.6 s maskováním; historie navíc id, projectId, requestId, requestName, error, errorDetail, truncated
+enum DisplayFormat { static bytes(_:locale:) -> String; static duration(ms:locale:) -> String }   // meta bar odpovědi (F5/1)
+enum MarkupFormatter { static format(_ text:, html: Bool) -> String }   // Pretty pro XML/HTML (v HTTPEngine.body)
+enum HTMLPreview { static sandboxed(_ html:) -> String }                // CSP bez sítě a skriptů pro Náhled
 
 // Proměnné a prostředí (F6)
 Project: listEnvironments(), saveEnvironment(_:), deleteEnvironment(id:)

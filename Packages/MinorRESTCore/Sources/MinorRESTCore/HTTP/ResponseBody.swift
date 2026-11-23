@@ -184,13 +184,15 @@ enum ContentSniff {
 /// Tělo pro zobrazení (UTF-8, nejvýš `maxView` bajtů).
 public struct BodyView: Sendable, Equatable {
     public static let maxView = 2 << 20
+    /// Větší obrázek se nenačítá (náhled jen do 10 MB).
+    public static let maxImage: Int64 = 10_000_000
 
     public var text = ""
     /// json | xml | html | text
     public var lang = "text"
     public var size: Int64 = 0
     public var partial = false
-    /// Celé tělo binárního `image/*`.
+    /// Celé tělo binárního `image/*` do `maxImage`.
     public var image: Data?
 
     public init() {}
