@@ -21,7 +21,6 @@ struct KvEditor<Row: KvRow>: View {
     @State private var dragging: Int?
     @State private var dropLine: Int?
 
-
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             toolbar

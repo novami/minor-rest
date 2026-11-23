@@ -3,26 +3,77 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - "App/**"
+      - "Packages/**"
+      - "project.yml"
+      - "Makefile"
+      - ".swiftlint.yml"
+      - ".github/workflows/ci.yml"
   pull_request:
+    paths:
+      - "App/**"
+      - "Packages/**"
+      - "project.yml"
+      - "Makefile"
+      - ".swiftlint.yml"
+      - ".github/workflows/ci.yml"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  XCODE: /Applications/Xcode_26.6.app
 
 jobs:
-  build:
-    runs-on: macos-latest
+  # Jednotkové testy jádra (SwiftPM) – rychlé, bez Xcode projektu.
+  test-core:
+    runs-on: macos-26   # Apple Silicon (arm64)
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: maxim-lobanov/setup-xcode@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          xcode-version: latest-stable
-      - name: Install XcodeGen
-        run: brew install xcodegen
-      - uses: actions/cache@v4
+          persist-credentials: false
+      - run: sudo xcode-select -s "$XCODE"
+      - name: Verze toolchainu
+        id: tc
+        run: echo "swift=$(swift --version 2>&1 | head -1 | tr -c 'A-Za-z0-9.\n' '_')" >> "$GITHUB_OUTPUT"
+      # Cache jen stažené zdrojáky závislostí; výstupy kompilace se neukládají.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: |
-            .build
-            Packages/MinorRESTCore/.build
-          key: ${{ runner.os }}-spm-${{ hashFiles('Packages/MinorRESTCore/Package.swift', 'Packages/MinorRESTCore/Package.resolved') }}
-          restore-keys: ${{ runner.os }}-spm-
-      - name: Test core
-        run: make test
-      - name: Build app
-        run: make build
+          path: Packages/MinorRESTCore/.build/checkouts
+          key: spm-${{ runner.os }}-${{ steps.tc.outputs.swift }}-${{ hashFiles('Packages/MinorRESTCore/Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-${{ steps.tc.outputs.swift }}-
+      - run: make test
+
+  # Sestavení aplikace (xcodebuild, arm64).
+  build-app:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: sudo xcode-select -s "$XCODE"
+      - run: brew install xcodegen
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .build/xcode/SourcePackages
+          key: spm-app-${{ runner.os }}-${{ env.XCODE }}-${{ hashFiles('Packages/MinorRESTCore/Package.resolved') }}
+          restore-keys: spm-app-${{ runner.os }}-${{ env.XCODE }}-
+      - run: make build
+
+  # Statická analýza.
+  lint:
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: brew install swiftlint
+      - run: swiftlint lint --quiet --reporter github-actions-logging
