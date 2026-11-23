@@ -103,6 +103,7 @@ final class RunStore {
                 $0.body = body
                 $0.error = result.error.map(ErrorParts.init)
             }
+            await applyExtract(tab, runID: runID, result: result)
             var entry = SavedResponse(result, request: prepared.request, secrets: prepared.secrets)
             (entry.projectID, entry.requestID, entry.requestName) = (tab.projectID, tab.draft.id, tab.draft.name)
             update(tab.id, runID) { $0.entry = entry }
@@ -112,6 +113,19 @@ final class RunStore {
                 $0.running = false
                 $0.error = ErrorParts(error)
             }
+        }
+    }
+
+    /// `extract` requestu → runtime proměnné projektu (jen odpověď 2xx); pravidla bez výsledku = toast, hodnota zůstane.
+    private func applyExtract(_ tab: RequestTab, runID: String, result: RunResult) async {
+        let rules = tab.draft.extract.filter { $0.enabled && !$0.name.isEmpty }
+        guard !rules.isEmpty, result.error == nil, (200..<300).contains(result.status) else { return }
+        let headers = result.headers
+        let data = (try? await engine.rawBody(runID: runID, limit: 1 << 30)) ?? Data()
+        let out = await Task.detached { Extractor.run(rules, body: String(decoding: data, as: UTF8.self), headers: headers) }.value
+        for kv in out.values { vars.setRuntime(tab.projectID, kv.name, kv.value) }
+        if !out.warnings.isEmpty {
+            toasts.show(t("extract.failed", ["items": out.warnings.joined(separator: "; ")]), isError: true)
         }
     }
 

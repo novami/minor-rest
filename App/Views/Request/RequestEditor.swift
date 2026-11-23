@@ -91,6 +91,8 @@ struct RequestEditor: View {
             let st = tab.draft.settings
             return [st.httpVersion != nil, st.followRedirects != nil, st.maxRedirects != nil,
                     st.timeoutMs != nil, st.verifyTLS != nil, st.cookieJar != nil].filter { $0 }.count
+        case .vars: return tab.draft.vars.filter { $0.enabled && !$0.name.isEmpty }.count
+            + tab.draft.extract.filter { $0.enabled && !$0.name.isEmpty }.count
         case .body, .docs, .auth: return nil
         }
     }
@@ -134,6 +136,18 @@ struct RequestEditor: View {
                     let folders = await Task.detached { (try? project.folderChain(rel)) ?? [] }.value
                     inheritedAuth = InheritedAuth(folders: folders, project: project.config.auth)
                 }
+        case .vars:
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(t("request.vars")).font(fonts.ui.bold())
+                    VarsEditor(vars: Binding(get: { tab.draft.vars }, set: { v in tabs.edit { $0.draft.vars = v } }),
+                               allowSecret: false, reveal: true)
+                    Text(t("request.extract")).font(fonts.ui.bold())
+                    Text(t("request.extract.hint")).font(fonts.small).foregroundStyle(.secondary)
+                    ExtractEditor(rules: Binding(get: { tab.draft.extract }, set: { r in tabs.edit { $0.draft.extract = r } }))
+                }
+                .padding(.horizontal, 10)
+            }
         case .body, .docs:
             EmptyView()
         }

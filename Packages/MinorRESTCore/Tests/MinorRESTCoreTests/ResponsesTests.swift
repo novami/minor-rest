@@ -36,3 +36,19 @@ import Testing
 func lineDiff(_ a: [String], _ b: [String], _ expected: String) {
     #expect(LineDiff.render(LineDiff.diff(a, b)) == expected)
 }
+
+@Test func extractorRules() {
+    let rules = [
+        Extract(name: "token", from: "body", path: "$.data.token"),
+        Extract(name: "id", from: "body", path: "$.data.id"),
+        Extract(name: "obj", from: "body", path: "$.data.o"),
+        Extract(name: "loc", from: "header", path: "location"),
+        Extract(name: "miss", from: "body", path: "$.nope"),
+        Extract(name: "off", from: "body", path: "$.data.id", enabled: false),
+    ]
+    let out = Extractor.run(rules, body: #"{"data":{"token":"abc","id":7,"o":{"a":1}}}"#, headers: [KV(name: "Location", value: "/x")])
+    #expect(out.values.map(\.name) == ["token", "id", "obj", "loc"])
+    #expect(out.values.map(\.value) == ["abc", "7", #"{"a":1}"#, "/x"])
+    #expect(out.warnings.count == 1 && out.warnings[0].hasPrefix("miss"))
+    #expect(Extractor.run([rules[0]], body: "není json", headers: []).warnings.count == 1)
+}
