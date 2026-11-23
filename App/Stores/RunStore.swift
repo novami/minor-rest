@@ -23,6 +23,8 @@ final class RunStore {
         /// Chyba přípravy (proměnné, URL) nebo odeslání.
         var error: ErrorParts?
         var unresolved: [String] = []
+        /// Maskovaný snímek běhu pro „Uložit odpověď“.
+        var entry: SavedResponse?
     }
 
     struct Filtered {
@@ -32,6 +34,8 @@ final class RunStore {
     }
 
     private(set) var runs: [String: Run] = [:]
+    /// Uložené verze per request (klíč `projectID/requestID`), načtené při zobrazení záložky Verze.
+    private(set) var versions: [String: [SavedInfo]] = [:]
     /// JSONPath výraz per tab (platí i pro další běhy).
     var filters: [String: String] = [:]
     @ObservationIgnored let engine = HTTPEngine()
@@ -101,6 +105,7 @@ final class RunStore {
             }
             var entry = SavedResponse(result, request: prepared.request, secrets: prepared.secrets)
             (entry.projectID, entry.requestID, entry.requestName) = (tab.projectID, tab.draft.id, tab.draft.name)
+            update(tab.id, runID) { $0.entry = entry }
             await persist(runID: runID, entry: entry, hasBody: result.error == nil, jar: jar)
         } catch {
             update(tab.id, runID) {
@@ -155,6 +160,55 @@ final class RunStore {
     func saveBody(_ tabID: String, to url: URL) async {
         guard let r = runs[tabID] else { return }
         do { try await engine.saveBody(runID: r.runID, to: url) } catch { toasts.show(errorText(error), isError: true) }
+    }
+
+    // MARK: Uložené verze
+
+    static func key(_ projectID: String, _ requestID: String) -> String { projectID + "/" + requestID }
+
+    private func responses(_ projectID: String, _ requestID: String) async throws -> Responses {
+        Responses(project: try await projects.project(projectID), requestID: requestID)
+    }
+
+    func loadVersions(_ projectID: String, _ requestID: String) async {
+        guard let store = try? await responses(projectID, requestID) else { return }
+        versions[Self.key(projectID, requestID)] = await Task.detached { store.list() }.value
+    }
+
+    /// Uloží odpověď aktivního běhu jako další verzi; vrací číslo verze.
+    @discardableResult
+    func saveResponse(_ tabID: String, projectID: String, requestID: String, label: String = "") async -> Int? {
+        guard let r = runs[tabID], !r.running, let entry = r.entry else { return nil }
+        do {
+            let store = try await responses(projectID, requestID)
+            let body = r.result?.error == nil ? try? await engine.rawBody(runID: r.runID, limit: 1 << 30) : nil
+            let info = try await Task.detached { try store.save(entry, body: body, label: label) }.value
+            await loadVersions(projectID, requestID)
+            return info.version
+        } catch {
+            toasts.show(errorText(error), isError: true)
+            return nil
+        }
+    }
+
+    func version(_ projectID: String, _ requestID: String, _ v: Int) async -> (SavedResponse, Data)? {
+        do {
+            let store = try await responses(projectID, requestID)
+            return try await Task.detached { (try store.get(v), try store.body(v)) }.value
+        } catch {
+            toasts.show(errorText(error), isError: true)
+            return nil
+        }
+    }
+
+    func setLabel(_ projectID: String, _ requestID: String, _ v: Int, _ label: String) async {
+        do { try await responses(projectID, requestID).setLabel(v, label) } catch { toasts.show(errorText(error), isError: true) }
+        await loadVersions(projectID, requestID)
+    }
+
+    func deleteVersion(_ projectID: String, _ requestID: String, _ v: Int) async {
+        do { try await responses(projectID, requestID).delete(v) } catch { toasts.show(errorText(error), isError: true) }
+        await loadVersions(projectID, requestID)
     }
 
     func cancel(_ tabID: String) async {

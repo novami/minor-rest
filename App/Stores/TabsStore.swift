@@ -27,7 +27,7 @@ enum RequestSection: String, CaseIterable {
 }
 
 enum ResponseSection: String, CaseIterable {
-    case body, headers, cookies, timing, sent, redirects
+    case body, headers, cookies, timing, sent, redirects, versions
 }
 
 /// Taby per projekt; seznam a aktivní tab se ukládají do workspace.

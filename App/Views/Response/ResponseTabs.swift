@@ -50,6 +50,8 @@ struct ResponseTabs: View {
         case .headers: result.headers.count
         case .cookies: result.cookies.count
         case .redirects: result.redirects.count
+        case .versions:
+            model.tabs.list.first(where: { $0.id == tabID }).flatMap { model.runs.versions[RunStore.key($0.projectID, $0.draft.id)]?.count }
         default: nil
         }
     }
@@ -62,6 +64,10 @@ struct ResponseTabs: View {
         case .timing: ScrollView { TimingDetail(result: result).padding(12) }
         case .sent: SentView(sent: result.sent)
         case .redirects: RedirectList(redirects: result.redirects)
+        case .versions:
+            if let tab = model.tabs.list.first(where: { $0.id == tabID }) {
+                VersionsView(tabID: tabID, projectID: tab.projectID, requestID: tab.draft.id)
+            }
         }
     }
 }
