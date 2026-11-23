@@ -25,7 +25,7 @@ make run     # sestaví a spustí
 Podrobnosti a struktura projektu: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Distribuce a aktualizace
-Release zatím nevznikají. Plánované: GitHub Releases + automatické aktualizace přes Sparkle (výchozí zapnuto, vypnutelné v Nastavení), podpis EdDSA; zatím bez Apple Developer ID (ad-hoc podpis) – viz [docs/PLAN.md](docs/PLAN.md), kap. 10. Aktualizace dosud implementovány nejsou.
+Release zatím nevznikají. Plánované: GitHub Releases + vlastní automatické aktualizace (výchozí zapnuto, vypnutelné v Nastavení), podpis ed25519, viz [docs/RELEASE.md](docs/RELEASE.md); zatím bez Apple Developer ID (ad-hoc podpis) – viz [docs/PLAN.md](docs/PLAN.md), kap. 10. Kód aktualizací je hotový, ale zatím neověřený proti skutečnému release.
 
 Stav: ve vývoji – viz [docs/PLAN.md](docs/PLAN.md) a [docs/PROGRESS.md](docs/PROGRESS.md).
 

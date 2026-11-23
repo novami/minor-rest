@@ -13,4 +13,4 @@ Podporována je vždy poslední vydaná verze.
 - Tajné hodnoty (hesla, tokeny) se ukládají do macOS Keychain, ne do YAML souborů projektu.
 - Aplikace nemá žádnou telemetrii; síťový provoz tvoří jen requesty, které uživatel odešle.
 - Do repozitáře nepatří klíče, certifikáty ani provisioning profily. Podpisové klíče vydání patří do GitHub Secrets.
-- Aktualizace budou ověřovány podpisem (viz [docs/PLAN.md](docs/PLAN.md), kap. 10); zatím nejsou implementovány.
+- Aktualizace budou ověřovány podpisem (viz [docs/PLAN.md](docs/PLAN.md), kap. 10); jsou implementovány vlastním updaterem (docs/RELEASE.md).
