@@ -42,7 +42,7 @@ struct VersionsView: View {
             }
         }
         .task(id: requestID) { await model.runs.loadVersions(projectID, requestID) }
-        .sheet(item: $opened) { VersionSheet(opened: $0) }
+        .sheet(item: $opened) { SavedResponseSheet(title: t("versions.title", ["n": String($0.id)]), entry: $0.entry, data: $0.body) }
         .sheet(item: $diff) { DiffSheet(content: $0) }
     }
 
@@ -101,39 +101,49 @@ struct VersionsView: View {
     }
 }
 
-/// Uložená verze jen pro čtení: stav, hlavičky a tělo.
-private struct VersionSheet: View {
-    let opened: VersionsView.Opened
+/// Uložená odpověď (verze nebo záznam historie) jen pro čtení: stav, hlavičky a tělo.
+struct SavedResponseSheet: View {
+    let title: String
+    let entry: SavedResponse
+    let data: Data
+    var openRequest: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.appFonts) private var fonts
 
     var body: some View {
-        let e = opened.entry
-        VStack(alignment: .leading, spacing: 8) {
-            Text(t("versions.title", ["n": String(opened.id)])).font(.headline)
+        let e = entry
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
             HStack(spacing: 8) {
                 Text(e.request.method).bold()
                 Text(e.request.url).lineLimit(1).truncationMode(.middle)
             }
             .font(fonts.code).textSelection(.enabled)
-            Text("\(e.response.status) \(e.response.statusText) · \(e.response.proto) · \(VersionsView.time(e.savedAt))")
+            Text(e.error.isEmpty
+                 ? "\(e.response.status) \(e.response.statusText) · \(e.response.proto) · \(VersionsView.time(e.savedAt))"
+                 : "\(errorText(code: e.error)) · \(VersionsView.time(e.savedAt))")
                 .foregroundStyle(.secondary)
             VSplitView {
                 HeaderTable(rows: e.response.headers, empty: t("response.headers.none")).frame(minHeight: 80)
                 ScrollView {
-                    Text(String(decoding: opened.body.prefix(1 << 20), as: UTF8.self))
+                    Text(String(decoding: data.prefix(1 << 20), as: UTF8.self))
                         .font(fonts.code).textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading).padding(6)
                 }
                 .frame(minHeight: 120)
             }
-            HStack { Spacer(); Button(t("common.close")) { dismiss() }.keyboardShortcut(.cancelAction) }
+            HStack {
+                if let openRequest {
+                    Button(t("history.openRequest")) { dismiss(); openRequest() }
+                }
+                Spacer()
+                Button(t("common.close")) { dismiss() }.keyboardShortcut(.cancelAction)
+            }
         }
         .padding(16)
         .frame(width: 720, height: 560)
     }
 }
-
 
 /// Diff dvou verzí (starší → novější) v `CodeTextView`.
 private struct DiffSheet: View {

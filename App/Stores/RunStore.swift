@@ -35,6 +35,8 @@ final class RunStore {
 
     private(set) var runs: [String: Run] = [:]
     /// Uložené verze per request (klíč `projectID/requestID`), načtené při zobrazení záložky Verze.
+    /// Historie odeslání (všechny projekty, nejnovější první).
+    private(set) var historyItems: [HistoryItem] = []
     private(set) var versions: [String: [SavedInfo]] = [:]
     /// JSONPath výraz per tab (platí i pro další běhy).
     var filters: [String: String] = [:]
@@ -141,6 +143,26 @@ final class RunStore {
             } catch { return error }
         }.value
         if let err { toasts.show(errorText(err), isError: true) }
+        await loadHistory()
+    }
+
+    func loadHistory() async {
+        let history = history
+        historyItems = await Task.detached { history.list() }.value
+    }
+
+    func historyEntry(_ id: String) async -> (SavedResponse, Data)? {
+        let history = history
+        do { return try await Task.detached { (try history.entry(id), try history.body(id) ?? Data()) }.value } catch {
+            toasts.show(errorText(error), isError: true)
+            return nil
+        }
+    }
+
+    func clearHistory() async {
+        let history = history
+        do { try await Task.detached { try history.clear() }.value } catch { toasts.show(errorText(error), isError: true) }
+        await loadHistory()
     }
 
     func setMode(_ tabID: String, _ mode: BodyMode) {

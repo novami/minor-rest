@@ -5,6 +5,7 @@ import SwiftUI
 struct MainView: View {
     @Environment(AppModel.self) private var model
     @State private var scale: CGFloat = 2
+    @State private var sidebarTab = 0
 
     var body: some View {
         @Bindable var model = model
@@ -64,8 +65,20 @@ struct MainView: View {
 
     @ViewBuilder private var sidebar: some View {
         if model.projects.active != nil {
-            TreeSidebar(font: AppFonts.forScale(scale).uiNSFont)
-                .task(id: model.projects.activeID) { await model.tree.load(model.projects.activeID) }
+            VStack(spacing: 0) {
+                Picker("", selection: $sidebarTab) {
+                    Text(t("sidebar.project")).tag(0)
+                    Text(t("sidebar.history")).tag(1)
+                }
+                .pickerStyle(.segmented).labelsHidden()
+                .padding(.horizontal, 8).padding(.top, 6)
+                if sidebarTab == 0 {
+                    TreeSidebar(font: AppFonts.forScale(scale).uiNSFont)
+                } else {
+                    HistoryView()
+                }
+            }
+            .task(id: model.projects.activeID) { await model.tree.load(model.projects.activeID) }
         } else if model.projects.restored {
             EmptyState(title: t("sidebar.noProject"))
         } else {
