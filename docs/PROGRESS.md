@@ -177,6 +177,7 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 - Repozitář i releasy jsou veřejné (updater bez tokenu).
 - Ne-retina displej: Menlo 13 (UI i kód). Retina: SF Pro (UI) + SF Mono (kód).
 - Swift verze: editor kódu nativní `NSTextView` (ne CodeMirror), Keychain přes `SecItem` (dotaz na přístup po každé aktualizaci je přijatelný).
+- Verze vždy jen `MAJOR.MINOR.PATCH` (např. `0.3.5`): bez `v` (ani v tagu), bez hashe/čísla buildu (`CFBundleVersion` = `MARKETING_VERSION`), vývojový build `0.0.0` (6040124, PLAN kap. 10).
 - Kopírování requestu: jen cURL (víceřádkový + jednořádkový), bez bash skriptu.
 
 ## Otevřené body / známé problémy (Go verze, reference)
