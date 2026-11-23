@@ -24,6 +24,8 @@ struct ProjectSwitcher: View {
             Button(t("project.new")) { showNew = true }
             Button(t("project.open")) { Task { await projects.openDirectory() } }
             Divider()
+            Button(t("project.settings")) { model.openScopeSettings(.project) }
+                .disabled(projects.active == nil)
             Button(t("project.close")) {
                 Task { await model.closeProject(projects.activeID) }
             }

@@ -12,6 +12,7 @@ final class AppModel {
     let runs: RunStore
     let environments: EnvironmentsStore
     var showEnvironments = false
+    var scopeSettings: ScopeTarget?
 
     init() {
         projects = ProjectsStore(workspace: workspace, toasts: toasts)
@@ -25,6 +26,7 @@ final class AppModel {
             Task { await tabs.changedOnDisk(id, rels) }
         }
         tree.onLoaded = { [tabs] id, root in await tabs.treeLoaded(id, root) }
+        tree.onSettings = { [unowned self] rel, name in openScopeSettings(.folder(rel: rel, name: name)) }
         tree.onOpen = { [tabs] rel in await tabs.open(rel) }
         tabs.onSaved = { [tree] in await tree.reload() }
         tabs.treeRoot = { [tree] in tree.root }
@@ -63,6 +65,11 @@ final class AppModel {
     /// Okno Prostředí (⌘E, toolbar); bez aktivního projektu nic.
     func openEnvironments() {
         if projects.active != nil { showEnvironments = true }
+    }
+
+    /// Nastavení složky / projektu; bez aktivního projektu nic.
+    func openScopeSettings(_ target: ScopeTarget) {
+        if projects.active != nil { scopeSettings = target }
     }
 
     /// Dočasně pro akce menu, které ještě nejsou implementované.

@@ -100,6 +100,9 @@ final class ProjectsStore {
         try await registry.project(id)
     }
 
+    /// Znovu načte seznam (např. po změně názvu projektu).
+    func reload() async { await sync(activate: nil) }
+
     /// Načte seznam z registru, zapíše cesty do workspace; neplatný aktivní projekt nahradí prvním.
     private func sync(activate id: String?) async {
         list = await registry.list()

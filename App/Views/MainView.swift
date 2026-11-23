@@ -34,6 +34,7 @@ struct MainView: View {
         }
         .toolbar(removing: .title)
         .sheet(isPresented: $model.showEnvironments) { EnvironmentsSheet() }
+        .sheet(item: $model.scopeSettings) { ScopeSettingsSheet(target: $0) }
         .overlay(alignment: .bottom) { ToastStack(center: model.toasts) }
         .background(BackingScaleReader(scale: $scale))
         .background(MainWindowHook(edited: model.tabs.anyDirty) { [tabs = model.tabs] in tabs.mainWindow = $0 })

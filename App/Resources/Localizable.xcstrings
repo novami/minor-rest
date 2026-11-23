@@ -1905,6 +1905,23 @@
         }
       }
     },
+    "project.settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nastavení projektu…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project settings…"
+          }
+        }
+      }
+    },
     "quit.dontSave": {
       "extractionState": "manual",
       "localizations": {
@@ -2887,6 +2904,159 @@
           "stringUnit": {
             "state": "translated",
             "value": "Unresolved variables: {names}"
+          }
+        }
+      }
+    },
+    "scope.description": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Popis"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Description"
+          }
+        }
+      }
+    },
+    "scope.folderTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nastavení složky „{name}“"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder settings “{name}”"
+          }
+        }
+      }
+    },
+    "scope.httpHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Výchozí HTTP nastavení projektu; request ho může přepsat."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default HTTP settings of the project; a request can override them."
+          }
+        }
+      }
+    },
+    "scope.ignoreResponses": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neukládat odpovědi do gitu (.gitignore)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep responses out of git (.gitignore)"
+          }
+        }
+      }
+    },
+    "scope.nameEmpty": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Název projektu nesmí být prázdný."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project name must not be empty."
+          }
+        }
+      }
+    },
+    "scope.projectTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nastavení projektu „{name}“"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project settings “{name}”"
+          }
+        }
+      }
+    },
+    "scope.tab.headers": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hlavičky"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Headers"
+          }
+        }
+      }
+    },
+    "scope.tab.http": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Projekt a HTTP"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Project & HTTP"
+          }
+        }
+      }
+    },
+    "scope.tab.vars": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Proměnné"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Variables"
           }
         }
       }
@@ -4417,6 +4587,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Filter…"
+          }
+        }
+      }
+    },
+    "tree.settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nastavení složky…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folder settings…"
           }
         }
       }

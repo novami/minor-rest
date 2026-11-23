@@ -161,6 +161,13 @@ final class TreeStore {
         }
     }
 
+    /// Nastavení složky (napojeno v `AppModel`).
+    var onSettings: ((String, String) -> Void)?
+
+    func openSettings(_ rel: String) {
+        if let node = root?.find(rel) { onSettings?(rel, node.name) }
+    }
+
     func reveal(_ rel: String?) async {
         guard let project = try? await projects.project(projectID),
               let url = try? project.absoluteURL(rel ?? "") else { return }
