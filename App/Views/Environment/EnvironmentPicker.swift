@@ -16,7 +16,7 @@ struct EnvironmentPicker: View {
                 item(e.name, checked: e.id == active?.id) { envs.select(pid, e.id) }
             }
             Divider()
-            Button(t("env.manage")) { model.notImplemented("env.manage") }
+            Button(t("env.manage")) { model.openEnvironments() }
         } label: {
             Text(active.map { t("env.title", ["name": $0.name]) } ?? t("env.none"))
         }

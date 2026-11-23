@@ -62,6 +62,54 @@ final class EnvironmentsStore {
         workspace.update { $0.activeEnvironment[projectID] = nil }
     }
 
+    /// Data pro okno Prostředí: prostředí, proměnné projektu a globální, tajné hodnoty doplněné z Keychain.
+    struct Editable: Sendable {
+        var environments: [EnvironmentConfig]
+        var projectVars: [Var]
+        var globals: [Var]
+        var readOnly: Bool
+    }
+
+    func loadEditable(_ projectID: String) async throws -> Editable {
+        let project = try await projects.project(projectID)
+        let secrets = secrets, dir = workspace.directory
+        return try await Task.detached {
+            let envs = try project.listEnvironments().map { e in
+                var e = e
+                e.vars = try secrets.fill(e.vars, account: project.secretAccount(envID: e.id))
+                return e
+            }
+            let globals = try secrets.fill(try Globals.load(from: dir), account: Secrets.globalAccount)
+            return Editable(environments: envs, projectVars: project.config.vars, globals: globals,
+                            readOnly: project.info.readOnly)
+        }.value
+    }
+
+    /// Uloží změny: smazaná prostředí, změněná/nová prostředí, proměnné projektu a globální.
+    func saveEditable(_ projectID: String, original: Editable, edited: Editable) async throws {
+        let project = try await projects.project(projectID)
+        let secrets = secrets, dir = workspace.directory
+        try await Task.detached {
+            let kept = Set(edited.environments.map(\.id))
+            for e in original.environments where !kept.contains(e.id) {
+                try project.deleteEnvironment(id: e.id, secrets: secrets)
+            }
+            for e in edited.environments where original.environments.first(where: { $0.id == e.id }) != e {
+                _ = try project.saveEnvironment(e, secrets: secrets)
+            }
+            if edited.projectVars != original.projectVars {
+                var cfg = project.config
+                cfg.vars = edited.projectVars
+                try project.saveConfig(cfg)
+            }
+            if edited.globals != original.globals {
+                try Globals.save(edited.globals, to: dir, secrets: secrets)
+            }
+        }.value
+        await load(projectID)
+        loadGlobals()
+    }
+
     /// Proměnné aktivního prostředí a globální s hodnotami z Keychain (pro `Prepare`).
     func varsForSend(_ projectID: String) async throws -> (environment: [Var], globals: [Var]) {
         let env = active(projectID), globals = globals, secrets = secrets

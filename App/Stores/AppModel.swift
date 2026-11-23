@@ -11,6 +11,7 @@ final class AppModel {
     let tabs: TabsStore
     let runs: RunStore
     let environments: EnvironmentsStore
+    var showEnvironments = false
 
     init() {
         projects = ProjectsStore(workspace: workspace, toasts: toasts)
@@ -57,6 +58,11 @@ final class AppModel {
               await tabs.confirmCloseProject(id, name: p.name) else { return }
         await projects.close(id)
         environments.projectClosed(id)
+    }
+
+    /// Okno Prostředí (⌘E, toolbar); bez aktivního projektu nic.
+    func openEnvironments() {
+        if projects.active != nil { showEnvironments = true }
     }
 
     /// Dočasně pro akce menu, které ještě nejsou implementované.

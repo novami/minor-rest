@@ -32,7 +32,8 @@ struct AppCommands: Commands {
             Button(t("menu.focusUrl")) { model.tabs.focusURL() }
                 .keyboardShortcut("l")
             Divider()
-            item("menu.environment", "e")
+            Button(t("menu.environment")) { model.openEnvironments() }
+                .keyboardShortcut("e")
         }
         CommandGroup(after: .textEditing) {
             Divider()

@@ -33,6 +33,7 @@ struct MainView: View {
             ToolbarItem(placement: .navigation) { ProjectSwitcher() }
         }
         .toolbar(removing: .title)
+        .sheet(isPresented: $model.showEnvironments) { EnvironmentsSheet() }
         .overlay(alignment: .bottom) { ToastStack(center: model.toasts) }
         .background(BackingScaleReader(scale: $scale))
         .background(MainWindowHook(edited: model.tabs.anyDirty) { [tabs = model.tabs] in tabs.mainWindow = $0 })
