@@ -84,56 +84,8 @@ nonisolated indirect enum JSONValue: Sendable {
             guard depth < JSONValue.maxDepth else { throw fail("nesting too deep") }
             guard i < src.count else { throw fail("unexpected end of JSON input") }
             switch src[i] {
-            case UInt8(ascii: "{"):
-                i += 1
-                var map: [Member] = []
-                space()
-                if peek(UInt8(ascii: "}")) {
-                    i += 1
-                    return .object(map)
-                }
-                while true {
-                    space()
-                    guard peek(UInt8(ascii: "\"")) else { throw fail("expected object key") }
-                    let keyVal = try string()
-                    space()
-                    guard peek(UInt8(ascii: ":")) else { throw fail("expected ':' after object key") }
-                    i += 1
-                    space()
-                    map.append(Member(key: keyVal, value: try value(depth + 1)))
-                    space()
-                    if peek(UInt8(ascii: ",")) {
-                        i += 1
-                        continue
-                    }
-                    if peek(UInt8(ascii: "}")) {
-                        i += 1
-                        return .object(map)
-                    }
-                    throw fail("expected ',' or '}' in object")
-                }
-            case UInt8(ascii: "["):
-                i += 1
-                var arg: [JSONValue] = []
-                space()
-                if peek(UInt8(ascii: "]")) {
-                    i += 1
-                    return .array(arg)
-                }
-                while true {
-                    space()
-                    arg.append(try value(depth + 1))
-                    space()
-                    if peek(UInt8(ascii: ",")) {
-                        i += 1
-                        continue
-                    }
-                    if peek(UInt8(ascii: "]")) {
-                        i += 1
-                        return .array(arg)
-                    }
-                    throw fail("expected ',' or ']' in array")
-                }
+            case UInt8(ascii: "{"): return try object(depth)
+            case UInt8(ascii: "["): return try array(depth)
             case UInt8(ascii: "\""): return .string(try string())
             case UInt8(ascii: "-"), UInt8(ascii: "0")...UInt8(ascii: "9"): return try number()
             default:
@@ -143,6 +95,60 @@ nonisolated indirect enum JSONValue: Sendable {
                     return val
                 }
                 throw fail("invalid character")
+            }
+        }
+
+        private mutating func object(_ depth: Int) throws(CoreError) -> JSONValue {
+            i += 1
+            var map: [Member] = []
+            space()
+            if peek(UInt8(ascii: "}")) {
+                i += 1
+                return .object(map)
+            }
+            while true {
+                space()
+                guard peek(UInt8(ascii: "\"")) else { throw fail("expected object key") }
+                let keyVal = try string()
+                space()
+                guard peek(UInt8(ascii: ":")) else { throw fail("expected ':' after object key") }
+                i += 1
+                space()
+                map.append(Member(key: keyVal, value: try value(depth + 1)))
+                space()
+                if peek(UInt8(ascii: ",")) {
+                    i += 1
+                    continue
+                }
+                if peek(UInt8(ascii: "}")) {
+                    i += 1
+                    return .object(map)
+                }
+                throw fail("expected ',' or '}' in object")
+            }
+        }
+
+        private mutating func array(_ depth: Int) throws(CoreError) -> JSONValue {
+            i += 1
+            var arg: [JSONValue] = []
+            space()
+            if peek(UInt8(ascii: "]")) {
+                i += 1
+                return .array(arg)
+            }
+            while true {
+                space()
+                arg.append(try value(depth + 1))
+                space()
+                if peek(UInt8(ascii: ",")) {
+                    i += 1
+                    continue
+                }
+                if peek(UInt8(ascii: "]")) {
+                    i += 1
+                    return .array(arg)
+                }
+                throw fail("expected ',' or ']' in array")
             }
         }
 
@@ -157,35 +163,40 @@ nonisolated indirect enum JSONValue: Sendable {
                     return String(bytes: buf, encoding: .utf8) ?? String(bytes: buf, encoding: .isoLatin1) ?? ""
                 case UInt8(ascii: "\\"):
                     guard i < src.count else { break }
-                    let elem = src[i]
-                    i += 1
-                    switch elem {
-                    case UInt8(ascii: "\""), UInt8(ascii: "\\"), UInt8(ascii: "/"): buf.append(elem)
-                    case UInt8(ascii: "b"): buf.append(0x08)
-                    case UInt8(ascii: "f"): buf.append(0x0C)
-                    case UInt8(ascii: "n"): buf.append(0x0A)
-                    case UInt8(ascii: "r"): buf.append(0x0D)
-                    case UInt8(ascii: "t"): buf.append(0x09)
-                    case UInt8(ascii: "u"):
-                        var url = try hex4()
-                        if (0xD800..<0xDC00).contains(url), src[i...].starts(with: "\\u".utf8) {
-                            let save = i
-                            i += 2
-                            let lo = try hex4()
-                            if (0xDC00..<0xE000).contains(lo) {
-                                url = 0x10000 + ((url - 0xD800) << 10) + (lo - 0xDC00)
-                            } else {
-                                i = save
-                            }
-                        }
-                        buf.append(contentsOf: String(Unicode.Scalar(url).map(Character.init) ?? "\u{FFFD}").utf8)
-                    default: throw fail("invalid escape in string")
-                    }
+                    try escape(into: &buf)
                 case ..<0x20: throw fail("control character in string")
                 default: buf.append(cur)
                 }
             }
             throw fail("unexpected end of JSON input")
+        }
+
+        /// Znak za `\` v řetězci (`i` ukazuje na něj).
+        private mutating func escape(into buf: inout [UInt8]) throws(CoreError) {
+            let elem = src[i]
+            i += 1
+            switch elem {
+            case UInt8(ascii: "\""), UInt8(ascii: "\\"), UInt8(ascii: "/"): buf.append(elem)
+            case UInt8(ascii: "b"): buf.append(0x08)
+            case UInt8(ascii: "f"): buf.append(0x0C)
+            case UInt8(ascii: "n"): buf.append(0x0A)
+            case UInt8(ascii: "r"): buf.append(0x0D)
+            case UInt8(ascii: "t"): buf.append(0x09)
+            case UInt8(ascii: "u"):
+                var url = try hex4()
+                if (0xD800..<0xDC00).contains(url), src[i...].starts(with: "\\u".utf8) {
+                    let save = i
+                    i += 2
+                    let lo = try hex4()
+                    if (0xDC00..<0xE000).contains(lo) {
+                        url = 0x10000 + ((url - 0xD800) << 10) + (lo - 0xDC00)
+                    } else {
+                        i = save
+                    }
+                }
+                buf.append(contentsOf: String(Unicode.Scalar(url).map(Character.init) ?? "\u{FFFD}").utf8)
+            default: throw fail("invalid escape in string")
+            }
         }
 
         mutating func hex4() throws(CoreError) -> UInt32 {

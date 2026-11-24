@@ -32,9 +32,11 @@ nonisolated enum JSONFormatter {
             out.reserveCapacity(output ? src.count + src.count / 4 : 0)
         }
 
+        private var expect = Expect.value
+        /// Za `{`/`[` čeká nový řádek, pokud nepřijde hned zavření.
+        private var pendingOpen = false
+
         mutating func run() throws {
-            var expect = Expect.value
-            var pendingOpen = false  // za `{`/`[` čeká nový řádek, pokud nepřijde hned zavření
             skipSpace()
             while true {
                 skipSpace()
@@ -46,92 +48,118 @@ nonisolated enum JSONFormatter {
                 if expect == .after && stack.isEmpty {
                     throw fail("invalid character \(quoted(cur)) after top-level value")
                 }
-                func newlineIfPending() {
-                    if pendingOpen {
-                        newline(stack.count)
-                        pendingOpen = false
-                    }
-                }
-                switch expect {
-                case .colon:
-                    guard cur == UInt8(ascii: ":") else {
-                        throw fail("invalid character \(quoted(cur)) after object key")
-                    }
-                    i += 1
-                    emit(": ")
-                    expect = .value
-                case .after:
-                    guard let top = stack.last else { throw fail("unexpected state") }
-                    if cur == UInt8(ascii: ",") {
-                        i += 1
-                        emit(",")
-                        newline(stack.count)
-                        expect = top == UInt8(ascii: "{") ? .key : .value
-                    } else if cur == closing(top) {
-                        try close(cur)
-                        expect = .after
-                    } else {
-                        let what = top == UInt8(ascii: "{") ? "object key:value pair" : "array element"
-                        throw fail("invalid character \(quoted(cur)) after \(what)")
-                    }
-                case .keyOrClose, .valueOrClose:
-                    guard let top = stack.last else { throw fail("unexpected state") }
-                    if cur == closing(top) {
-                        i += 1
-                        emitByte(cur)
-                        stack.removeLast()
-                        pendingOpen = false
-                        expect = .after
-                        continue
-                    }
-                    newlineIfPending()
-                    expect = expect == .keyOrClose ? .key : .value
-                    continue
-                case .key:
-                    newlineIfPending()
-                    if cur == UInt8(ascii: "\"") {
-                        try string()
-                    } else if try !variable() {
-                        throw fail("invalid character \(quoted(cur)) looking for beginning of object key string")
-                    }
-                    expect = .colon
-                case .value:
-                    newlineIfPending()
-                    if try variable() {
-                        expect = .after
-                        continue
-                    }
-                    switch cur {
-                    case UInt8(ascii: "{"), UInt8(ascii: "["):
-                        i += 1
-                        emitByte(cur)
-                        stack.append(cur)
-                        pendingOpen = true
-                        expect = cur == UInt8(ascii: "{") ? .keyOrClose : .valueOrClose
-                    case UInt8(ascii: "\""):
-                        try string()
-                        expect = .after
-                    case UInt8(ascii: "-"), UInt8(ascii: "0")...UInt8(ascii: "9"):
-                        try number()
-                        expect = .after
-                    case UInt8(ascii: "t"), UInt8(ascii: "f"), UInt8(ascii: "n"):
-                        try literal()
-                        expect = .after
-                    default:
-                        throw fail("invalid character \(quoted(cur)) looking for beginning of value")
-                    }
-                }
-                if expect == .after && stack.isEmpty {
-                    // za hodnotou nejvyšší úrovně smí být jen bílé znaky – zachovají se (jako Go)
-                    let rest = src[i...]
-                    guard rest.allSatisfy(isSpace) else {
-                        skipSpace()
-                        throw fail("invalid character \(quoted(src[i])) after top-level value")
-                    }
-                    if output { out.append(contentsOf: rest) }
-                    return
-                }
+                if try step(cur) { continue }
+                if expect == .after && stack.isEmpty { return try finishTopLevel() }
             }
+        }
+
+        /// Jeden krok automatu; `true` = přeskočit kontrolu konce nejvyšší úrovně.
+        private mutating func step(_ cur: UInt8) throws -> Bool {
+            switch expect {
+            case .colon: try stepColon(cur)
+            case .after: try stepAfter(cur)
+            case .keyOrClose, .valueOrClose:
+                try stepOpen(cur)
+                return true
+            case .key: try stepKey(cur)
+            case .value: return try stepValue(cur)
+            }
+            return false
+        }
+
+        private mutating func newlineIfPending() {
+            if pendingOpen {
+                newline(stack.count)
+                pendingOpen = false
+            }
+        }
+
+        private mutating func stepColon(_ cur: UInt8) throws {
+            guard cur == UInt8(ascii: ":") else {
+                throw fail("invalid character \(quoted(cur)) after object key")
+            }
+            i += 1
+            emit(": ")
+            expect = .value
+        }
+
+        private mutating func stepAfter(_ cur: UInt8) throws {
+            guard let top = stack.last else { throw fail("unexpected state") }
+            if cur == UInt8(ascii: ",") {
+                i += 1
+                emit(",")
+                newline(stack.count)
+                expect = top == UInt8(ascii: "{") ? .key : .value
+            } else if cur == closing(top) {
+                try close(cur)
+                expect = .after
+            } else {
+                let what = top == UInt8(ascii: "{") ? "object key:value pair" : "array element"
+                throw fail("invalid character \(quoted(cur)) after \(what)")
+            }
+        }
+
+        private mutating func stepOpen(_ cur: UInt8) throws {
+            guard let top = stack.last else { throw fail("unexpected state") }
+            if cur == closing(top) {
+                i += 1
+                emitByte(cur)
+                stack.removeLast()
+                pendingOpen = false
+                expect = .after
+                return
+            }
+            newlineIfPending()
+            expect = expect == .keyOrClose ? .key : .value
+        }
+
+        private mutating func stepKey(_ cur: UInt8) throws {
+            newlineIfPending()
+            if cur == UInt8(ascii: "\"") {
+                try string()
+            } else if try !variable() {
+                throw fail("invalid character \(quoted(cur)) looking for beginning of object key string")
+            }
+            expect = .colon
+        }
+
+        /// Vrací `true`, když byla hodnota proměnná (kontrola konce nejvyšší úrovně se přeskočí).
+        private mutating func stepValue(_ cur: UInt8) throws -> Bool {
+            newlineIfPending()
+            if try variable() {
+                expect = .after
+                return true
+            }
+            switch cur {
+            case UInt8(ascii: "{"), UInt8(ascii: "["):
+                i += 1
+                emitByte(cur)
+                stack.append(cur)
+                pendingOpen = true
+                expect = cur == UInt8(ascii: "{") ? .keyOrClose : .valueOrClose
+            case UInt8(ascii: "\""):
+                try string()
+                expect = .after
+            case UInt8(ascii: "-"), UInt8(ascii: "0")...UInt8(ascii: "9"):
+                try number()
+                expect = .after
+            case UInt8(ascii: "t"), UInt8(ascii: "f"), UInt8(ascii: "n"):
+                try literal()
+                expect = .after
+            default:
+                throw fail("invalid character \(quoted(cur)) looking for beginning of value")
+            }
+            return false
+        }
+
+        /// Za hodnotou nejvyšší úrovně smí být jen bílé znaky – zachovají se (jako Go).
+        private mutating func finishTopLevel() throws {
+            let rest = src[i...]
+            guard rest.allSatisfy(isSpace) else {
+                skipSpace()
+                throw fail("invalid character \(quoted(src[i])) after top-level value")
+            }
+            if output { out.append(contentsOf: rest) }
         }
 
         // MARK: tokeny

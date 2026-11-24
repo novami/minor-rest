@@ -2,6 +2,36 @@ import Foundation
 
 /// Export requestu (kap. 6).
 nonisolated enum Export {
+    /// Flagy těla requestu.
+    private static func bodyParts(_ par: PreparedRequest, _ map: Mask) -> [String] {
+        var out: [String] = []
+        switch par.body.type {
+        case BodyType.form:
+            for res in par.body.form where res.enabled && !res.name.isEmpty {
+                out.append("--data-urlencode " + quote(map.text("\(res.name)=\(res.value)")))
+            }
+        case BodyType.multipart:
+            for res in par.body.multipart where res.enabled && !res.name.isEmpty {
+                if res.kind == "file" {
+                    let urlVal = Payload.fileURL(res.path, par.baseDir)
+                    let type = res.contentType.isEmpty ? Payload.mimeType(urlVal) : res.contentType
+                    out.append("-F " + quote("\(res.name)=@\(urlVal.path);type=\(type)"))
+                } else {
+                    out.append("--form-string " + quote(map.text("\(res.name)=\(res.value)")))
+                }
+            }
+        case BodyType.binary:
+            if !par.body.binaryPath.isEmpty {
+                out.append("--data-binary " + quote("@" + Payload.fileURL(par.body.binaryPath, par.baseDir).path))
+            }
+        default:
+            if Payload.rawTypes[par.body.type] != nil, !par.body.raw.isEmpty {
+                out.append("--data-raw " + quote(map.text(par.body.raw)))
+            }
+        }
+        return out
+    }
+
     /// cURL z připraveného requestu (to, co by se odeslalo). `mask` = maskování tajných hodnot (kap. 2.8) přes
     /// `secrets`.
     static func curl(
@@ -31,30 +61,7 @@ nonisolated enum Export {
         }
         for hdr in (mask ? map.headers(headers) : headers) { parts.append("-H " + quote("\(hdr.name): \(hdr.value)")) }
 
-        switch par.body.type {
-        case BodyType.form:
-            for res in par.body.form where res.enabled && !res.name.isEmpty {
-                parts.append("--data-urlencode " + quote(map.text("\(res.name)=\(res.value)")))
-            }
-        case BodyType.multipart:
-            for res in par.body.multipart where res.enabled && !res.name.isEmpty {
-                if res.kind == "file" {
-                    let urlVal = Payload.fileURL(res.path, par.baseDir)
-                    let type = res.contentType.isEmpty ? Payload.mimeType(urlVal) : res.contentType
-                    parts.append("-F " + quote("\(res.name)=@\(urlVal.path);type=\(type)"))
-                } else {
-                    parts.append("--form-string " + quote(map.text("\(res.name)=\(res.value)")))
-                }
-            }
-        case BodyType.binary:
-            if !par.body.binaryPath.isEmpty {
-                parts.append("--data-binary " + quote("@" + Payload.fileURL(par.body.binaryPath, par.baseDir).path))
-            }
-        default:
-            if Payload.rawTypes[par.body.type] != nil, !par.body.raw.isEmpty {
-                parts.append("--data-raw " + quote(map.text(par.body.raw)))
-            }
-        }
+        parts += bodyParts(par, map)
         return parts.joined(separator: multiline ? " \\\n  " : " ")
     }
 

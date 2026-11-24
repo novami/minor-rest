@@ -75,15 +75,17 @@ nonisolated enum URLBuilder {
         let pathEnd = url[pathStart...].firstIndex(where: { $0 == "?" || $0 == "#" }) ?? url.endIndex
         var values: [String: String] = [:]
         for par in params { values[par.name] = try res.resolve(par.value).value }
-        let segments = url[pathStart..<pathEnd].split(separator: "/", omittingEmptySubsequences: false).map {
-            (seg: Substring) -> String in
-            guard seg.count >= 2, seg.first == ":" else { return String(seg) }
-            let name = seg.dropFirst().prefix { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") }
-            guard let value = values[String(name)] else { return String(seg) }
-            return (value.addingPercentEncoding(withAllowedCharacters: pathSegmentAllowed) ?? value)
-                + seg.dropFirst(1 + name.count)
-        }
+        let segments = url[pathStart..<pathEnd].split(separator: "/", omittingEmptySubsequences: false)
+            .map { substituteSegment($0, values: values) }
         return url[..<pathStart] + segments.joined(separator: "/") + url[pathEnd...]
+    }
+
+    private static func substituteSegment(_ seg: Substring, values: [String: String]) -> String {
+        guard seg.count >= 2, seg.first == ":" else { return String(seg) }
+        let name = seg.dropFirst().prefix { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") }
+        guard let value = values[String(name)] else { return String(seg) }
+        return (value.addingPercentEncoding(withAllowedCharacters: pathSegmentAllowed) ?? value)
+            + seg.dropFirst(1 + name.count)
     }
 
     /// Kontrola jako Go `url.Parse` + neprázdný host; vrací popis problému nebo `nil`.
@@ -97,16 +99,7 @@ nonisolated enum URLBuilder {
         var host = hostPart(url)
         if let at = host.lastIndex(of: "@") { host = String(host[host.index(after: at)...]) }
         if host.isEmpty { return "missing host" }
-        if host.hasPrefix("[") {
-            guard let end = host.firstIndex(of: "]") else { return "missing ']' in host" }
-            let after = host[host.index(after: end)...]
-            if !after.isEmpty
-                && !(after.first == ":" && after.dropFirst().allSatisfy(\.isASCII)
-                    && after.dropFirst().allSatisfy(\.isNumber)) {
-                return "invalid port"
-            }
-            return nil
-        }
+        if host.hasPrefix("[") { return validateIPv6Host(host) }
         if host.contains(where: { " {}\\^`|".contains($0) }) { return "invalid character in host \"\(host)\"" }
         if let colon = host.lastIndex(of: ":") {
             let port = host[host.index(after: colon)...]
@@ -114,6 +107,15 @@ nonisolated enum URLBuilder {
             if host[..<colon].isEmpty { return "missing host" }
         }
         return nil
+    }
+
+    private static func validateIPv6Host(_ host: String) -> String? {
+        guard let end = host.firstIndex(of: "]") else { return "missing ']' in host" }
+        let after = host[host.index(after: end)...]
+        if after.isEmpty { return nil }
+        let digits = after.dropFirst()
+        let validPort = after.first == ":" && digits.allSatisfy(\.isASCII) && digits.allSatisfy(\.isNumber)
+        return validPort ? nil : "invalid port"
     }
 
     /// Část URL mezi `://` a první `/`, `?` nebo `#`.

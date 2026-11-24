@@ -171,38 +171,30 @@ nonisolated enum YAMLWriter {
         return header + lines.map { $0.isEmpty ? "\n" : "\n" + pad + $0 }.joined()
     }
 
+    private static let escapes: [Unicode.Scalar: String] = [
+        "\0": "\\0", "\u{07}": "\\a", "\u{08}": "\\b", "\t": "\\t", "\n": "\\n", "\u{0B}": "\\v",
+        "\u{0C}": "\\f", "\r": "\\r", "\u{1B}": "\\e", "\"": "\\\"", "\\": "\\\\", "\u{85}": "\\N",
+        "\u{2028}": "\\L", "\u{2029}": "\\P"
+    ]
+
     private static func doubleQuoted(_ str: String) -> String {
         var out = "\""
         for cur in str.unicodeScalars {
-            switch cur {
-            case "\0": out += "\\0"
-            case "\u{07}": out += "\\a"
-            case "\u{08}": out += "\\b"
-            case "\t": out += "\\t"
-            case "\n": out += "\\n"
-            case "\u{0B}": out += "\\v"
-            case "\u{0C}": out += "\\f"
-            case "\r": out += "\\r"
-            case "\u{1B}": out += "\\e"
-            case "\"": out += "\\\""
-            case "\\": out += "\\\\"
-            case "\u{85}": out += "\\N"
-            case "\u{A0}" where !isPrintable(cur): out += "\\_"
-            case "\u{2028}": out += "\\L"
-            case "\u{2029}": out += "\\P"
-            default:
-                if isPrintable(cur) && cur != "\u{FEFF}" {
-                    out.unicodeScalars.append(cur)
-                } else if cur.value <= 0xFF {
-                    out += String(format: "\\x%02X", cur.value)
-                } else if cur.value <= 0xFFFF {
-                    out += String(format: "\\u%04X", cur.value)
-                } else {
-                    out += String(format: "\\U%08X", cur.value)
-                }
+            if let escaped = escapes[cur] {
+                out += escaped
+            } else if isPrintable(cur) && cur != "\u{FEFF}" {
+                out.unicodeScalars.append(cur)
+            } else {
+                out += hexEscape(cur)
             }
         }
         return out + "\""
+    }
+
+    private static func hexEscape(_ cur: Unicode.Scalar) -> String {
+        if cur.value <= 0xFF { return String(format: "\\x%02X", cur.value) }
+        if cur.value <= 0xFFFF { return String(format: "\\u%04X", cur.value) }
+        return String(format: "\\U%08X", cur.value)
     }
 
     /// libyaml `is_printable` (bez 4bajtových znaků – ty se escapují).
@@ -218,92 +210,117 @@ nonisolated enum YAMLWriter {
         var singleQuotedAllowed = true
         var blockAllowed = true
 
+        fileprivate static func isBreak(_ cur: Unicode.Scalar) -> Bool {
+            cur == "\n" || cur == "\r" || cur == "\u{85}" || cur == "\u{2028}" || cur == "\u{2029}"
+        }
+
+        fileprivate static func isBlankz(_ cur: Unicode.Scalar?) -> Bool {
+            guard let cur else { return true }
+            return cur == " " || cur == "\t" || cur == "\0" || isBreak(cur)
+        }
+
         init(_ str: String) {
             let chars = Array(str.unicodeScalars)
             if chars.isEmpty {
                 blockAllowed = false
                 return
             }
-            var blockIndicators = str.hasPrefix("---") || str.hasPrefix("...")
-            var leadingSpace = false
-            var leadingBreak = false
-            var trailingSpace = false
-            var trailingBreak = false
-            var breakSpace = false
-            var spaceBreak = false
-            var previousSpace = false
-            var previousBreak = false
-            var lineBreaks = false
-            var specialCharacters = false
-            var tabCharacters = false
-            var precededByWhitespace = true
-            func isBreak(_ cur: Unicode.Scalar) -> Bool {
-                cur == "\n" || cur == "\r" || cur == "\u{85}" || cur == "\u{2028}" || cur == "\u{2029}"
-            }
-            func isBlankz(_ cur: Unicode.Scalar?) -> Bool {
-                guard let cur else { return true }
-                return cur == " " || cur == "\t" || cur == "\0" || isBreak(cur)
-            }
-
+            var flags = AnalysisFlags(str)
             for (i, cur) in chars.enumerated() {
-                let next: Unicode.Scalar? = i + 1 < chars.count ? chars[i + 1] : nil
-                let followedByWhitespace = isBlankz(next)
-                if i == 0 {
-                    switch cur {
-                    case "#", ",", "[", "]", "{", "}", "&", "*", "!", "|", ">", "'", "\"", "%", "@", "`":
-                        blockIndicators = true
-                    case "?", ":", "-":
-                        if followedByWhitespace { blockIndicators = true }
-                    default: break
-                    }
-                } else {
-                    switch cur {
-                    case ":": if followedByWhitespace { blockIndicators = true }
-                    case "#": if precededByWhitespace { blockIndicators = true }
-                    default: break
-                    }
-                }
-                if cur == "\t" {
-                    tabCharacters = true
-                } else if !isPrintable(cur) {
-                    specialCharacters = true
-                }
-                if cur == " " {
-                    if i == 0 { leadingSpace = true }
-                    if i == chars.count - 1 { trailingSpace = true }
-                    if previousBreak { breakSpace = true }
-                    previousSpace = true
-                    previousBreak = false
-                } else if isBreak(cur) {
-                    lineBreaks = true
-                    if i == 0 { leadingBreak = true }
-                    if i == chars.count - 1 { trailingBreak = true }
-                    if previousSpace { spaceBreak = true }
-                    previousBreak = true
-                    previousSpace = false
-                } else {
-                    previousSpace = false
-                    previousBreak = false
-                }
-                precededByWhitespace = isBlankz(cur)
+                flags.visit(i, cur, next: i + 1 < chars.count ? chars[i + 1] : nil, last: i == chars.count - 1)
             }
-            if leadingSpace || leadingBreak || trailingSpace || trailingBreak { blockPlainAllowed = false }
-            if trailingSpace { blockAllowed = false }
-            if breakSpace {
+            apply(flags)
+        }
+
+        private mutating func apply(_ flags: AnalysisFlags) {
+            if flags.leadingSpace || flags.leadingBreak || flags.trailingSpace || flags.trailingBreak {
+                blockPlainAllowed = false
+            }
+            if flags.trailingSpace { blockAllowed = false }
+            if flags.breakSpace {
                 blockPlainAllowed = false
                 singleQuotedAllowed = false
             }
-            if spaceBreak || specialCharacters {
+            if flags.spaceBreak || flags.specialCharacters {
                 blockPlainAllowed = false
                 singleQuotedAllowed = false
                 blockAllowed = false
             }
-            if tabCharacters {
+            if flags.tabCharacters {
                 blockPlainAllowed = false
                 singleQuotedAllowed = false
             }
-            if lineBreaks { blockPlainAllowed = false }
-            if blockIndicators { blockPlainAllowed = false }
+            if flags.lineBreaks || flags.blockIndicators { blockPlainAllowed = false }
+        }
+    }
+}
+
+    /// Příznaky nasbírané průchodem řetězce.
+nonisolated fileprivate struct AnalysisFlags {
+    var blockIndicators: Bool
+    var leadingSpace = false
+    var leadingBreak = false
+    var trailingSpace = false
+    var trailingBreak = false
+    var breakSpace = false
+    var spaceBreak = false
+    var previousSpace = false
+    var previousBreak = false
+    var lineBreaks = false
+    var specialCharacters = false
+    var tabCharacters = false
+    var precededByWhitespace = true
+
+    init(_ str: String) {
+        blockIndicators = str.hasPrefix("---") || str.hasPrefix("...")
+    }
+
+    mutating func visit(_ i: Int, _ cur: Unicode.Scalar, next: Unicode.Scalar?, last: Bool) {
+        markIndicators(i, cur, followedByWhitespace: YAMLWriter.Analysis.isBlankz(next))
+        if cur == "\t" {
+            tabCharacters = true
+        } else if !YAMLWriter.isPrintable(cur) {
+            specialCharacters = true
+        }
+        markSpacing(i, cur, last: last)
+        precededByWhitespace = YAMLWriter.Analysis.isBlankz(cur)
+    }
+
+    private mutating func markIndicators(_ i: Int, _ cur: Unicode.Scalar, followedByWhitespace: Bool) {
+        if i == 0 {
+            switch cur {
+            case "#", ",", "[", "]", "{", "}", "&", "*", "!", "|", ">", "'", "\"", "%", "@", "`":
+                blockIndicators = true
+            case "?", ":", "-":
+                if followedByWhitespace { blockIndicators = true }
+            default: break
+            }
+        } else {
+            switch cur {
+            case ":": if followedByWhitespace { blockIndicators = true }
+            case "#": if precededByWhitespace { blockIndicators = true }
+            default: break
+            }
+        }
+    }
+
+    private mutating func markSpacing(_ i: Int, _ cur: Unicode.Scalar, last: Bool) {
+        if cur == " " {
+            if i == 0 { leadingSpace = true }
+            if last { trailingSpace = true }
+            if previousBreak { breakSpace = true }
+            previousSpace = true
+            previousBreak = false
+        } else if YAMLWriter.Analysis.isBreak(cur) {
+            lineBreaks = true
+            if i == 0 { leadingBreak = true }
+            if last { trailingBreak = true }
+            if previousSpace { spaceBreak = true }
+            previousBreak = true
+            previousSpace = false
+        } else {
+            previousSpace = false
+            previousBreak = false
         }
     }
 }

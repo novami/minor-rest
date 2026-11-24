@@ -81,76 +81,111 @@ nonisolated enum MarkupFormatter {
     }
 
     static func tokenize(_ text: String, html: Bool) -> [Token] {
+        var tokenizer = Tokenizer(text, html: html)
+        return tokenizer.run()
+    }
+
+    fileprivate enum Scan {
+        case notMarkup
+        case unterminated
+        case end(Int)
+    }
+
+    private struct Tokenizer {
+        let scalars: [Unicode.Scalar]
+        let html: Bool
         var tokens: [Token] = []
-        let strVal = Array(text.unicodeScalars)
         var i = 0
         var textStart = 0
-        func str(_ arg: Int, _ buf: Int) -> String { String(String.UnicodeScalarView(strVal[arg..<buf])) }
-        func find(_ needle: String, from: Int) -> Int? {
+
+        init(_ text: String, html: Bool) {
+            scalars = Array(text.unicodeScalars)
+            self.html = html
+        }
+
+        mutating func run() -> [Token] {
+            while i < scalars.count {
+                guard scalars[i] == "<", i + 1 < scalars.count else {
+                    i += 1
+                    continue
+                }
+                let next = scalars[i + 1]
+                switch scan(next) {
+                case .notMarkup: i += 1
+                case .unterminated:  // neuzavřené = zbytek je text
+                    flushText(scalars.count)
+                    return tokens
+                case .end(let elem):
+                    flushText(i)
+                    consume(raw: str(i, elem), next: next, end: elem)
+                }
+            }
+            flushText(scalars.count)
+            return tokens
+        }
+
+        private func str(_ arg: Int, _ buf: Int) -> String { String(String.UnicodeScalarView(scalars[arg..<buf])) }
+
+        private func find(_ needle: String, from: Int) -> Int? {
             let num = Array(needle.unicodeScalars)
             var j = from
-            while j + num.count <= strVal.count {
-                if strVal[j..<j + num.count].elementsEqual(num) { return j }
+            while j + num.count <= scalars.count {
+                if scalars[j..<j + num.count].elementsEqual(num) { return j }
                 j += 1
             }
             return nil
         }
-        func flushText(_ end: Int) {
+
+        private mutating func flushText(_ end: Int) {
             if end > textStart { tokens.append(.text(str(textStart, end))) }
         }
-        while i < strVal.count {
-            guard strVal[i] == "<", i + 1 < strVal.count else {
-                i += 1
-                continue
-            }
-            let next = strVal[i + 1]
-            var end: Int?
-            if str(i, min(i + 4, strVal.count)) == "<!--" {
-                end = find("-->", from: i + 4).map { $0 + 3 }
-            } else if str(i, min(i + 9, strVal.count)) == "<![CDATA[" {
-                end = find("]]>", from: i + 9).map { $0 + 3 }
+
+        private func scan(_ next: Unicode.Scalar) -> Scan {
+            let found: Int?
+            if str(i, min(i + 4, scalars.count)) == "<!--" {
+                found = find("-->", from: i + 4).map { $0 + 3 }
+            } else if str(i, min(i + 9, scalars.count)) == "<![CDATA[" {
+                found = find("]]>", from: i + 9).map { $0 + 3 }
             } else if next == "?" {
-                end = find("?>", from: i + 2).map { $0 + 2 }
+                found = find("?>", from: i + 2).map { $0 + 2 }
             } else if next == "!" || next == "/" || next.properties.isAlphabetic {
-                end = tagEnd(strVal, from: i + 1)
+                found = MarkupFormatter.tagEnd(scalars, from: i + 1)
             } else {
-                i += 1
-                continue
+                return .notMarkup
             }
-            guard let elem = end else { break }  // neuzavřené = zbytek je text
-            flushText(i)
-            let raw = str(i, elem)
+            return found.map(Scan.end) ?? .unterminated
+        }
+
+        private mutating func consume(raw: String, next: Unicode.Scalar, end elem: Int) {
+            defer {
+                if i < elem { i = elem }
+            }
             if next == "/" {
-                tokens.append(.close(name(raw.dropFirst(2)), raw))
+                tokens.append(.close(MarkupFormatter.name(raw.dropFirst(2)), raw))
             } else if next == "!" || next == "?" || raw.hasSuffix("/>") {
                 tokens.append(.single(raw))
             } else {
-                let num = name(raw.dropFirst())
-                if html, void.contains(num.lowercased()) {
+                let num = MarkupFormatter.name(raw.dropFirst())
+                if html, MarkupFormatter.void.contains(num.lowercased()) {
                     tokens.append(.single(raw))
                 } else {
                     tokens.append(.open(num, raw))
-                    if html, rawText.contains(num.lowercased()), let cur = closeTag(num, from: elem) {
+                    if html, MarkupFormatter.rawText.contains(num.lowercased()), let cur = closeTag(num, from: elem) {
                         if cur > elem { tokens.append(.text(str(elem, cur))) }
                         i = cur
                         textStart = cur
-                        continue
+                        return
                     }
                 }
             }
-            i = elem
             textStart = elem
         }
-        flushText(strVal.count)
-        return tokens
 
-        func closeTag(_ num: String, from: Int) -> Int? {
+        private func closeTag(_ num: String, from: Int) -> Int? {
             var j = from
             while let key = find("</", from: j) {
-                let closeEnd = min(key + 2 + num.unicodeScalars.count, strVal.count)
-                if str(key + 2, closeEnd).lowercased() == num.lowercased() {
-                    return key
-                }
+                let closeEnd = min(key + 2 + num.unicodeScalars.count, scalars.count)
+                if str(key + 2, closeEnd).lowercased() == num.lowercased() { return key }
                 j = key + 2
             }
             return nil
