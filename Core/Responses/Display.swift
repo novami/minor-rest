@@ -147,7 +147,8 @@ nonisolated enum MarkupFormatter {
         func closeTag(_ num: String, from: Int) -> Int? {
             var j = from
             while let key = find("</", from: j) {
-                if str(key + 2, min(key + 2 + num.unicodeScalars.count, strVal.count)).lowercased() == num.lowercased() {
+                let closeEnd = min(key + 2 + num.unicodeScalars.count, strVal.count)
+                if str(key + 2, closeEnd).lowercased() == num.lowercased() {
                     return key
                 }
                 j = key + 2
@@ -187,7 +188,8 @@ nonisolated extension String {
 /// Značka se vloží za `<!DOCTYPE …>`, aby stránka nepřešla do quirks režimu.
 nonisolated enum HTMLPreview {
     static let csp =
-        #"<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:">"#
+        #"<meta http-equiv="Content-Security-Policy" "#
+        + #"content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:">"#
 
     static func sandboxed(_ html: String) -> String {
         let lead = html.prefix { $0.isWhitespace }.count

@@ -7,8 +7,10 @@ import AppKit
 /// `workspace.yaml` (testy nesahají na skutečný), `--section <params|body|headers|settings|docs>` výchozí záložka
 /// otevřených tabů, `--debug-edit-docs <text>` po startu přepíše dokumentaci aktivního tabu (neuložený stav),
 /// `--debug-send` po startu odešle aktivní tab, `--response-mode <pretty|raw|preview>` pak přepne pohled těla,
-/// `--response-section <body|headers|cookies|timing|sent|redirects>` záložku odpovědi, `--response-filter <jsonpath>` filtr těla,
-/// `--debug-env <název>` vybere prostředí aktivního projektu, `--debug-secret <název>=<hodnota>` do něj uloží tajnou proměnnou. Jazyk lze vynutit standardním `-AppleLanguages '(en)'`.
+/// `--response-section <body|headers|cookies|timing|sent|redirects>` záložku odpovědi, `--response-filter <jsonpath>`
+/// filtr těla,
+/// `--debug-env <název>` vybere prostředí aktivního projektu, `--debug-secret <název>=<hodnota>` do něj uloží tajnou
+/// proměnnou. Jazyk lze vynutit standardním `-AppleLanguages '(en)'`.
 enum DebugTools {
     /// Náhradní adresář workspace (`--workspace-dir`), v Release vždy `nil`.
     static var workspaceDirectory: URL? {

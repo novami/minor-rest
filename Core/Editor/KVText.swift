@@ -2,14 +2,14 @@ import Foundation
 
 /// Hromadná úprava řádků KvEditoru: řádek `název: hodnota`, prefix `//` = vypnutý.
 nonisolated enum KVBulk {
-    static func text(_ rows: [KV]) -> String {
+    static func text(_ rows: [KeyValue]) -> String {
         rows.map { res in
             (res.enabled ? "" : "//") + res.name + (res.bare && res.value.isEmpty ? "" : ": \(res.value)")
         }.joined(separator: "\n")
     }
 
     /// Popisy se převezmou podle názvu z `prev`; řádek bez `:` je `bare` jen při `allowBare` (query).
-    static func parse(_ text: String, prev: [KV], allowBare: Bool = false) -> [KV] {
+    static func parse(_ text: String, prev: [KeyValue], allowBare: Bool = false) -> [KeyValue] {
         var desc: [String: String] = [:]
         for res in prev where !res.description.isEmpty && desc[res.name] == nil { desc[res.name] = res.description }
         return text.split(separator: "\n", omittingEmptySubsequences: true).compactMap { raw in
@@ -20,7 +20,7 @@ nonisolated enum KVBulk {
             let colon = line.firstIndex(of: ":")
             let name = String(colon.map { line[..<$0] } ?? line[...]).trimmingCharacters(in: .whitespaces)
             let value = colon.map { String(line[line.index(after: $0)...]).trimmingCharacters(in: .whitespaces) } ?? ""
-            return KV(
+            return KeyValue(
                 name: name, value: value, enabled: enabled, description: desc[name] ?? "",
                 bare: colon == nil && allowBare)
         }

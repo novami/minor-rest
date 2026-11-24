@@ -151,7 +151,7 @@ nonisolated final class Resolver {
         case "$randomInt": return String(Int.random(in: 0...1000))
         case "$randomString":
             let alnum = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
-            return String((0..<16).map { _ in alnum.randomElement()! })
+            return String((0..<16).map { _ in (alnum.randomElement() ?? "0") })
         default: return nil
         }
     }

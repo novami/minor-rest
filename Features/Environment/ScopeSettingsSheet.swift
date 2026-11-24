@@ -27,7 +27,7 @@ struct ScopeSettingsSheet: View {
         var name = ""
         var description = ""
         var vars: [Var] = []
-        var headers: [KV] = []
+        var headers: [KeyValue] = []
         var auth = Auth()
         var settings = HTTPSettings()
         var ignoreResponsesInGit = false

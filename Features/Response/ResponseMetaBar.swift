@@ -72,17 +72,25 @@ struct TimingView: View {
     let timing: Timing
     private static let barWidth: CGFloat = 220
 
+    private struct Row {
+        let key: String
+        let ms: Double
+        let color: Color
+    }
+
     var body: some View {
-        let rows: [(String, Double, Color)] = [
-            ("timing.dns", timing.dnsMs, .teal), ("timing.connect", timing.connectMs, .orange),
-            ("timing.tls", timing.tlsMs, .purple), ("timing.ttfb", timing.ttfbMs, .green),
-            ("timing.download", timing.downloadMs, .blue)
+        let rows: [Row] = [
+            Row(key: "timing.dns", ms: timing.dnsMs, color: .teal),
+            Row(key: "timing.connect", ms: timing.connectMs, color: .orange),
+            Row(key: "timing.tls", ms: timing.tlsMs, color: .purple),
+            Row(key: "timing.ttfb", ms: timing.ttfbMs, color: .green),
+            Row(key: "timing.download", ms: timing.downloadMs, color: .blue)
         ]
-        let total = max(timing.totalMs, rows.reduce(0) { $0 + $1.1 }, 0.001)
+        let total = max(timing.totalMs, rows.reduce(0) { $0 + $1.ms }, 0.001)
         Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
             ForEach(rows.indices, id: \.self) { i in
-                let (key, ms, color) = rows[i]
-                let offset = rows[..<i].reduce(0) { $0 + $1.1 }
+                let (key, ms, color) = (rows[i].key, rows[i].ms, rows[i].color)
+                let offset = rows[..<i].reduce(0) { $0 + $1.ms }
                 GridRow {
                     Text(t(key))
                     ZStack(alignment: .leading) {

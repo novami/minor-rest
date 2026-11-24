@@ -2,7 +2,8 @@ import Foundation
 
 /// Export requestu (kap. 6).
 nonisolated enum Export {
-    /// cURL z připraveného requestu (to, co by se odeslalo). `mask` = maskování tajných hodnot (kap. 2.8) přes `secrets`.
+    /// cURL z připraveného requestu (to, co by se odeslalo). `mask` = maskování tajných hodnot (kap. 2.8) přes
+    /// `secrets`.
     static func curl(
         _ par: PreparedRequest, options opt: HTTPEngine.Options = .init(), multiline: Bool = true,
         mask: Bool = false, secrets: [String] = []
@@ -26,7 +27,7 @@ nonisolated enum Export {
         if let ct = autoContentType(par),
             !par.noAuto.contains(where: { $0.caseInsensitiveCompare("Content-Type") == .orderedSame }),
             !headers.contains(where: { $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame }) {
-            headers.append(KV(name: "Content-Type", value: ct))
+            headers.append(KeyValue(name: "Content-Type", value: ct))
         }
         for hdr in (mask ? map.headers(headers) : headers) { parts.append("-H " + quote("\(hdr.name): \(hdr.value)")) }
 
@@ -57,7 +58,8 @@ nonisolated enum Export {
         return parts.joined(separator: multiline ? " \\\n  " : " ")
     }
 
-    /// cURL z uložené verze / záznamu historie (hlavičky už maskované; automatické `User-Agent`, `Accept*`, `Host`, `Content-Length` se vynechají).
+    /// cURL z uložené verze / záznamu historie (hlavičky už maskované; automatické `User-Agent`, `Accept*`, `Host`,
+    /// `Content-Length` se vynechají).
     static func curl(_ elem: SavedResponse, options: HTTPEngine.Options = .init(), multiline: Bool = true) -> String {
         let skip: Set<String> = ["user-agent", "accept", "accept-encoding", "host", "content-length"]
         let headers = elem.request.headers.filter { !skip.contains($0.name.lowercased()) }

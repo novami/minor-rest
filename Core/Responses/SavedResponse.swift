@@ -24,7 +24,7 @@ nonisolated struct SavedResponse: Sendable, Equatable {
     struct Request: Sendable, Equatable {
         var method = ""
         var url = ""
-        var headers: [KV] = []
+        var headers: [KeyValue] = []
         var bodySize: Int64 = 0
         /// Jen textové tělo do 256 kB (celé), jinak prázdné.
         var body = ""
@@ -37,7 +37,7 @@ nonisolated struct SavedResponse: Sendable, Equatable {
         var remoteAddr = ""
         var localAddr = ""
         var tls: TLSInfo?
-        var headers: [KV] = []
+        var headers: [KeyValue] = []
         var sizes = Sizes()
         var timing = Timing()
         var redirects: [Redirect] = []
@@ -100,7 +100,7 @@ nonisolated struct Mask {
     }
 
     /// `Authorization: Bearer x` → `Bearer ***`; ostatní citlivé hlavičky → `***`.
-    func headers(_ rows: [KV]) -> [KV] {
+    func headers(_ rows: [KeyValue]) -> [KeyValue] {
         rows.map { hdr in
             var hdr = hdr
             let key = hdr.name.lowercased()
@@ -205,7 +205,7 @@ nonisolated extension SavedResponse: YAMLCodable {
     }
 }
 
-nonisolated extension KV {
+nonisolated extension KeyValue {
     /// Hlavička uložené odpovědi: jen název a hodnota.
     fileprivate var header: YNode {
         var map = YMap()
@@ -216,8 +216,8 @@ nonisolated extension KV {
 }
 
 nonisolated private struct HeaderYAML: YAMLDecodable {
-    let value: KV
-    init(yaml opt: YAMLObject) throws { value = KV(name: try opt.string("name"), value: try opt.string("value")) }
+    let value: KeyValue
+    init(yaml opt: YAMLObject) throws { value = KeyValue(name: try opt.string("name"), value: try opt.string("value")) }
 }
 
 nonisolated private struct SavedRequestYAML: YAMLDecodable {

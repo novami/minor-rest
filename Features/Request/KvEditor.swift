@@ -3,7 +3,7 @@ import SwiftUI
 /// Tabulka `název / hodnota / popis` (query, path, headers…): psaní do posledního („duch“) řádku přidá řádek,
 /// pořadí se mění přetažením za úchyt, Hromadná úprava = text `název: hodnota` (`//` = vypnutý).
 /// `fixed` = path parametry (názvy z URL: bez přidávání, mazání, vypínání a přetahování).
-/// Hromadná úprava jen pro `KV`; `valueCell` nahradí pole hodnoty (multipart: text/soubor).
+/// Hromadná úprava jen pro `KeyValue`; `valueCell` nahradí pole hodnoty (multipart: text/soubor).
 struct KvEditor<Row: KvRow>: View {
     @Environment(\.appFonts) private var fonts
     var title: String?
@@ -16,7 +16,7 @@ struct KvEditor<Row: KvRow>: View {
     var valueCell: ((Binding<Row>, _ ghost: Bool) -> AnyView)?
 
     @State private var bulk: String?
-    @State private var bulkBase: [KV] = []
+    @State private var bulkBase: [KeyValue] = []
     @State private var dragging: Int?
     @State private var dropLine: Int?
 
@@ -30,7 +30,7 @@ struct KvEditor<Row: KvRow>: View {
                         set: { text in
                             self.bulk = text
                             rows =
-                                KVBulk.parse(text, prev: bulkBase + (rows as? [KV] ?? []), allowBare: allowBare)
+                                KVBulk.parse(text, prev: bulkBase + (rows as? [KeyValue] ?? []), allowBare: allowBare)
                                 as? [Row] ?? rows
                         })
                 )
@@ -51,10 +51,10 @@ struct KvEditor<Row: KvRow>: View {
         HStack {
             if let title { Text(title).font(fonts.ui.bold()) }
             Spacer()
-            if !fixed, Row.self == KV.self {
+            if !fixed, Row.self == KeyValue.self {
                 Button(bulk == nil ? t("kv.bulk") : t("kv.table")) {
                     if bulk == nil {
-                        bulkBase = rows as? [KV] ?? []
+                        bulkBase = rows as? [KeyValue] ?? []
                         bulk = KVBulk.text(bulkBase)
                     } else {
                         bulk = nil
@@ -181,7 +181,7 @@ protocol KvRow: Equatable {
     var note: String { get set }
 }
 
-extension KV: KvRow {
+extension KeyValue: KvRow {
     init() { self.init(name: "") }
     var note: String {
         get { description }

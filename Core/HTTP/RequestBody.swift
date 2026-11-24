@@ -32,7 +32,8 @@ nonisolated struct Payload: Sendable {
     static func bytes(_ dat: Data, _ contentType: String) -> Payload {
         Payload(
             source: .data(dat), contentType: contentType, size: Int64(dat.count),
-            preview: String(decoding: dat.prefix(previewLimit), as: UTF8.self))
+            preview: String(bytes: dat.prefix(previewLimit), encoding: .utf8) ?? String(
+                bytes: dat.prefix(previewLimit), encoding: .isoLatin1) ?? "")
     }
 
     static let rawTypes = [
@@ -61,7 +62,7 @@ nonisolated struct Payload: Sendable {
     }
 
     /// Zapnuté řádky v zadaném pořadí, kódování jako HTML formulář (mezera = `+`).
-    static func encodeForm(_ rows: [KV]) -> String {
+    static func encodeForm(_ rows: [KeyValue]) -> String {
         rows.filter { $0.enabled && !$0.name.isEmpty }
             .map { formEscape($0.name) + "=" + formEscape($0.value) }
             .joined(separator: "&")
@@ -98,9 +99,9 @@ nonisolated struct Payload: Sendable {
                 guard !par.path.isEmpty, let data = try? Data(contentsOf: urlVal) else {
                     throw CoreError(.fileNotFound, par.path)
                 }
-                line(
-                    "Content-Disposition: form-data; name=\"\(quoteEscape(par.name))\"; filename=\"\(quoteEscape(urlVal.lastPathComponent))\""
-                )
+                let fieldName = quoteEscape(par.name)
+                let fileName = quoteEscape(urlVal.lastPathComponent)
+                line("Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(fileName)\"")
                 line("Content-Type: \(par.contentType.isEmpty ? mimeType(urlVal) : par.contentType)")
                 line("")
                 dat.append(data)

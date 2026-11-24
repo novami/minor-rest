@@ -27,8 +27,8 @@ nonisolated struct APIOperation: Sendable, Equatable {
     var summary = ""
     var operationId = ""
     var description = ""
-    var query: [KV] = []
-    var headers: [KV] = []
+    var query: [KeyValue] = []
+    var headers: [KeyValue] = []
     var pathParams: [PathParam] = []
     var body: Body?
     /// `nil` = zdědit; `none` při `security: []`; jinak vlastní schéma operace.
@@ -58,34 +58,36 @@ nonisolated enum OpenAPIParser {
             throw CoreError(.importInvalid, "\(error)")
         }
         guard root.mapping != nil else { throw CoreError(.importInvalid, "not an object") }
-        var par = P(root: N(root))
+        var par = SpecParser(root: SpecNode(root))
         guard par.v2 || par.v3 else { throw CoreError(.importInvalid, "swagger/openapi") }
         return par.run()
     }
 }
 
 /// Tenký obal nad `Node` (bez výjimek; chybějící klíč = prázdný uzel).
-nonisolated private struct N {
+nonisolated private struct SpecNode {
     var node: Node?
     init(_ numVal: Node?) { node = numVal }
-    subscript(_ keyVal: String) -> N { N(node?.mapping != nil ? node?[keyVal] : nil) }
+    subscript(_ keyVal: String) -> SpecNode { SpecNode(node?.mapping != nil ? node?[keyVal] : nil) }
     var exists: Bool { node != nil }
     var str: String? { node?.scalar?.string }
     var bool: Bool? { node?.scalar != nil ? node?.bool : nil }
-    var items: [N] { node?.sequence?.map { N($0) } ?? [] }
-    var pairs: [(key: String, value: N)] { node?.mapping?.map { ($0.key.string ?? "", N($0.value)) } ?? [] }
+    var items: [SpecNode] { node?.sequence?.map { SpecNode($0) } ?? [] }
+    var pairs: [(key: String, value: SpecNode)] {
+        node?.mapping?.map { ($0.key.string ?? "", SpecNode($0.value)) } ?? []
+    }
     var isMapping: Bool { node?.mapping != nil }
     var isSequence: Bool { node?.sequence != nil }
 }
 
 /// Ordered JSON pro ukázková těla.
-nonisolated private indirect enum J {
+nonisolated private indirect enum SpecJSON {
     case null
     case bool(Bool)
     case num(String)
     case str(String)
-    case arr([J])
-    case obj([(String, J)])
+    case arr([SpecJSON])
+    case obj([(String, SpecJSON)])
 
     var compact: String {
         switch self {
@@ -130,8 +132,8 @@ nonisolated private indirect enum J {
     }
 }
 
-nonisolated private struct P {
-    let root: N
+nonisolated private struct SpecParser {
+    let root: SpecNode
     var warnings: [String] = []
     var vars: [String] = []
     var schemes: [String: Auth] = [:]
@@ -139,7 +141,7 @@ nonisolated private struct P {
     let v3: Bool
     let maxDepth = 6
 
-    init(root: N) {
+    init(root: SpecNode) {
         self.root = root
         v2 = root["swagger"].str?.hasPrefix("2") ?? false
         v3 = root["openapi"].str?.hasPrefix("3") ?? false
@@ -243,9 +245,9 @@ nonisolated private struct P {
         }
     }
 
-    mutating func oauth(_ strVal: N) -> Auth? {
+    mutating func oauth(_ strVal: SpecNode) -> Auth? {
         var opt = OAuth2Auth()
-        var flow = N(nil)
+        var flow = SpecNode(nil)
         var grant = ""
         func url(_ urlVal: String?) -> String {
             (urlVal ?? "").hasPrefix("/") ? "{{baseUrl}}" + (urlVal ?? "") : (urlVal ?? "")
@@ -290,7 +292,7 @@ nonisolated private struct P {
     }
 
     /// První neprázdná alternativa požadavku `security` → schéma; prázdné pole → `nil`.
-    func authFor(_ sec: N) -> Auth? {
+    func authFor(_ sec: SpecNode) -> Auth? {
         for alt in sec.items {
             if let name = alt.pairs.first?.key, let arg = schemes[name] { return arg }
         }
@@ -299,7 +301,7 @@ nonisolated private struct P {
 
     // MARK: $ref
 
-    func lookup(_ ref: String) -> N? {
+    func lookup(_ ref: String) -> SpecNode? {
         guard ref.hasPrefix("#/") else { return nil }
         var cur = root
         for part in ref.dropFirst(2).split(separator: "/", omittingEmptySubsequences: false) {
@@ -318,11 +320,11 @@ nonisolated private struct P {
     }
 
     /// Následuje řetěz `$ref`; neplatný / externí odkaz nebo cyklus → prázdný uzel.
-    func deref(_ numVal: N) -> N {
+    func deref(_ numVal: SpecNode) -> SpecNode {
         var cur = numVal
         var seen: Set<String> = []
         while let ref = cur["$ref"].str {
-            guard seen.insert(ref).inserted, let txt = lookup(ref) else { return N(nil) }
+            guard seen.insert(ref).inserted, let txt = lookup(ref) else { return SpecNode(nil) }
             cur = txt
         }
         return cur
@@ -330,7 +332,7 @@ nonisolated private struct P {
 
     // MARK: Ukázkové hodnoty
 
-    func json(_ numVal: N) -> J {
+    func json(_ numVal: SpecNode) -> SpecJSON {
         guard let node = numVal.node else { return .null }
         switch node {
         case .mapping: return .obj(numVal.pairs.map { ($0.key, json($0.value)) })
@@ -346,7 +348,7 @@ nonisolated private struct P {
     }
 
     /// `example` → `default` → `enum[0]` → `const` přímo na uzlu.
-    func direct(_ numVal: N) -> J? {
+    func direct(_ numVal: SpecNode) -> SpecJSON? {
         for keyVal in ["example", "x-example", "default", "const"] where numVal[keyVal].exists {
             return json(numVal[keyVal])
         }
@@ -355,7 +357,7 @@ nonisolated private struct P {
         return nil
     }
 
-    func sample(_ schema: N, depth: Int = 0, stack: [String] = []) -> J? {
+    func sample(_ schema: SpecNode, depth: Int = 0, stack: [String] = []) -> SpecJSON? {
         guard depth <= maxDepth else { return nil }
         var strVal = schema
         var stack = stack
@@ -368,7 +370,7 @@ nonisolated private struct P {
         }
         if let dat = direct(strVal) { return dat }
         if !strVal["allOf"].items.isEmpty {
-            var props: [(String, J)] = []
+            var props: [(String, SpecJSON)] = []
             for sub in strVal["allOf"].items {
                 if case .obj(let opt)? = sample(sub, depth: depth + 1, stack: stack) {
                     for (keyVal, val) in opt {
@@ -392,7 +394,7 @@ nonisolated private struct P {
         if type.isEmpty { type = strVal["properties"].exists ? "object" : (strVal["items"].exists ? "array" : "") }
         switch type {
         case "object":
-            var out: [(String, J)] = []
+            var out: [(String, SpecJSON)] = []
             for (name, raw) in strVal["properties"].pairs {
                 if deref(raw)["readOnly"].bool == true { continue }
                 if let val = sample(raw, depth: depth + 1, stack: stack) { out.append((name, val)) }
@@ -416,11 +418,11 @@ nonisolated private struct P {
         }
     }
 
-    func pretty(_ j: J) -> String { (try? JSONFormatter.format(j.compact)) ?? j.compact }
+    func pretty(_ j: SpecJSON) -> String { (try? JSONFormatter.format(j.compact)) ?? j.compact }
 
     // MARK: Operace
 
-    mutating func operation(_ method: String, _ rawPath: String, _ item: N, _ opNode: N) -> APIOperation {
+    mutating func operation(_ method: String, _ rawPath: String, _ item: SpecNode, _ opNode: SpecNode) -> APIOperation {
         var op = APIOperation()
         op.method = method
         op.path = Self.colonPath(rawPath)
@@ -429,8 +431,8 @@ nonisolated private struct P {
         op.operationId = opNode["operationId"].str ?? ""
         op.description = opNode["description"].str ?? ""
 
-        var params: [N] = []
-        func key(_ par: N) -> String { (par["in"].str ?? "") + "|" + (par["name"].str ?? "") }
+        var params: [SpecNode] = []
+        func key(_ par: SpecNode) -> String { (par["in"].str ?? "") + "|" + (par["name"].str ?? "") }
         for raw in item["parameters"].items { params.append(deref(raw)) }
         for raw in opNode["parameters"].items {
             let par = deref(raw)
@@ -438,18 +440,19 @@ nonisolated private struct P {
         }
 
         var declaredPath: [String: PathParam] = [:]
-        var formParams: [N] = []
-        var bodyParam: N?
+        var formParams: [SpecNode] = []
+        var bodyParam: SpecNode?
         for par in params {
             let name = par["name"].str ?? ""
             let desc = par["description"].str ?? ""
             let value = paramValue(par)
             switch par["in"].str ?? "" {
             case "query":
-                op.query.append(KV(name: name, value: value, enabled: par["required"].bool == true, description: desc))
+                op.query.append(
+                    KeyValue(name: name, value: value, enabled: par["required"].bool == true, description: desc))
             case "header":
                 op.headers.append(
-                    KV(name: name, value: value, enabled: par["required"].bool == true, description: desc))
+                    KeyValue(name: name, value: value, enabled: par["required"].bool == true, description: desc))
             case "path": declaredPath[name] = PathParam(name: name, value: value, description: desc)
             case "formData": formParams.append(par)
             case "body": bodyParam = par
@@ -485,7 +488,7 @@ nonisolated private struct P {
         return out
     }
 
-    func paramValue(_ par: N) -> String {
+    func paramValue(_ par: SpecNode) -> String {
         if let dat = direct(par) { return dat.text }
         if let ex = par["examples"].pairs.first, let val = Optional(deref(ex.value)["value"]), val.exists {
             return json(val).text
@@ -497,7 +500,7 @@ nonisolated private struct P {
 
     // MARK: Těla
 
-    func bodyV3(_ rb: N) -> Body? {
+    func bodyV3(_ rb: SpecNode) -> Body? {
         let content = rb["content"].pairs
         guard
             let pick = content.first(where: { $0.key == "application/json" })
@@ -507,7 +510,7 @@ nonisolated private struct P {
         let schema = media["schema"]
         let ct = pick.key.lowercased()
 
-        func example() -> J? {
+        func example() -> SpecJSON? {
             if media["example"].exists { return json(media["example"]) }
             if let ex = media["examples"].pairs.first {
                 let val = deref(ex.value)["value"]
@@ -530,24 +533,24 @@ nonisolated private struct P {
         return Body(type: BodyType.binary)
     }
 
-    func formBody(_ schema: N, multipart: Bool) -> Body {
+    func formBody(_ schema: SpecNode, multipart: Bool) -> Body {
         var strVal = deref(schema)
         if !strVal["allOf"].items.isEmpty {
             strVal = strVal["allOf"].items.map(deref).first { $0["properties"].exists } ?? strVal
         }
-        var kv: [KV] = []
+        var kv: [KeyValue] = []
         var parts: [MultipartPart] = []
         for (name, raw) in strVal["properties"].pairs {
             let par = deref(raw)
             let isFile = par["format"].str == "binary" || par["type"].str == "file"
             let val = isFile ? "" : (sample(par, stack: []) ?? .str("")).text
-            kv.append(KV(name: name, value: val))
+            kv.append(KeyValue(name: name, value: val))
             parts.append(MultipartPart(name: name, kind: isFile ? "file" : "text", value: val))
         }
         return multipart ? Body(type: BodyType.multipart, multipart: parts) : Body(type: BodyType.form, form: kv)
     }
 
-    func bodyV2(_ op: N, _ bodyParam: N?, _ form: [N]) -> Body? {
+    func bodyV2(_ op: SpecNode, _ bodyParam: SpecNode?, _ form: [SpecNode]) -> Body? {
         let consumes = (op["consumes"].exists ? op["consumes"] : root["consumes"]).items.compactMap(\.str)
         if let bp = bodyParam {
             let j = direct(bp) ?? sample(bp["schema"]) ?? .obj([])
@@ -561,13 +564,13 @@ nonisolated private struct P {
         }
         guard !form.isEmpty else { return nil }
         let multi = consumes.contains { $0.contains("multipart") } || form.contains { $0["type"].str == "file" }
-        var kv: [KV] = []
+        var kv: [KeyValue] = []
         var parts: [MultipartPart] = []
         for par in form {
             let name = par["name"].str ?? ""
             let isFile = par["type"].str == "file"
             let val = isFile ? "" : paramValue(par)
-            kv.append(KV(name: name, value: val, description: par["description"].str ?? ""))
+            kv.append(KeyValue(name: name, value: val, description: par["description"].str ?? ""))
             parts.append(MultipartPart(name: name, kind: isFile ? "file" : "text", value: val))
         }
         return multi ? Body(type: BodyType.multipart, multipart: parts) : Body(type: BodyType.form, form: kv)

@@ -122,11 +122,11 @@ actor OAuthClient {
         guard par.grantType == OAuthParams.clientCredentials || par.grantType == OAuthParams.password else {
             throw CoreError(.oauthLoginRequired, par.tokenURL)
         }
-        var form = [KV(name: "grant_type", value: par.grantType)]
+        var form = [KeyValue(name: "grant_type", value: par.grantType)]
         if par.grantType == OAuthParams.password {
-            form += [KV(name: "username", value: par.username), KV(name: "password", value: par.password)]
+            form += [KeyValue(name: "username", value: par.username), KeyValue(name: "password", value: par.password)]
         }
-        if !par.scope.isEmpty { form.append(KV(name: "scope", value: par.scope)) }
+        if !par.scope.isEmpty { form.append(KeyValue(name: "scope", value: par.scope)) }
         return try await request(par, form, options, previousRefresh: "")
     }
 
@@ -136,8 +136,10 @@ actor OAuthClient {
         guard let str = try load(par.cacheKey), !str.refresh.isEmpty else {
             throw CoreError(.oauthLoginRequired, par.tokenURL)
         }
-        var form = [KV(name: "grant_type", value: "refresh_token"), KV(name: "refresh_token", value: str.refresh)]
-        if !par.scope.isEmpty { form.append(KV(name: "scope", value: par.scope)) }
+        var form = [
+            KeyValue(name: "grant_type", value: "refresh_token"), KeyValue(name: "refresh_token", value: str.refresh)
+        ]
+        if !par.scope.isEmpty { form.append(KeyValue(name: "scope", value: par.scope)) }
         _ = try await request(par, form, options, previousRefresh: str.refresh)
         return try load(par.cacheKey)?.access ?? ""
     }
@@ -162,7 +164,9 @@ actor OAuthClient {
         try secrets.set(account: Self.account(key, "access"), value: str.access)
         try secrets.set(account: Self.account(key, "refresh"), value: str.refresh)
         let meta = try JSONEncoder().encode(Meta(type: str.type, scope: str.scope, expiresAt: str.expiresAt))
-        try secrets.set(account: Self.account(key, "meta"), value: String(decoding: meta, as: UTF8.self))
+        try secrets.set(
+            account: Self.account(key, "meta"),
+            value: String(bytes: meta, encoding: .utf8) ?? String(bytes: meta, encoding: .isoLatin1) ?? "")
         memory[key] = str
         return str.info
     }
@@ -176,18 +180,18 @@ actor OAuthClient {
 
     /// POST na token endpoint s doplněním klientských údajů; úspěch uloží do cache.
     func request(
-        _ par: OAuthParams, _ form: [KV], _ options: HTTPEngine.Options,
+        _ par: OAuthParams, _ form: [KeyValue], _ options: HTTPEngine.Options,
         previousRefresh: String
     ) async throws -> TokenInfo {
         guard !par.tokenURL.isEmpty else { throw CoreError(.urlInvalid, "tokenUrl") }
         var form = form
-        var headers = [KV(name: "Accept", value: "application/json")]
+        var headers = [KeyValue(name: "Accept", value: "application/json")]
         if par.clientAuth == "body" {
-            form.append(KV(name: "client_id", value: par.clientID))
-            if !par.clientSecret.isEmpty { form.append(KV(name: "client_secret", value: par.clientSecret)) }
+            form.append(KeyValue(name: "client_id", value: par.clientID))
+            if !par.clientSecret.isEmpty { form.append(KeyValue(name: "client_secret", value: par.clientSecret)) }
         } else if !par.clientID.isEmpty || !par.clientSecret.isEmpty {
             let cred = Self.formEncode(par.clientID) + ":" + Self.formEncode(par.clientSecret)
-            headers.append(KV(name: "Authorization", value: "Basic " + Data(cred.utf8).base64EncodedString()))
+            headers.append(KeyValue(name: "Authorization", value: "Basic " + Data(cred.utf8).base64EncodedString()))
         }
         let req = PreparedRequest(
             method: "POST", url: par.tokenURL, headers: headers,

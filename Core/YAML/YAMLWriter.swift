@@ -129,12 +129,18 @@ nonisolated enum YAMLWriter {
     private static var intRegex: Regex<(Substring, Substring)> {
         /^[-+]?(0[xX][0-9a-fA-F]+|0[oO][0-7]+|0[bB][01]+|[0-9]+)$/
     }
-    private static var floatRegex: Regex<(Substring, Substring, Substring?, Substring?)> {
-        /^[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?$/
+    private static var floatRegex: Regex<Substring> {
+        /^[-+]?(?:\.[0-9]+|[0-9]+(?:\.[0-9]*)?)(?:[eE][-+]?[0-9]+)?$/
     }
     private static var base60Regex: Regex<Substring> { /^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+(?:\.[0-9_]*)?$/ }
     private static var timestampRegex: Regex<Substring> {
-        /^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}(?:(?:[Tt][0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}(?:\.[0-9]+)?(?:Z|[-+][0-9]{2}:[0-9]{2}))|(?: [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}(?:\.[0-9]+)?))?$/
+        #/
+        ^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}
+        (?:
+          (?:[Tt][0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}(?:\.[0-9]+)?(?:Z|[-+][0-9]{2}:[0-9]{2}))
+          |(?:\ [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}(?:\.[0-9]+)?)
+        )?$
+        /#
     }
 
     /// Zda by plain zápis řetězce zůstal řetězcem (jinak yaml.v3 použije dvojité uvozovky).
@@ -235,7 +241,8 @@ nonisolated enum YAMLWriter {
                 cur == "\n" || cur == "\r" || cur == "\u{85}" || cur == "\u{2028}" || cur == "\u{2029}"
             }
             func isBlankz(_ cur: Unicode.Scalar?) -> Bool {
-                cur == nil || cur == " " || cur == "\t" || cur == "\0" || isBreak(cur!)
+                guard let cur else { return true }
+                return cur == " " || cur == "\t" || cur == "\0" || isBreak(cur)
             }
 
             for (i, cur) in chars.enumerated() {

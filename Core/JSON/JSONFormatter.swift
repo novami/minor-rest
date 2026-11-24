@@ -5,7 +5,7 @@ nonisolated enum JSONFormatter {
     static func format(_ text: String) throws -> String {
         var par = Parser(Array(text.utf8), output: true)
         try par.run()
-        return String(decoding: par.out, as: UTF8.self)
+        return String(bytes: par.out, encoding: .utf8) ?? String(bytes: par.out, encoding: .isoLatin1) ?? ""
     }
 
     /// Jen kontrola syntaxe (varování v editoru těla).
@@ -17,14 +17,14 @@ nonisolated enum JSONFormatter {
         return nil
     }
 
+    fileprivate enum Expect { case value, valueOrClose, key, keyOrClose, colon, after }
+
     private struct Parser {
         let src: [UInt8]
         let output: Bool
         var i = 0
         var out: [UInt8] = []
         var stack: [UInt8] = []  // `{` nebo `[`
-
-        enum Expect { case value, valueOrClose, key, keyOrClose, colon, after }
 
         init(_ src: [UInt8], output: Bool) {
             self.src = src
@@ -61,7 +61,7 @@ nonisolated enum JSONFormatter {
                     emit(": ")
                     expect = .value
                 case .after:
-                    let top = stack.last!
+                    guard let top = stack.last else { throw fail("unexpected state") }
                     if cur == UInt8(ascii: ",") {
                         i += 1
                         emit(",")
@@ -71,12 +71,11 @@ nonisolated enum JSONFormatter {
                         try close(cur)
                         expect = .after
                     } else {
-                        throw fail(
-                            "invalid character \(quoted(cur)) after \(top == UInt8(ascii: "{") ? "object key:value pair" : "array element")"
-                        )
+                        let what = top == UInt8(ascii: "{") ? "object key:value pair" : "array element"
+                        throw fail("invalid character \(quoted(cur)) after \(what)")
                     }
                 case .keyOrClose, .valueOrClose:
-                    let top = stack.last!
+                    guard let top = stack.last else { throw fail("unexpected state") }
                     if cur == closing(top) {
                         i += 1
                         emitByte(cur)

@@ -4,16 +4,29 @@ import XCTest
 
 /// Odpovědi pro `StubProtocol`; `nil` handler = spojení se nikdy nedokončí (test zrušení).
 final class StubProtocol: URLProtocol {
-    nonisolated(unsafe) static var handler: ((URLRequest) -> (HTTPURLResponse, Data))?
+    struct Reply {
+        var status = 200
+        var headers: [String: String] = [:]
+        var body = Data()
+    }
 
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    nonisolated(unsafe) static var handler: ((URLRequest) -> Reply)?
+
+    override static func canInit(with request: URLRequest) -> Bool { true }
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         guard let handler = Self.handler else { return }
-        let (response, data) = handler(request)
+        let reply = handler(request)
+        guard let url = request.url,
+            let response = HTTPURLResponse(
+                url: url, statusCode: reply.status, httpVersion: "HTTP/1.1", headerFields: reply.headers)
+        else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocol(self, didLoad: reply.body)
         client?.urlProtocolDidFinishLoading(self)
     }
 
@@ -28,10 +41,10 @@ final class HTTPEngineTests: XCTestCase {
 
     func testSuccessfulResponseHasStatusHeadersAndSize() async {
         StubProtocol.handler = { req in
-            let res = HTTPURLResponse(
-                url: req.url!, statusCode: 201, httpVersion: "HTTP/1.1",
-                headerFields: ["Content-Type": "application/json", "X-Echo": req.httpMethod ?? ""])!
-            return (res, Data("{\"ok\":true}".utf8))
+            StubProtocol.Reply(
+                status: 201,
+                headers: ["Content-Type": "application/json", "X-Echo": req.httpMethod ?? ""],
+                body: Data("{\"ok\":true}".utf8))
         }
         let engine = HTTPEngine(protocolClasses: [StubProtocol.self])
         let resVal = PreparedRequest(

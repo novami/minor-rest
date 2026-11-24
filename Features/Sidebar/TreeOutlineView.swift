@@ -68,7 +68,7 @@ struct TreeOutlineView: NSViewRepresentable {
         var version = -1
         var query = ""
         var focusRequest = 0
-        private var pendingDrop: (rel: String, parent: String, index: Int)?
+        private var pendingDrop: PendingDrop?
         var font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
         private var root: TreeItem?
         private var restoring = false
@@ -125,7 +125,7 @@ struct TreeOutlineView: NSViewRepresentable {
         }
 
         func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-            ((item as? TreeItem) ?? root)!.children[index]
+            ((item as? TreeItem) ?? root)?.children[index] ?? NSNull()
         }
 
         func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
@@ -198,7 +198,7 @@ struct TreeOutlineView: NSViewRepresentable {
             if dragged.kind == .folder && (dest == rel || dest.hasPrefix(rel + "/")) { return [] }
             guard let moveIndex = parent.node.moveIndex(of: dragged, before: child) else { return [] }
             outlineView.setDropItem(target, dropChildIndex: child ?? NSOutlineViewDropOnItemIndex)
-            pendingDrop = (rel, dest, moveIndex)
+            pendingDrop = PendingDrop(rel: rel, parent: dest, index: moveIndex)
             return .move
         }
 
@@ -319,7 +319,7 @@ final class TreeItem: NSObject {
 final class TreeCellView: NSTableCellView {
     private let icon = NSImageView()
     private let badge = NSTextField(labelWithString: "")
-    private var badgeWidth: NSLayoutConstraint!
+    private var badgeWidth = NSLayoutConstraint()
 
     init(id: NSUserInterfaceItemIdentifier) {
         super.init(frame: .zero)
@@ -350,9 +350,9 @@ final class TreeCellView: NSTableCellView {
         nameLeading.isActive = true
     }
 
-    private var nameLeading: NSLayoutConstraint!
+    private var nameLeading = NSLayoutConstraint()
 
-    required init?(coder: NSCoder) { fatalError() }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     func configure(_ node: TreeNode, font: NSFont) {
         guard let name = textField else { return }
@@ -384,7 +384,8 @@ final class TreeCellView: NSTableCellView {
     }
 }
 
-/// Outline s klávesami: Enter = rozbalit/sbalit složku, otevřít request, F2 = přejmenovat, Cmd+Backspace/Delete = smazat.
+/// Outline s klávesami: Enter = rozbalit/sbalit složku, otevřít request, F2 = přejmenovat,
+/// Cmd+Backspace/Delete = smazat.
 final class TreeOutline: NSOutlineView {
     weak var coordinator: TreeOutlineView.Coordinator?
 
@@ -422,7 +423,14 @@ nonisolated final class ActionMenuItem: NSMenuItem {
         target = self
     }
 
-    required init(coder: NSCoder) { fatalError() }
+    required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     @MainActor @objc private func run() { handler() }
+}
+
+/// Cíl právě probíhajícího přetažení v outline.
+private struct PendingDrop {
+    let rel: String
+    let parent: String
+    let index: Int
 }

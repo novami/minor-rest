@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 
 /// Jednořádkové pole se zvýrazněním `{{proměnných}}` (PLAN 1.1/9): vlastní field editor (TextKit 1),
-/// barvy přes temporary attributes layout manageru – nemění text ani undo. Mimo editaci obarvený `attributedStringValue`.
+/// barvy přes temporary attributes layout manageru – nemění text ani undo. Mimo editaci obarvený
+/// `attributedStringValue`.
 /// S `varContext` z prostředí: známá zeleně, neznámá červeně, hover = popover s hodnotou, po `{{` našeptávač názvů.
 struct VarField: NSViewRepresentable {
     @Binding var text: String

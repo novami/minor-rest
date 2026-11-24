@@ -58,12 +58,15 @@ nonisolated extension Workspace: YAMLCodable {
         var map = YMap()
         map.add("projects", strings(projects))
         map.add("activeProject", activeProject)
-        map.add("expanded", .map(expanded.keys.sorted().map { YEntry(key: $0, value: strings(expanded[$0]!)) }))
-        map.add("tabs", .map(tabs.keys.sorted().map { YEntry(key: $0, value: strings(tabs[$0]!)) }))
-        map.add("activeTab", .map(activeTab.keys.sorted().map { YEntry(key: $0, value: .string(activeTab[$0]!)) }))
+        map.add(
+            "expanded", .map(expanded.sorted { $0.key < $1.key }.map { YEntry(key: $0.key, value: strings($0.value)) }))
+        map.add("tabs", .map(tabs.sorted { $0.key < $1.key }.map { YEntry(key: $0.key, value: strings($0.value)) }))
+        map.add(
+            "activeTab",
+            .map(activeTab.sorted { $0.key < $1.key }.map { YEntry(key: $0.key, value: .string($0.value)) }))
         map.add(
             "activeEnvironment",
-            .map(activeEnvironment.keys.sorted().map { YEntry(key: $0, value: .string(activeEnvironment[$0]!)) }))
+            .map(activeEnvironment.sorted { $0.key < $1.key }.map { YEntry(key: $0.key, value: .string($0.value)) }))
         map.add("sidebarHidden", sidebarHidden)
         map.add("sidebarWidth", sidebarWidth)
         map.add("responseHeight", responseHeight)

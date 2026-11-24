@@ -106,7 +106,8 @@ actor HTTPEngine {
             res.error = error
             return res
         }
-        (res.contentType, res.charset, res.isBinary) = ContentSniff.sniff(ct, sample)
+        let sniffed = ContentSniff.sniff(ct, sample)
+        (res.contentType, res.charset, res.isBinary) = (sniffed.mediaType, sniffed.charset, sniffed.binary)
         keep(runID, Stored(body: out.body, contentType: res.contentType, charset: res.charset, isBinary: res.isBinary))
         return res
     }
@@ -255,7 +256,7 @@ nonisolated struct RunOutcome: Sendable {
     var error: CoreError?
     var status = 0
     var proto = ""
-    var headers: [KV] = []
+    var headers: [KeyValue] = []
     /// Přijaté cookies celého běhu (i ze skoků redirectu).
     var cookies: [Cookie] = []
     var body = ResponseBody.data(Data())
@@ -263,7 +264,7 @@ nonisolated struct RunOutcome: Sendable {
     var redirects: [Redirect] = []
     var sentMethod = ""
     var sentURL = ""
-    var sentHeaders: [KV] = []
+    var sentHeaders: [KeyValue] = []
     var timing = Timing()
     var sizes = Sizes()
     var remoteAddr = ""
@@ -351,7 +352,7 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
         if space.authenticationMethod == NSURLAuthenticationMethodServerTrust, let trust = space.serverTrust,
             let cur = TLSNames.certificate(trust) {
             var info = TLSInfo()
-            (info.subject, info.issuer, info.notAfter) = cur
+            (info.subject, info.issuer, info.notAfter) = (cur.subject, cur.issuer, cur.notAfter)
             state.withLock { $0.certs[space.host.lowercased()] = info }
         }
         if space.authenticationMethod == NSURLAuthenticationMethodServerTrust,
@@ -474,8 +475,9 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
             } else if let error, !str.sink.truncated {
                 out.error = Self.classify(error)
             }
-            if out.tls != nil, let cert = str.certs[out.tls!.serverName.lowercased()] {
-                (out.tls!.subject, out.tls!.issuer, out.tls!.notAfter) = (cert.subject, cert.issuer, cert.notAfter)
+            if var tls = out.tls, let cert = str.certs[tls.serverName.lowercased()] {
+                (tls.subject, tls.issuer, tls.notAfter) = (cert.subject, cert.issuer, cert.notAfter)
+                out.tls = tls
             }
             if out.error == nil {
                 out.truncated = str.sink.truncated
@@ -506,15 +508,15 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
     }
 
     /// Řádky seřazené podle názvu; sloučené `Set-Cookie` rozdělí na samostatné řádky.
-    static func rows(_ hdr: [String: String]) -> [KV] {
+    static func rows(_ hdr: [String: String]) -> [KeyValue] {
         hdr.sorted { $0.key.lowercased() < $1.key.lowercased() }.flatMap { keyVal, val in
             keyVal.lowercased() == "set-cookie"
-                ? SetCookie.split(val).map { KV(name: keyVal, value: $0) } : [KV(name: keyVal, value: val)]
+                ? SetCookie.split(val).map { KeyValue(name: keyVal, value: $0) } : [KeyValue(name: keyVal, value: val)]
         }
     }
 
     /// Hlavičky z `currentRequest` (bez prázdných – ty se neodešlou) + odvozené `Host`, `Connection`, `Cache-Control`.
-    static func sentHeaders(_ resVal: URLRequest?, proto: String) -> [KV] {
+    static func sentHeaders(_ resVal: URLRequest?, proto: String) -> [KeyValue] {
         var hdr = (resVal?.allHTTPHeaderFields ?? [:]).filter { !$0.value.isEmpty }
         let has = Set(hdr.keys.map { $0.lowercased() })
         if !has.contains("host"), let urlVal = resVal?.url, let host = urlVal.host(percentEncoded: false) {

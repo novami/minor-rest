@@ -1,7 +1,7 @@
 // Převod modelu na YAML a zpět. Pořadí klíčů a vynechávání prázdných hodnot odpovídá
 // Go verzi (struktury s `omitempty`), chybějící `enabled` znamená zapnuto.
 
-nonisolated extension KV: YAMLCodable {
+nonisolated extension KeyValue: YAMLCodable {
     var yaml: YNode {
         var mapVal = YMap()
         mapVal.add("name", name)

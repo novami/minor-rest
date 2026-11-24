@@ -85,7 +85,7 @@ struct ResponseTabs: View {
 
 /// Tabulka hlaviček; ⌘C kopíruje hodnoty vybraných řádků, kontextové menu i celé řádky.
 struct HeaderTable: View {
-    let rows: [KV]
+    let rows: [KeyValue]
     let empty: String
     @State private var selection = Set<Int>()
     @Environment(\.appFonts) private var fonts
@@ -120,7 +120,7 @@ struct HeaderTable: View {
         }
     }
 
-    private func text(_ ids: Set<Int>, _ line: (KV) -> String) -> String {
+    private func text(_ ids: Set<Int>, _ line: (KeyValue) -> String) -> String {
         ids.sorted().filter { $0 < rows.count }.map { line(rows[$0]) }.joined(separator: "\n")
     }
 }

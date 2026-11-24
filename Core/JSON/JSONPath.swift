@@ -60,7 +60,7 @@ nonisolated indirect enum Expr: Sendable {
     case and([Expr])
     case not(Expr)
     case test(Query)
-    case logicalFn(Fn)
+    case logicalFn(JSONFunction)
     case compare(Operand, CompareOp, Operand)
 }
 
@@ -76,10 +76,10 @@ nonisolated enum CompareOp: String, Sendable {
 nonisolated indirect enum Operand: Sendable {
     case literal(JSONValue)
     case query(Query)  // jen singulární
-    case fn(Fn)  // jen ValueType
+    case fn(JSONFunction)  // jen ValueType
 }
 
-nonisolated struct Fn: Sendable {
+nonisolated struct JSONFunction: Sendable {
     enum Kind: String, Sendable { case length, count, match, search, value }
     enum ResultType { case value, logical }
     var kind: Kind
@@ -369,7 +369,8 @@ nonisolated private struct Parser {
         if curVal == "@" || curVal == "$" { return .query(try query()) }
         if curVal == "'" || curVal == "\"" { return .literal(.string(try string())) }
         if curVal == "-" || ("0"..."9").contains(curVal) { return .literal(try number()) }
-        for (wrd, val) in [("true", JSONValue.bool(true)), ("false", .bool(false)), ("null", .null)] where peekWord(wrd) {
+        let words: [(String, JSONValue)] = [("true", .bool(true)), ("false", .bool(false)), ("null", .null)]
+        for (wrd, val) in words where peekWord(wrd) {
             i += wrd.unicodeScalars.count
             return .literal(val)
         }
@@ -411,7 +412,7 @@ nonisolated private struct Parser {
         return .number(Double(text) ?? .nan, text)
     }
 
-    mutating func function() throws(CoreError) -> Fn {
+    mutating func function() throws(CoreError) -> JSONFunction {
         let start = i
         while i < str.count, ("a"..."z").contains(str[i]) || ("0"..."9").contains(str[i]) || str[i] == "_" { i += 1 }
         let name = String(String.UnicodeScalarView(str[start..<i]))
@@ -419,7 +420,7 @@ nonisolated private struct Parser {
             i = start
             throw fail("unexpected '\(name)'")
         }
-        guard let kind = Fn.Kind(rawValue: name) else { throw fail("unknown function \(name)()", at: start) }
+        guard let kind = JSONFunction.Kind(rawValue: name) else { throw fail("unknown function \(name)()", at: start) }
         i += 1
         var args: [(Operand, Int)] = []
         space()
@@ -453,7 +454,7 @@ nonisolated private struct Parser {
             default: break
             }
         }
-        return Fn(kind: kind, args: args.map(\.0))
+        return JSONFunction(kind: kind, args: args.map(\.0))
     }
 
     // MARK: Pomocné
@@ -596,7 +597,7 @@ nonisolated private final class Evaluator {
         return []
     }
 
-    func logical(_ fnVal: Fn, _ cur: JSONValue) -> Bool {
+    func logical(_ fnVal: JSONFunction, _ cur: JSONValue) -> Bool {
         guard case .string(let str)? = value(fnVal.args[0], cur), case .string(let par)? = value(fnVal.args[1], cur)
         else { return false }
         let pattern = fnVal.kind == .match ? "\\A(?:\(par))\\z" : par

@@ -177,7 +177,8 @@ nonisolated enum Syntax {
 
     // MARK: Markdown
 
-    /// Nadpis → keyword, blok/inline kód → string, značka seznamu → number, `(url)` odkazu → property, citace → comment.
+    /// Nadpis → keyword, blok/inline kód → string, značka seznamu → number, `(url)` odkazu → property, citace →
+    /// comment.
     private static func markdown(_ str: [UInt16]) -> [SyntaxToken] {
         var out: [SyntaxToken] = []
         let num = str.count

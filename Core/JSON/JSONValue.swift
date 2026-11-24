@@ -30,7 +30,7 @@ nonisolated indirect enum JSONValue: Sendable {
     var compact: String {
         var out: [UInt8] = []
         write(&out)
-        return String(decoding: out, as: UTF8.self)
+        return String(bytes: out, encoding: .utf8) ?? String(bytes: out, encoding: .isoLatin1) ?? ""
     }
 
     func write(_ out: inout [UInt8]) {
@@ -153,7 +153,8 @@ nonisolated indirect enum JSONValue: Sendable {
                 let cur = src[i]
                 i += 1
                 switch cur {
-                case UInt8(ascii: "\""): return String(decoding: buf, as: UTF8.self)
+                case UInt8(ascii: "\""):
+                    return String(bytes: buf, encoding: .utf8) ?? String(bytes: buf, encoding: .isoLatin1) ?? ""
                 case UInt8(ascii: "\\"):
                     guard i < src.count else { break }
                     let elem = src[i]
@@ -188,7 +189,10 @@ nonisolated indirect enum JSONValue: Sendable {
         }
 
         mutating func hex4() throws(CoreError) -> UInt32 {
-            guard i + 4 <= src.count, let val = UInt32(String(decoding: src[i..<i + 4], as: UTF8.self), radix: 16)
+            guard i + 4 <= src.count,
+                let val = UInt32(
+                    String(bytes: src[i..<i + 4], encoding: .utf8) ?? String(
+                        bytes: src[i..<i + 4], encoding: .isoLatin1) ?? "", radix: 16)
             else {
                 throw fail("invalid \\u escape")
             }
@@ -214,7 +218,9 @@ nonisolated indirect enum JSONValue: Sendable {
                 if i < src.count, src[i] == UInt8(ascii: "+") || src[i] == UInt8(ascii: "-") { i += 1 }
                 guard digits(&i) > 0 else { throw fail("invalid number") }
             }
-            let text = String(decoding: src[start..<i], as: UTF8.self)
+            let text =
+                String(bytes: src[start..<i], encoding: .utf8) ?? String(bytes: src[start..<i], encoding: .isoLatin1)
+                ?? ""
             return .number(Double(text) ?? .nan, text)
         }
 

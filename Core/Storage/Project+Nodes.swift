@@ -241,7 +241,8 @@ nonisolated extension Project {
         cfg.name = name
         try FileIO.writeYAML(cfg, to: cfgFile)
         for file in requestFiles(in: dst) {
-            guard var res = try? FileIO.readYAML(Request.self, from: file).fillingSecrets(secrets) else { continue }  // poškozený nech být
+            // poškozený nech být
+            guard var res = try? FileIO.readYAML(Request.self, from: file).fillingSecrets(secrets) else { continue }
             res.id = ULID.make()
             try FileIO.writeYAML(res.storingSecrets(secrets), to: file)
         }

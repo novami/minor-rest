@@ -75,10 +75,10 @@ nonisolated enum Prepare {
         let queryNames = Set(try req.params.query.filter(\.enabled).map { try resVal.resolve($0.name).value })
         let str = req.settings.over(input.project.settings).over(input.defaults)
         let options = HTTPEngine.Options(str, userAgent: input.userAgent)
-        let applied: (query: KV?, secrets: [String])
+        let applied: (query: KeyValue?, secrets: [String])
         if auth.auth.type == AuthType.oauth2, let client = input.oauth {
             applied = try await AuthApply.applyOAuth(
-                auth.auth.oauth2 ?? OAuth2Auth(), client: client, options: options,
+                auth.auth.oauth2 ?? OAuth2Auth(), context: OAuthContext(client: client, options: options),
                 headers: &headers, queryNames: queryNames, resVal)
         } else {
             applied = try AuthApply.apply(auth.auth, headers: &headers, queryNames: queryNames, resVal)
@@ -130,11 +130,11 @@ nonisolated enum Prepare {
 
     /// Názvy zmíněné na nižší úrovni (zapnuté i vypnuté) odstraní zděděné, zapnuté řádky úrovně
     /// se připojí. Vypnutý řádek automatické hlavičky bez zapnutého protějšku ji vypne (`noAuto`).
-    static func mergeHeaders(_ levels: [[KV]], _ resVal: Resolver) throws -> ([KV], [String]) {
-        var out: [KV] = []
+    static func mergeHeaders(_ levels: [[KeyValue]], _ resVal: Resolver) throws -> ([KeyValue], [String]) {
+        var out: [KeyValue] = []
         var disabled: Set<String> = []
         for level in levels {
-            var rows: [KV] = []
+            var rows: [KeyValue] = []
             var names: Set<String> = []
             for var hdr in level {
                 let name = try resVal.resolve(hdr.name.trimmingCharacters(in: .whitespaces)).value

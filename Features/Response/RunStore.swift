@@ -140,14 +140,17 @@ final class RunStore {
         }
     }
 
-    /// `extract` requestu → runtime proměnné projektu (jen odpověď 2xx); pravidla bez výsledku = toast, hodnota zůstane.
+    /// `extract` requestu → runtime proměnné projektu (jen odpověď 2xx); pravidla bez výsledku = toast, hodnota
+    /// zůstane.
     private func applyExtract(_ tab: RequestTab, runID: String, result: RunResult) async {
         let rules = tab.draft.extract.filter { $0.enabled && !$0.name.isEmpty }
         guard !rules.isEmpty, result.error == nil, (200..<300).contains(result.status) else { return }
         let headers = result.headers
         let data = (try? await engine.rawBody(runID: runID, limit: 1 << 30)) ?? Data()
         let out = await Task.detached {
-            Extractor.run(rules, body: String(decoding: data, as: UTF8.self), headers: headers)
+            Extractor.run(
+                rules, body: String(bytes: data, encoding: .utf8) ?? String(bytes: data, encoding: .isoLatin1) ?? "",
+                headers: headers)
         }.value
         for kv in out.values { vars.setRuntime(tab.projectID, kv.name, kv.value) }
         if !out.warnings.isEmpty {

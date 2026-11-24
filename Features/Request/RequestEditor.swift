@@ -130,7 +130,7 @@ struct RequestEditor: View {
     }
 
     private func count(_ str: RequestSection) -> Int? {
-        let on = { (rows: [KV]) in rows.filter { $0.enabled && !$0.name.isEmpty }.count }
+        let on = { (rows: [KeyValue]) in rows.filter { $0.enabled && !$0.name.isEmpty }.count }
         switch str {
         case .params: return on(tab.draft.params.query) + pathRows.count
         case .headers: return on(tab.draft.headers)
@@ -163,7 +163,9 @@ struct RequestEditor: View {
                     KvEditor(
                         title: t("request.path"),
                         rows: Binding(
-                            get: { pathRows.map { KV(name: $0.name, value: $0.value, description: $0.description) } },
+                            get: {
+                                pathRows.map { KeyValue(name: $0.name, value: $0.value, description: $0.description) }
+                            },
                             set: { rows in
                                 tabs.edit {
                                     $0.draft.params.path = rows.map {

@@ -4,11 +4,11 @@ import Foundation
 nonisolated enum URLBuilder {
     /// Proměnné v URL → doplnění `http://` → `:param` v cestě → zapnuté query parametry.
     /// Nevyhodnocené proměnné hlásí `resolver.unresolved`; nevyhodnocený host → `VAR_UNRESOLVED_HOST`.
-    static func build(_ raw: String, path: [PathParam], query: [KV], resolver res: Resolver) throws -> String {
+    static func build(_ raw: String, path: [PathParam], query: [KeyValue], resolver res: Resolver) throws -> String {
         let (resolved, unresolved) = try res.resolve(raw.trimmingCharacters(in: .whitespacesAndNewlines))
         var url = resolved.contains("://") ? resolved : "http://" + resolved
         url = try replacePathParams(url, path, res)
-        var params: [KV] = []
+        var params: [KeyValue] = []
         for var que in query where que.enabled {
             que.name = try res.resolve(que.name).value
             que.value = try res.resolve(que.value).value
@@ -27,7 +27,7 @@ nonisolated enum URLBuilder {
     }
 
     /// Zapnuté parametry `name=value` spojené `&`; prázdná hodnota → `name=`, `bare` → jen `name`.
-    static func encodeQuery(_ params: [KV]) -> String {
+    static func encodeQuery(_ params: [KeyValue]) -> String {
         params.filter { $0.enabled && !$0.name.isEmpty }.map { par in
             var part = encodeQueryComponent(par.name)
             if !par.value.isEmpty || !par.bare { part += "=" + encodeQueryComponent(par.value) }
@@ -43,7 +43,9 @@ nonisolated enum URLBuilder {
         while i < bytes.count {
             let cur = bytes[i]
             if cur == UInt8(ascii: "%"), i + 2 < bytes.count, isHex(bytes[i + 1]), isHex(bytes[i + 2]) {
-                out += String(decoding: bytes[i...i + 2], as: UTF8.self)
+                out +=
+                    String(bytes: bytes[i...i + 2], encoding: .utf8) ?? String(
+                        bytes: bytes[i...i + 2], encoding: .isoLatin1) ?? ""
                 i += 3
                 continue
             }
@@ -74,7 +76,7 @@ nonisolated enum URLBuilder {
         var values: [String: String] = [:]
         for par in params { values[par.name] = try res.resolve(par.value).value }
         let segments = url[pathStart..<pathEnd].split(separator: "/", omittingEmptySubsequences: false).map {
-            seg -> String in
+            (seg: Substring) -> String in
             guard seg.count >= 2, seg.first == ":" else { return String(seg) }
             let name = seg.dropFirst().prefix { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") }
             guard let value = values[String(name)] else { return String(seg) }

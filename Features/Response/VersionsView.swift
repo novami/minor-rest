@@ -131,16 +131,20 @@ struct SavedResponseSheet: View {
             .font(fonts.code).textSelection(.enabled)
             Text(
                 elem.error.isEmpty
-                    ? "\(elem.response.status) \(elem.response.statusText) · \(elem.response.proto) · \(VersionsView.time(elem.savedAt))"
+                    ? "\(elem.response.status) \(elem.response.statusText) · \(elem.response.proto)"
+                        + " · \(VersionsView.time(elem.savedAt))"
                     : "\(errorText(code: elem.error)) · \(VersionsView.time(elem.savedAt))"
             )
             .foregroundStyle(.secondary)
             VSplitView {
                 HeaderTable(rows: elem.response.headers, empty: t("response.headers.none")).frame(minHeight: 80)
                 ScrollView {
-                    Text(String(decoding: data.prefix(1 << 20), as: UTF8.self))
-                        .font(fonts.code).textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(6)
+                    Text(
+                        String(bytes: data.prefix(1 << 20), encoding: .utf8) ?? String(
+                            bytes: data.prefix(1 << 20), encoding: .isoLatin1) ?? ""
+                    )
+                    .font(fonts.code).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(6)
                 }
                 .frame(minHeight: 120)
             }

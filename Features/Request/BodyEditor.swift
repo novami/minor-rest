@@ -55,7 +55,7 @@ struct BodyEditor: View {
             }
         } else if type == BodyType.binary {
             HStack(spacing: 8) {
-                FileButton(path: requestBody.binaryPath, pick: { await pick($0) }) { requestBody.binaryPath = $0 }
+                FileButton(path: requestBody.binaryPath, pick: { await pick($0) }, set: { requestBody.binaryPath = $0 })
                     .fixedSize()
                 if !requestBody.binaryPath.isEmpty {
                     Button {
@@ -85,7 +85,7 @@ struct BodyEditor: View {
             .labelsHidden()
             .fixedSize()
             if part.wrappedValue.kind == "file" {
-                FileButton(path: part.wrappedValue.path, pick: { await pick($0) }) { part.wrappedValue.path = $0 }
+                FileButton(path: part.wrappedValue.path, pick: { await pick($0) }, set: { part.wrappedValue.path = $0 })
             } else {
                 VarField(text: part.value, placeholder: ghost ? t("kv.value") : "", font: fonts.codeNSFont)
             }

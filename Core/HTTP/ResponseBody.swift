@@ -130,27 +130,41 @@ nonisolated enum ContentSniff {
         return (mt, cs)
     }
 
-    static func sniff(_ contentType: String, _ sample: Data) -> (mediaType: String, charset: String, binary: Bool) {
+    struct Sniffed {
+        let mediaType: String
+        let charset: String
+        let binary: Bool
+    }
+
+    static func sniff(_ contentType: String, _ sample: Data) -> Sniffed {
         let (mt, param) = parse(contentType)
-        if sample.isEmpty { return (mt, "", false) }
-        if !textTypes.contains(where: { mt.contains($0) }), !looksText(sample) { return (mt, "", true) }
-        if let bom = bom(sample) { return (mt, bom, false) }
-        if !param.isEmpty { return (mt, canonical(param), false) }
-        if mt.contains("json") { return (mt, "utf-8", false) }
-        if mt.contains("html"), let meta = metaCharset(sample) { return (mt, canonical(meta), false) }
-        if validUTF8(sample, cut: sample.count == ResponseBody.sniffLen) { return (mt, "utf-8", false) }
+        if sample.isEmpty { return Sniffed(mediaType: mt, charset: "", binary: false) }
+        if !textTypes.contains(where: { mt.contains($0) }), !looksText(sample) {
+            return Sniffed(mediaType: mt, charset: "", binary: true)
+        }
+        if let bom = bom(sample) { return Sniffed(mediaType: mt, charset: bom, binary: false) }
+        if !param.isEmpty { return Sniffed(mediaType: mt, charset: canonical(param), binary: false) }
+        if mt.contains("json") { return Sniffed(mediaType: mt, charset: "utf-8", binary: false) }
+        if mt.contains("html"), let meta = metaCharset(sample) {
+            return Sniffed(mediaType: mt, charset: canonical(meta), binary: false)
+        }
+        if validUTF8(sample, cut: sample.count == ResponseBody.sniffLen) {
+            return Sniffed(mediaType: mt, charset: "utf-8", binary: false)
+        }
         var conv: NSString?
         let enc = NSString.stringEncoding(
             for: sample, encodingOptions: [.allowLossyKey: false], convertedString: &conv,
             usedLossyConversion: nil)
-        return (mt, enc == 0 ? "windows-1252" : name(String.Encoding(rawValue: enc)) ?? "windows-1252", false)
+        return Sniffed(
+            mediaType: mt, charset: enc == 0 ? "windows-1252" : name(String.Encoding(rawValue: enc)) ?? "windows-1252",
+            binary: false)
     }
 
     /// Převod do UTF-8 pro zobrazení; neplatné sekvence nahradí `�`.
     static func toUTF8(_ dat: Data, _ charset: String) -> String {
         if let enc = encoding(charset), enc != .utf8, let str = String(data: dat, encoding: enc) { return str }
         let bomless = dat.starts(with: [0xEF, 0xBB, 0xBF]) ? dat.dropFirst(3) : dat[...]
-        return String(decoding: bomless, as: UTF8.self)
+        return String(bytes: bomless, encoding: .utf8) ?? String(bytes: bomless, encoding: .isoLatin1) ?? ""
     }
 
     static func encoding(_ charset: String) -> String.Encoding? {
@@ -179,7 +193,9 @@ nonisolated enum ContentSniff {
 
     /// `<meta charset="x">` nebo `content="…; charset=x"` v prvních 1024 bajtech.
     private static func metaCharset(_ dat: Data) -> String? {
-        let head = String(decoding: dat.prefix(1024), as: UTF8.self).lowercased()
+        let head =
+            String(bytes: dat.prefix(1024), encoding: .utf8) ?? String(bytes: dat.prefix(1024), encoding: .isoLatin1)
+            ?? "".lowercased()
         guard let map = head.firstMatch(of: /<meta[^>]+charset\s*=\s*[\x22']?([a-z0-9_\-:.]+)/) else { return nil }
         return String(map.1)
     }
@@ -254,7 +270,13 @@ nonisolated enum TLSNames {
     ]
 
     /// Subjekt, vydavatel (`CN=…,O=…`) a expirace (RFC 3339) leaf certifikátu.
-    static func certificate(_ trust: SecTrust) -> (subject: String, issuer: String, notAfter: String)? {
+    struct CertInfo {
+        let subject: String
+        let issuer: String
+        let notAfter: String
+    }
+
+    static func certificate(_ trust: SecTrust) -> CertInfo? {
         guard let leaf = (SecTrustCopyCertificateChain(trust) as? [SecCertificate])?.first else { return nil }
         let keys = [kSecOIDX509V1SubjectName, kSecOIDX509V1IssuerName, kSecOIDX509V1ValidityNotAfter] as CFArray
         let vals = SecCertificateCopyValues(leaf, keys, nil) as? [String: [String: Any]] ?? [:]
@@ -274,7 +296,7 @@ nonisolated enum TLSNames {
         if let numVal = vals[kSecOIDX509V1ValidityNotAfter as String]?[kSecPropertyKeyValue as String] as? NSNumber {
             notAfter = ISO8601DateFormatter().string(from: Date(timeIntervalSinceReferenceDate: numVal.doubleValue))
         }
-        return (subject, dn(kSecOIDX509V1IssuerName), notAfter)
+        return CertInfo(subject: subject, issuer: dn(kSecOIDX509V1IssuerName), notAfter: notAfter)
     }
 
     private static let rdn = [

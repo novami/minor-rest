@@ -6,8 +6,10 @@ final class PrepareTests: XCTestCase {
     func testBuildsRequestWithVariablesQueryHeadersAndBody() async throws {
         let request = Request(
             method: "POST", url: "{{base}}/users/:id",
-            params: Params(query: [KV(name: "q", value: "a b")], path: [PathParam(name: "id", value: "42")]),
-            headers: [KV(name: "X-Trace", value: "{{trace}}"), KV(name: "X-Off", value: "no", enabled: false)],
+            params: Params(query: [KeyValue(name: "q", value: "a b")], path: [PathParam(name: "id", value: "42")]),
+            headers: [
+                KeyValue(name: "X-Trace", value: "{{trace}}"), KeyValue(name: "X-Off", value: "no", enabled: false)
+            ],
             body: Body(type: BodyType.json, raw: "{\"n\":1}"))
         let input = PrepareInput(
             request: request,

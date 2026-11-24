@@ -5,7 +5,7 @@ nonisolated struct PreparedRequest: Sendable, Equatable {
     var method: String
     var url: String
     /// Odešlou se jen zapnuté, v zadaném pořadí.
-    var headers: [KV]
+    var headers: [KeyValue]
     var body: Body
     /// Kořen projektu pro relativní cesty souborů.
     var baseDir: String
@@ -13,7 +13,7 @@ nonisolated struct PreparedRequest: Sendable, Equatable {
     var noAuto: [String]
 
     init(
-        method: String, url: String, headers: [KV] = [], body: Body = Body(), baseDir: String = "",
+        method: String, url: String, headers: [KeyValue] = [], body: Body = Body(), baseDir: String = "",
         noAuto: [String] = []
     ) {
         self.method = method
@@ -67,7 +67,7 @@ nonisolated struct Timing: Sendable, Equatable {
 nonisolated struct SentRequest: Sendable, Equatable {
     var method = ""
     var url = ""
-    var headers: [KV] = []
+    var headers: [KeyValue] = []
     var bodyPreview = ""
     var bodySize: Int64 = 0
 }
@@ -111,7 +111,7 @@ nonisolated struct RunResult: Sendable, Equatable {
     var localAddr = ""
     var tls: TLSInfo?
     /// Seřazené podle názvu (pořadí serveru URLSession nedává).
-    var headers: [KV] = []
+    var headers: [KeyValue] = []
     var cookies: [Cookie] = []
     var sizes = Sizes()
     var timing = Timing()
@@ -122,7 +122,7 @@ nonisolated struct RunResult: Sendable, Equatable {
     var isBinary = false
     var truncated = false
     var unresolved: [String] = []
-    var extracted: [KV] = []
+    var extracted: [KeyValue] = []
     var authSource = ""
 
     init(runID: String) { self.runID = runID }

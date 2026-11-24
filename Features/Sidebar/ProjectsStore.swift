@@ -125,9 +125,9 @@ final class ProjectsStore {
             do {
                 try project.reloadConfig()
             } catch {
+                let reason = error.localizedDescription
                 AppLog.app.error(
-                    "konfigurace projektu \(id, privacy: .public) nelze načíst: \(error.localizedDescription, privacy: .public)"
-                )
+                    "konfigurace projektu \(id, privacy: .public) nelze načíst: \(reason, privacy: .public)")
             }
             list = await registry.list()
         }

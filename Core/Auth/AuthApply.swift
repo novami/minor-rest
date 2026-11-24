@@ -29,9 +29,9 @@ nonisolated enum AuthApply {
     /// Ručně zadaná hlavička (`Authorization`, název API klíče) nebo zapnutý query parametr se stejným
     /// názvem (`queryNames`) má přednost. `secrets` = hodnoty k maskování (API klíč).
     static func apply(
-        _ auth: Auth, headers: inout [KV], queryNames: Set<String>,
+        _ auth: Auth, headers: inout [KeyValue], queryNames: Set<String>,
         _ resVal: Resolver
-    ) throws -> (query: KV?, secrets: [String]) {
+    ) throws -> (query: KeyValue?, secrets: [String]) {
         func res(_ str: String) throws -> String { try resVal.resolve(str).value }
         func hasHeader(_ name: String) -> Bool {
             headers.contains { $0.name.caseInsensitiveCompare(name) == .orderedSame }
@@ -43,13 +43,13 @@ nonisolated enum AuthApply {
             let pass = try res(buf.password)
             guard !(user.isEmpty && pass.isEmpty), !hasHeader("Authorization") else { return (nil, []) }
             headers.append(
-                KV(name: "Authorization", value: "Basic " + Data((user + ":" + pass).utf8).base64EncodedString()))
+                KeyValue(name: "Authorization", value: "Basic " + Data((user + ":" + pass).utf8).base64EncodedString()))
         case AuthType.bearer:
             let buf = auth.bearer ?? BearerAuth()
             let token = try res(buf.token)
             guard !token.isEmpty, !hasHeader("Authorization") else { return (nil, []) }
             let prefix = try res(buf.prefix).trimmingCharacters(in: .whitespaces)
-            headers.append(KV(name: "Authorization", value: (prefix.isEmpty ? "Bearer" : prefix) + " " + token))
+            headers.append(KeyValue(name: "Authorization", value: (prefix.isEmpty ? "Bearer" : prefix) + " " + token))
         case AuthType.apiKey:
             let keyVal = auth.apiKey ?? APIKeyAuth()
             let key = try res(keyVal.key).trimmingCharacters(in: .whitespaces)
@@ -57,10 +57,10 @@ nonisolated enum AuthApply {
             guard !key.isEmpty else { return (nil, []) }
             let secrets = value.isEmpty ? [] : [value]
             if keyVal.location == "query" {
-                return queryNames.contains(key) ? (nil, []) : (KV(name: key, value: value), secrets)
+                return queryNames.contains(key) ? (nil, []) : (KeyValue(name: key, value: value), secrets)
             }
             guard !hasHeader(key) else { return (nil, []) }
-            headers.append(KV(name: key, value: value))
+            headers.append(KeyValue(name: key, value: value))
             return (nil, secrets)
         default:
             break
@@ -71,10 +71,11 @@ nonisolated enum AuthApply {
     /// OAuth2: token z cache / refresh / nový; přidá ho jako hlavičku (`headerPrefix`) nebo query `access_token`.
     /// Ručně zadaná `Authorization` či query `access_token` má přednost (token se ani nezískává).
     static func applyOAuth(
-        _ arg: OAuth2Auth, client: OAuthClient, options: HTTPEngine.Options,
-        headers: inout [KV], queryNames: Set<String>,
+        _ arg: OAuth2Auth, context: OAuthContext,
+        headers: inout [KeyValue], queryNames: Set<String>,
         _ resVal: Resolver
-    ) async throws -> (query: KV?, secrets: [String]) {
+    ) async throws -> (query: KeyValue?, secrets: [String]) {
+        let (client, options) = (context.client, context.options)
         let par = try OAuthParams(arg) { try resVal.resolve($0).value }
         guard !par.tokenURL.isEmpty else { return (nil, []) }
         let inHeader = par.tokenPlacement == "header"
@@ -86,9 +87,15 @@ nonisolated enum AuthApply {
         }
         let token = try await client.accessToken(par, options: options)
         if inHeader {
-            headers.append(KV(name: "Authorization", value: par.headerPrefix + " " + token))
+            headers.append(KeyValue(name: "Authorization", value: par.headerPrefix + " " + token))
             return (nil, [token])
         }
-        return (KV(name: "access_token", value: token), [token])
+        return (KeyValue(name: "access_token", value: token), [token])
     }
+}
+
+/// Klient OAuth2 a nastavení HTTP pro získání tokenu.
+nonisolated struct OAuthContext {
+    let client: OAuthClient
+    let options: HTTPEngine.Options
 }

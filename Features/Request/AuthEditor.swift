@@ -126,7 +126,7 @@ struct AuthEditor: View {
     }
 
     private var oauthGrant: String {
-        auth.oauth2?.grantType.isEmpty == false ? auth.oauth2!.grantType : OAuthParams.clientCredentials
+        auth.oauth2.flatMap { $0.grantType.isEmpty ? nil : $0.grantType } ?? OAuthParams.clientCredentials
     }
 
     @ViewBuilder

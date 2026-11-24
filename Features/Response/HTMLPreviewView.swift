@@ -21,7 +21,9 @@ struct HTMLPreviewView: NSViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         /// Povolí jen načtení vlastního textu (`about:blank`), odkazy a přesměrování zahodí.
-        func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
+        func webView(
+            _ webView: WKWebView, decidePolicyFor action: WKNavigationAction
+        ) async -> WKNavigationActionPolicy {
             action.request.url?.scheme == "about" && action.navigationType == .other ? .allow : .cancel
         }
     }

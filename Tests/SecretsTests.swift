@@ -13,7 +13,9 @@ final class SecretsTests: XCTestCase {
 
         var request = try project.loadRequest(node.rel)
         request.auth = Auth(type: AuthType.bearer, bearer: BearerAuth(token: "s3cr3t-token"))
-        request.headers = [KV(name: "Authorization", value: "Bearer abc123"), KV(name: "Accept", value: "*/*")]
+        request.headers = [
+            KeyValue(name: "Authorization", value: "Bearer abc123"), KeyValue(name: "Accept", value: "*/*")
+        ]
         try project.saveRequest(node.rel, request)
 
         let files = try FileManager.default.subpathsOfDirectory(atPath: dir.path).filter { $0.hasSuffix(".req.yaml") }

@@ -29,7 +29,7 @@ nonisolated enum AuthType {
 }
 
 /// Řádek název–hodnota (query, hlavičky, form).
-nonisolated struct KV: Hashable, Sendable {
+nonisolated struct KeyValue: Hashable, Sendable {
     var name: String
     var value: String
     var enabled: Bool
@@ -169,9 +169,9 @@ nonisolated struct OAuth2Auth: Hashable, Sendable {
 }
 
 nonisolated struct Params: Hashable, Sendable {
-    var query: [KV]
+    var query: [KeyValue]
     var path: [PathParam]
-    init(query: [KV] = [], path: [PathParam] = []) {
+    init(query: [KeyValue] = [], path: [PathParam] = []) {
         self.query = query
         self.path = path
     }
@@ -203,11 +203,14 @@ nonisolated struct MultipartPart: Hashable, Sendable {
 nonisolated struct Body: Hashable, Sendable {
     var type: String
     var raw: String
-    var form: [KV]
+    var form: [KeyValue]
     var multipart: [MultipartPart]
     var binaryPath: String
 
-    init(type: String = "", raw: String = "", form: [KV] = [], multipart: [MultipartPart] = [], binaryPath: String = "") {
+    init(
+        type: String = "", raw: String = "", form: [KeyValue] = [], multipart: [MultipartPart] = [],
+        binaryPath: String = ""
+    ) {
         self.type = type
         self.raw = raw
         self.form = form
@@ -240,7 +243,7 @@ nonisolated struct Request: Hashable, Sendable {
     var method: String
     var url: String
     var params: Params
-    var headers: [KV]
+    var headers: [KeyValue]
     var auth: Auth
     var body: Body
     var vars: [Var]
@@ -250,7 +253,7 @@ nonisolated struct Request: Hashable, Sendable {
 
     init(
         id: String = "", name: String = "", seq: Int = 0, method: String = "", url: String = "",
-        params: Params = Params(), headers: [KV] = [], auth: Auth = Auth(), body: Body = Body(),
+        params: Params = Params(), headers: [KeyValue] = [], auth: Auth = Auth(), body: Body = Body(),
         vars: [Var] = [], extract: [Extract] = [], settings: HTTPSettings = HTTPSettings(), docs: String = ""
     ) {
         self.id = id
@@ -281,10 +284,10 @@ nonisolated struct FolderConfig: Hashable, Sendable {
     var name: String
     var seq: Int
     var vars: [Var]
-    var headers: [KV]
+    var headers: [KeyValue]
     var auth: Auth
 
-    init(name: String = "", seq: Int = 0, vars: [Var] = [], headers: [KV] = [], auth: Auth = Auth()) {
+    init(name: String = "", seq: Int = 0, vars: [Var] = [], headers: [KeyValue] = [], auth: Auth = Auth()) {
         self.name = name
         self.seq = seq
         self.vars = vars
@@ -300,14 +303,14 @@ nonisolated struct ProjectConfig: Hashable, Sendable {
     var name: String
     var description: String
     var vars: [Var]
-    var headers: [KV]
+    var headers: [KeyValue]
     var auth: Auth
     var settings: HTTPSettings
     var ignoreResponsesInGit: Bool
 
     init(
         formatVersion: Int = 0, id: String = "", name: String = "", description: String = "",
-        vars: [Var] = [], headers: [KV] = [], auth: Auth = Auth(), settings: HTTPSettings = HTTPSettings(),
+        vars: [Var] = [], headers: [KeyValue] = [], auth: Auth = Auth(), settings: HTTPSettings = HTTPSettings(),
         ignoreResponsesInGit: Bool = false
     ) {
         self.formatVersion = formatVersion

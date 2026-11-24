@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// „Oko“ v toolbaru: popover s platnými proměnnými aktivního tabu (název, hodnota, zdroj), runtime lze smazat (PLAN 8.5).
+/// „Oko“ v toolbaru: popover s platnými proměnnými aktivního tabu (název, hodnota, zdroj), runtime lze smazat (PLAN
+/// 8.5).
 struct VarsOverviewButton: View {
     @Environment(AppModel.self) private var model
     @State private var shown = false

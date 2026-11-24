@@ -88,9 +88,9 @@ nonisolated enum CurlImport {
     private struct State {
         var method: String?
         var url: String?
-        var headers: [KV] = []
+        var headers: [KeyValue] = []
         var data: [String] = []  // -d / --data* (raw)
-        var urlencoded: [KV] = []  // --data-urlencode
+        var urlencoded: [KeyValue] = []  // --data-urlencode
         var multipart: [MultipartPart] = []
         var user: String?
         var follow = false
@@ -114,7 +114,7 @@ nonisolated enum CurlImport {
             case "--data-raw": data.append(val)
             case "--json":
                 data.append(fileRef(val, flag))
-                headers.append(KV(name: "Content-Type", value: "application/json"))
+                headers.append(KeyValue(name: "Content-Type", value: "application/json"))
             case "--data-urlencode": urlencode(val)
             case "-F", "--form", "--form-string": form(val, literal: flag == "--form-string")
             case "-u", "--user": user = val
@@ -124,10 +124,14 @@ nonisolated enum CurlImport {
             case "-k", "--insecure": insecure = true
             case "-I", "--head": head = true
             case "-G", "--get": get = true
-            case "-A", "--user-agent": headers.append(KV(name: "User-Agent", value: val))
-            case "-e", "--referer": headers.append(KV(name: "Referer", value: val))
+            case "-A", "--user-agent": headers.append(KeyValue(name: "User-Agent", value: val))
+            case "-e", "--referer": headers.append(KeyValue(name: "Referer", value: val))
             case "-b", "--cookie":
-                if val.contains("=") { headers.append(KV(name: "Cookie", value: val)) } else { warnings.append(flag) }
+                if val.contains("=") {
+                    headers.append(KeyValue(name: "Cookie", value: val))
+                } else {
+                    warnings.append(flag)
+                }
             case "-m", "--max-time": timeoutMs = Double(val).map { Int($0 * 1000) }
             default:
                 if !CurlImport.ignored.contains(flag) { warnings.append(flag) }
@@ -135,13 +139,14 @@ nonisolated enum CurlImport {
         }
 
         mutating func header(_ val: String) {
-            guard let curVal = val.firstIndex(of: ":") else { return }  // `Name;` (prázdná hlavička) a nesmysly se přeskočí
+            // `Name;` (prázdná hlavička) a nesmysly se přeskočí
+            guard let curVal = val.firstIndex(of: ":") else { return }
             let name = val[..<curVal].trimmingCharacters(in: .whitespaces)
             let value = val[val.index(after: curVal)...].trimmingCharacters(in: .whitespaces)
             guard !name.isEmpty, !value.isEmpty else { return }
             switch name.lowercased() {
             case "host", "content-length", "accept-encoding", "connection": return
-            default: headers.append(KV(name: name, value: value))
+            default: headers.append(KeyValue(name: name, value: value))
             }
         }
 
@@ -154,11 +159,11 @@ nonisolated enum CurlImport {
 
         mutating func urlencode(_ val: String) {
             if let eq = val.firstIndex(of: "=") {
-                urlencoded.append(KV(name: String(val[..<eq]), value: String(val[val.index(after: eq)...])))
+                urlencoded.append(KeyValue(name: String(val[..<eq]), value: String(val[val.index(after: eq)...])))
             } else if val.contains("@") {
                 warnings.append("--data-urlencode \(val)")
             } else {
-                urlencoded.append(KV(name: "", value: val))
+                urlencoded.append(KeyValue(name: "", value: val))
             }
         }
 
@@ -190,7 +195,7 @@ nonisolated enum CurlImport {
             var body = Body(type: BodyType.none)
             let ct = contentType()
             let joined = data.joined(separator: "&")
-            var query: [KV] = []
+            var query: [KeyValue] = []
 
             if get {
                 // `-G`: data jdou do query místo těla.
@@ -270,20 +275,21 @@ nonisolated enum CurlImport {
         }
 
         /// `name=value` s dekódováním `%xx` a `+`.
-        static func pair(_ str: String) -> KV {
+        static func pair(_ str: String) -> KeyValue {
             let eq = str.firstIndex(of: "=")
             func dec(_ x: Substring) -> String {
                 let par = x.replacingOccurrences(of: "+", with: " ")
                 return par.removingPercentEncoding ?? par
             }
-            guard let eq else { return KV(name: dec(Substring(str)), value: "", bare: true) }
-            return KV(name: dec(str[..<eq]), value: dec(str[str.index(after: eq)...]))
+            guard let eq else { return KeyValue(name: dec(Substring(str)), value: "", bare: true) }
+            return KeyValue(name: dec(str[..<eq]), value: dec(str[str.index(after: eq)...]))
         }
     }
 
     // MARK: - Tokenizér
 
-    /// Shell tokeny: `'…'`, `"…"` (escape `\" \\ \$ \``), `$'…'` (ANSI-C), `\x` mimo uvozovky; `\`+newline = spojení řádků.
+    /// Shell tokeny: `'…'`, `"…"` (escape `\" \\ \$ \``), `$'…'` (ANSI-C), `\x` mimo uvozovky; `\`+newline = spojení
+    /// řádků.
     static func tokenize(_ text: String) throws(CoreError) -> [String] {
         let str = Array(text.replacingOccurrences(of: "\\\r\n", with: " ").replacingOccurrences(of: "\\\n", with: " "))
         var out: [String] = []

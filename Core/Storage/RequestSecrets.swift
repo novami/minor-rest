@@ -10,14 +10,26 @@ nonisolated enum RequestSecrets {
     static func isLiteral(_ value: String) -> Bool { !value.isEmpty && !value.contains("{{") }
 
     /// Projde všechna citlivá pole (název pole, hodnota).
-    private static func visit(_ auth: inout Auth, _ headers: inout [KV], _ body: (String, inout String) throws -> Void)
+    private static func visit(
+        _ auth: inout Auth, _ headers: inout [KeyValue], _ body: (String, inout String) throws -> Void
+    )
         rethrows {
-        if auth.basic != nil { try body("basic.password", &auth.basic!.password) }
-        if auth.bearer != nil { try body("bearer.token", &auth.bearer!.token) }
-        if auth.apiKey != nil { try body("apikey.value", &auth.apiKey!.value) }
-        if auth.oauth2 != nil {
-            try body("oauth2.clientSecret", &auth.oauth2!.clientSecret)
-            try body("oauth2.password", &auth.oauth2!.password)
+        if var basic = auth.basic {
+            try body("basic.password", &basic.password)
+            auth.basic = basic
+        }
+        if var bearer = auth.bearer {
+            try body("bearer.token", &bearer.token)
+            auth.bearer = bearer
+        }
+        if var apiKey = auth.apiKey {
+            try body("apikey.value", &apiKey.value)
+            auth.apiKey = apiKey
+        }
+        if var oauth2 = auth.oauth2 {
+            try body("oauth2.clientSecret", &oauth2.clientSecret)
+            try body("oauth2.password", &oauth2.password)
+            auth.oauth2 = oauth2
         }
         for i in headers.indices where sensitiveHeaders.contains(headers[i].name.lowercased()) {
             try body("header.\(i)", &headers[i].value)
@@ -25,7 +37,7 @@ nonisolated enum RequestSecrets {
     }
 
     /// Literály přesune do Keychainu a v YAML je nahradí značkou; ostatní pole smaže ze starých položek.
-    static func store(owner: String, auth: inout Auth, headers: inout [KV], secrets: SecretStore) throws {
+    static func store(owner: String, auth: inout Auth, headers: inout [KeyValue], secrets: SecretStore) throws {
         try visit(&auth, &headers) { slot, value in
             let account = "\(owner)/\(slot)"
             if isLiteral(value) {
@@ -38,7 +50,7 @@ nonisolated enum RequestSecrets {
     }
 
     /// Nahradí značky hodnotami z Keychainu (chybějící položka = prázdná hodnota).
-    static func fill(owner: String, auth: inout Auth, headers: inout [KV], secrets: SecretStore) throws {
+    static func fill(owner: String, auth: inout Auth, headers: inout [KeyValue], secrets: SecretStore) throws {
         try visit(&auth, &headers) { slot, value in
             if value == marker { value = try secrets.get(account: "\(owner)/\(slot)") ?? "" }
         }

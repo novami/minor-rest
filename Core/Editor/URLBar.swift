@@ -3,7 +3,7 @@ import Foundation
 /// Text URL baru = `url` + zapnuté query parametry (bez kódování; kóduje se při odeslání).
 /// Parsuje se ručně (`&`, `=`), aby se nerozbily `{{proměnné}}`.
 nonisolated enum URLBar {
-    static func compose(url: String, query: [KV]) -> String {
+    static func compose(url: String, query: [KeyValue]) -> String {
         let que = query.filter { $0.enabled && !($0.name.isEmpty && $0.value.isEmpty) }
             .map { $0.bare && $0.value.isEmpty ? $0.name : "\($0.name)=\($0.value)" }
         return que.isEmpty ? url : url + "?" + que.joined(separator: "&")
@@ -11,28 +11,28 @@ nonisolated enum URLBar {
 
     /// Rozdělí text na URL a query: rozparsované dvojice nahradí v pořadí zapnuté neprázdné řádky (popisy zůstanou),
     /// vypnuté a prázdné řádky zůstanou na svých místech, přebytečné zapnuté řádky zmizí.
-    static func parse(_ text: String, query: [KV]) -> (url: String, query: [KV]) {
+    static func parse(_ text: String, query: [KeyValue]) -> (url: String, query: [KeyValue]) {
         let (url, rest) =
             text.firstIndex(of: "?").map { (String(text[..<$0]), String(text[text.index(after: $0)...])) }
             ?? (text, "")
         var parsed = rest.split(separator: "&", omittingEmptySubsequences: true).map(pair)[...]
-        var out: [KV] = []
+        var out: [KeyValue] = []
         for row in query {
             if !row.enabled || (row.name.isEmpty && row.value.isEmpty) {
                 out.append(row)
             } else if let par = parsed.popFirst() {
                 var res = row
-                (res.name, res.value, res.bare) = par
+                (res.name, res.value, res.bare) = (par.name, par.value, par.bare)
                 out.append(res)
             }
         }
-        out += parsed.map { KV(name: $0.0, value: $0.1, bare: $0.2) }
+        out += parsed
         return (url, out)
     }
 
-    private static func pair(_ str: Substring) -> (String, String, Bool) {
-        guard let i = str.firstIndex(of: "=") else { return (String(str), "", true) }
-        return (String(str[..<i]), String(str[str.index(after: i)...]), false)
+    private static func pair(_ str: Substring) -> KeyValue {
+        guard let i = str.firstIndex(of: "=") else { return KeyValue(name: String(str), bare: true) }
+        return KeyValue(name: String(str[..<i]), value: String(str[str.index(after: i)...]))
     }
 }
 
