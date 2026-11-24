@@ -14,9 +14,9 @@ permissions:
 
 jobs:
   lint:
-    uses: novami/minor-swift-core/.github/workflows/lint.yml@0.1.2
+    uses: novami/minor-swift-core/.github/workflows/lint.yml@0.1.3
 
   test:
-    uses: novami/minor-swift-core/.github/workflows/app-test.yml@0.1.2
+    uses: novami/minor-swift-core/.github/workflows/app-test.yml@0.1.3
     with:
       scheme: MinorREST
