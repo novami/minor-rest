@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags: ["[0-9]+.[0-9]+.[0-9]+"]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    uses: novami/minor-swift-core/.github/workflows/lint.yml@0.1.1
+
+  test:
+    uses: novami/minor-swift-core/.github/workflows/app-test.yml@0.1.1
+    with:
+      scheme: MinorREST
+
+  release:
+    needs: [lint, test]
+    permissions:
+      contents: write
+    uses: novami/minor-swift-core/.github/workflows/app-release.yml@0.1.1
+    with:
+      scheme: MinorREST
+    secrets: inherit

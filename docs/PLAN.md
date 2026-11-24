@@ -23,7 +23,7 @@
 | Jazyk UI | čeština + angličtina (String Catalog `Localizable.xcstrings`, výchozí dle systému, přepnutelné za běhu) |
 | Podpis | ad-hoc (`codesign -s -`), bez notarizace a bez App Sandboxu; auto-update z GitHub Releases ověřený EdDSA |
 | Licence / repo | MIT, https://github.com/novami/minor-rest.git |
-| Bundle ID | `com.github.novami.minorrest` |
+| Bundle ID | `cz.novami.minor.rest` |
 | Kopírování requestu | jen cURL (víceřádkový + jednořádkový) |
 | Fonty | ne-retina Menlo 13 (UI i kód), retina SF Pro (UI) + SF Mono (kód) |
 
