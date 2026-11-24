@@ -47,7 +47,7 @@ nonisolated struct AppSettings: Equatable, Sendable {
 
     struct Copy: Equatable, Sendable {
         /// Při kopírování cURL nahradit tajné hodnoty `***`.
-        var maskSecrets = false
+        var maskSecrets = true
     }
 
     var general = General()

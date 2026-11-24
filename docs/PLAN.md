@@ -328,7 +328,7 @@ Pravidla cURL:
 - `-H 'Name: value'` pro uživatelské/zděděné/auth hlavičky a automatický `Content-Type`; nevypisovat automatické `User-Agent`, `Accept`, `Host`, `Content-Length`. Vždy `--compressed` (URLSession dekomprimuje vždy).
 - Tělo: raw → `--data-raw '…'`; form → `--data-urlencode 'name=value'` za každé pole; multipart → `-F 'name=value'` / `-F 'name=@/abs/cesta;type=…'`; binary → `--data-binary '@/abs/cesta'`.
 - Volby: `-L --max-redirs N` pokud follow; `-k` pokud verifyTls=false; `--max-time <s>`.
-- cURL se kopíruje vždy víceřádkový. Přepínač „Při kopírování maskovat tajné hodnoty“ (výchozí vypnuto, pravidla 2.8); při zapnutí hláška/poznámka, že `***` je před spuštěním nutné nahradit skutečnou hodnotou.
+- cURL se kopíruje vždy víceřádkový. Přepínač „Při kopírování maskovat tajné hodnoty“ (výchozí zapnuto, pravidla 2.8); při zapnutí hláška/poznámka, že `***` je před spuštěním nutné nahradit skutečnou hodnotou.
 
 Testy: parametrizované („golden“) – diakritika (`Příliš žluťoučký kůň úpěl ďábelské ódy`), apostrof, `$HOME`, `!`, zpětné lomítko, víceřádkový JSON, multipart se souborem, HEAD, všechny volby.
 
