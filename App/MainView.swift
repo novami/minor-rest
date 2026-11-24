@@ -38,6 +38,12 @@ struct MainView: View {
         .task(id: model.vars.key) { await model.vars.refresh() }
         .sheet(isPresented: $model.showEnvironments) { EnvironmentsSheet() }
         .sheet(item: $model.scopeSettings) { ScopeSettingsSheet(target: $0) }
+        .sheet(item: $model.importSession) { ImportSheet(session: $0) }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first(where: Self.isSpecFile) else { return false }
+            model.startImport(file: url)
+            return true
+        }
         .overlay(alignment: .bottom) { ToastStack(center: model.toasts) }
         .background(BackingScaleReader(scale: $scale))
         .background(MainWindowHook(edited: model.tabs.anyDirty) { [tabs = model.tabs] in tabs.mainWindow = $0 })
@@ -50,6 +56,10 @@ struct MainView: View {
                 DebugTools.runIfRequested(model)
             #endif
         }
+    }
+
+    private static func isSpecFile(_ url: URL) -> Bool {
+        url.isFileURL && ["json", "yaml", "yml"].contains(url.pathExtension.lowercased())
     }
 
     @ViewBuilder private var requestPane: some View {

@@ -16,6 +16,8 @@ struct AppCommands: Commands {
                 .keyboardShortcut("n")
             Button(t("menu.newFolder")) { Task { await model.tree.createFolder(near: nil) } }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+            Divider()
+            Button(t("menu.importOpenAPI")) { model.startImport() }
         }
         CommandGroup(replacing: .saveItem) {
             Button(t("menu.save")) { Task { await model.tabs.save() } }

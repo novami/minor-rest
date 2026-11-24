@@ -22,6 +22,7 @@ struct ProjectSwitcher: View {
             if !projects.list.isEmpty { Divider() }
             Button(t("project.new")) { showNew = true }
             Button(t("project.open")) { Task { await projects.openDirectory() } }
+            Button(t("menu.importOpenAPI")) { model.startImport() }
             Divider()
             Button(t("project.settings")) { model.openScopeSettings(.project) }
                 .disabled(projects.active == nil)

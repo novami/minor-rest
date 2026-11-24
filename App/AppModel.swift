@@ -16,6 +16,7 @@ final class AppModel {
     let updater = Updater()
     var showEnvironments = false
     var scopeSettings: ScopeTarget?
+    var importSession: ImportSession?
 
     init() {
         projects = ProjectsStore(workspace: workspace, toasts: toasts)
@@ -91,6 +92,13 @@ final class AppModel {
     /// Nastavení složky / projektu; bez aktivního projektu nic.
     func openScopeSettings(_ target: ScopeTarget) {
         if projects.active != nil { scopeSettings = target }
+    }
+
+    /// Průvodce importem OpenAPI / Swagger; `file` (drop do okna) rovnou načte.
+    func startImport(file: URL? = nil) {
+        let session = ImportSession()
+        importSession = session
+        if let file { Task { await session.load(file) } }
     }
 
     /// Dočasně pro akce menu, které ještě nejsou implementované.

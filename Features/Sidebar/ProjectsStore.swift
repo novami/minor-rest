@@ -57,6 +57,18 @@ final class ProjectsStore {
         }
     }
 
+    /// Přidá existující adresář projektu (např. právě naimportovaný) a aktivuje ho.
+    func adopt(_ dir: URL) async -> Bool {
+        do {
+            let project = try await registry.open(dir)
+            await sync(activate: project.info.id)
+            return true
+        } catch {
+            toasts.show(errorText(error), isError: true, seconds: 5)
+            return false
+        }
+    }
+
     /// Výběr adresáře; adresář bez projektu nabídne založit (název = název adresáře).
     func openDirectory() async {
         let panel = NSOpenPanel()

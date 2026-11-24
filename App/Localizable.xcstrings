@@ -6936,6 +6936,329 @@
           }
         }
       }
+    },
+    "menu.importOpenAPI": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importovat OpenAPI / Swagger…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import OpenAPI / Swagger…"
+          }
+        }
+      }
+    },
+    "import.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import OpenAPI / Swagger"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import OpenAPI / Swagger"
+          }
+        }
+      }
+    },
+    "import.sourceHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vyberte soubor specifikace (JSON nebo YAML) nebo zadejte URL."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a specification file (JSON or YAML) or enter a URL."
+          }
+        }
+      }
+    },
+    "import.chooseFile": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vybrat soubor…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose File…"
+          }
+        }
+      }
+    },
+    "import.urlPlaceholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "https://…/openapi.json"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "https://…/openapi.json"
+          }
+        }
+      }
+    },
+    "import.load": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Načíst"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load"
+          }
+        }
+      }
+    },
+    "import.dropHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soubor lze také přetáhnout do okna."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can also drop a file onto the window."
+          }
+        }
+      }
+    },
+    "import.summary": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Požadavků: {requests} · Složek: {folders} · Serverů: {servers}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requests: {requests} · Folders: {folders} · Servers: {servers}"
+          }
+        }
+      }
+    },
+    "import.warnings": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upozornění"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warnings"
+          }
+        }
+      }
+    },
+    "import.grouping": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seskupení"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grouping"
+          }
+        }
+      }
+    },
+    "import.groupTag": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Podle tagu"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By tag"
+          }
+        }
+      }
+    },
+    "import.groupPath": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Podle prvního segmentu cesty"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By first path segment"
+          }
+        }
+      }
+    },
+    "import.target": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cíl"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target"
+          }
+        }
+      }
+    },
+    "import.targetNew": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nový projekt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New project"
+          }
+        }
+      }
+    },
+    "import.targetExisting": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do projektu „{name}“ jako složka"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Into “{name}” as a folder"
+          }
+        }
+      }
+    },
+    "import.back": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zpět"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        }
+      }
+    },
+    "import.run": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importovat"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import"
+          }
+        }
+      }
+    },
+    "import.other": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ostatní"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other"
+          }
+        }
+      }
+    },
+    "import.done": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Naimportováno požadavků: {count}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requests imported: {count}"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
