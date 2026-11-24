@@ -30,10 +30,12 @@ struct ResponsePane: View {
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
                 TimelineView(.periodic(from: run.started, by: 0.1)) { ctx in
-                    Text(t("response.sending") + " "
-                         + fmtMs(ctx.date.timeIntervalSince(run.started) * 1000))
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                    Text(
+                        t("response.sending") + " "
+                            + fmtMs(ctx.date.timeIntervalSince(run.started) * 1000)
+                    )
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
                 }
             }
             Button(t("request.cancel")) { model.cancelRun() }

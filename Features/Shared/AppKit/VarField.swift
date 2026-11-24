@@ -99,9 +99,11 @@ struct VarField: NSViewRepresentable {
             completing = false
         }
 
-        func control(_ control: NSControl, textView: NSTextView, completions words: [String],
-                     forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>) -> [String] {
-            index.pointee = -1   // nic nevkládat, dokud uživatel návrh nevybere
+        func control(
+            _ control: NSControl, textView: NSTextView, completions words: [String],
+            forPartialWordRange charRange: NSRange, indexOfSelectedItem index: UnsafeMutablePointer<Int>
+        ) -> [String] {
+            index.pointee = -1  // nic nevkládat, dokud uživatel návrh nevybere
             if let editor = textView as? VarFieldEditor, editor.completingVar {
                 let prefix = (textView.string as NSString).substring(with: charRange)
                 return VarContext.completions((control as? VarTextField)?.vars, prefix)
@@ -115,7 +117,9 @@ struct VarField: NSViewRepresentable {
         }
 
         func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
-            guard selector == #selector(NSResponder.insertNewline(_:)), let onSubmit = parent.onSubmit else { return false }
+            guard selector == #selector(NSResponder.insertNewline(_:)), let onSubmit = parent.onSubmit else {
+                return false
+            }
             onSubmit()
             return true
         }
@@ -132,8 +136,9 @@ final class VarTextField: NSTextField {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         if let hoverArea { removeTrackingArea(hoverArea) }
-        let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
-                                  owner: self)
+        let area = NSTrackingArea(
+            rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            owner: self)
         addTrackingArea(area)
         hoverArea = area
     }
@@ -176,10 +181,13 @@ final class VarTextField: NSTextField {
         let par = NSPopover()
         par.behavior = .semitransient
         par.animates = false
-        par.contentViewController = NSHostingController(rootView: VarHoverView(name: tok.name, info: vars?.byName[tok.name],
-                                                                              known: vars?.isKnown(tok.name)))
-        par.show(relativeTo: NSRect(x: x, y: 0, width: 1, height: bounds.height), of: self,
-               preferredEdge: isFlipped ? .maxY : .minY)
+        par.contentViewController = NSHostingController(
+            rootView: VarHoverView(
+                name: tok.name, info: vars?.byName[tok.name],
+                known: vars?.isKnown(tok.name)))
+        par.show(
+            relativeTo: NSRect(x: x, y: 0, width: 1, height: bounds.height), of: self,
+            preferredEdge: isFlipped ? .maxY : .minY)
         popover = par
     }
 
@@ -192,7 +200,9 @@ final class VarTextField: NSTextField {
     }
 
     private func charIndex(atX x: CGFloat, text: String) -> Int? {
-        let lm: NSLayoutManager, tc: NSTextContainer, local: CGFloat
+        let lm: NSLayoutManager
+        let tc: NSTextContainer
+        let local: CGFloat
         if let editor = currentEditor() as? NSTextView, let elm = editor.layoutManager, let etc = editor.textContainer {
             (lm, tc) = (elm, etc)
             local = editor.convert(NSPoint(x: x, y: 0), from: self).x - editor.textContainerOrigin.x
@@ -209,7 +219,8 @@ final class VarTextField: NSTextField {
         let used = lm.usedRect(for: tc)
         guard local >= used.minX, local <= used.maxX else { return nil }
         var fraction: CGFloat = 0
-        let glyph = lm.glyphIndex(for: NSPoint(x: local, y: used.midY), in: tc, fractionOfDistanceThroughGlyph: &fraction)
+        let glyph = lm.glyphIndex(
+            for: NSPoint(x: local, y: used.midY), in: tc, fractionOfDistanceThroughGlyph: &fraction)
         return lm.characterIndexForGlyph(at: glyph)
     }
 
@@ -218,8 +229,9 @@ final class VarTextField: NSTextField {
         if ok, let editor = currentEditor() as? NSTextView {
             // field editor převezme obarvený text – barvy z textu odstranit, zvýraznění jen dočasnými atributy
             if let storage = editor.textStorage, storage.length > 0 {
-                storage.addAttribute(.foregroundColor, value: NSColor.textColor,
-                                     range: NSRange(location: 0, length: storage.length))
+                storage.addAttribute(
+                    .foregroundColor, value: NSColor.textColor,
+                    range: NSRange(location: 0, length: storage.length))
             }
             Highlighter.apply(editor, vars)
         }
@@ -269,20 +281,26 @@ final class VarFieldEditor: NSTextView {
         let pre = (string as NSString).substring(to: sel.location) as NSString
         let open = pre.range(of: "{{", options: .backwards)
         guard open.location != NSNotFound,
-              open.location == 0 || pre.character(at: open.location - 1) != 0x5C else { return nil }
+            open.location == 0 || pre.character(at: open.location - 1) != 0x5C
+        else { return nil }
         let start = open.location + 2
         let partial = pre.substring(from: start)
-        guard partial.unicodeScalars.enumerated().allSatisfy({ i, cur in
-            (i == 0 && cur == "$") || CharacterSet.alphanumerics.contains(cur) && cur.isASCII || "_.-".unicodeScalars.contains(cur)
-        }) else { return nil }
+        guard
+            partial.unicodeScalars.enumerated().allSatisfy({ i, cur in
+                (i == 0 && cur == "$") || CharacterSet.alphanumerics.contains(cur) && cur.isASCII
+                    || "_.-".unicodeScalars.contains(cur)
+            })
+        else { return nil }
         return NSRange(location: start, length: sel.location - start)
     }
 
     /// Vkládá se návrh z nabídky (šipky, Enter) – nespouštět nové našeptávání.
     private(set) var insertingCompletion = false
 
-    override func insertCompletion(_ word: String, forPartialWordRange charRange: NSRange,
-                                   movement: Int, isFinal flag: Bool) {
+    override func insertCompletion(
+        _ word: String, forPartialWordRange charRange: NSRange,
+        movement: Int, isFinal flag: Bool
+    ) {
         insertingCompletion = true
         defer { insertingCompletion = false }
         super.insertCompletion(word, forPartialWordRange: charRange, movement: movement, isFinal: flag)
@@ -318,10 +336,12 @@ enum Highlighter {
     static func display(_ field: NSTextField, _ vars: VarContext?) {
         let str = field.stringValue
         let tokens = VarToken.scan(str)
-        let attr = NSMutableAttributedString(string: str, attributes: [
-            .font: field.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize),
-            .foregroundColor: NSColor.textColor,
-        ])
+        let attr = NSMutableAttributedString(
+            string: str,
+            attributes: [
+                .font: field.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize),
+                .foregroundColor: NSColor.textColor
+            ])
         for tok in tokens { attr.addAttribute(.foregroundColor, value: color(tok, vars), range: tok.range) }
         if field.attributedStringValue != attr { field.attributedStringValue = attr }
     }
@@ -342,7 +362,8 @@ struct VarHoverView: View {
                     .font(.system(.body, design: .monospaced))
                     .lineLimit(4).textSelection(.enabled)
                 if !info.secret && info.value != info.resolved {
-                    Text(info.value).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).lineLimit(2)
+                    Text(info.value).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).lineLimit(
+                        2)
                 }
                 Text(VarSourceText.text(info)).font(.caption).foregroundStyle(.secondary)
             } else if name.hasPrefix("$") && known != false {

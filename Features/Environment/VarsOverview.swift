@@ -6,10 +6,14 @@ struct VarsOverviewButton: View {
     @State private var shown = false
 
     var body: some View {
-        Button { shown.toggle() } label: { Image(systemName: "eye") }
-            .help(t("vars.overview"))
-            .disabled(model.projects.active == nil)
-            .popover(isPresented: $shown, arrowEdge: .bottom) { VarsOverview() }
+        Button {
+            shown.toggle()
+        } label: {
+            Image(systemName: "eye")
+        }
+        .help(t("vars.overview"))
+        .disabled(model.projects.active == nil)
+        .popover(isPresented: $shown, arrowEdge: .bottom) { VarsOverview() }
     }
 }
 
@@ -34,9 +38,11 @@ struct VarsOverview: View {
                                 if info.source == .runtime {
                                     Button {
                                         model.vars.deleteRuntime(ctx.projectID, info.name)
-                                    } label: { Image(systemName: "trash") }
-                                        .buttonStyle(.borderless)
-                                        .help(t("vars.deleteRuntime"))
+                                    } label: {
+                                        Image(systemName: "trash")
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .help(t("vars.deleteRuntime"))
                                 } else {
                                     Color.clear.frame(width: 1, height: 1)
                                 }

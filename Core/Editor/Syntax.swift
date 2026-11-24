@@ -49,7 +49,8 @@ nonisolated enum Syntax {
             var j = i
             while j < str.count, str[j] != 0x0A { j += 1 }
             if j > i {
-                let kind: SyntaxToken.Kind? = str[i] == ch("+") ? .string : str[i] == ch("-") ? .keyword : str[i] == ch("@") ? .comment : nil
+                let kind: SyntaxToken.Kind? =
+                    str[i] == ch("+") ? .string : str[i] == ch("-") ? .keyword : str[i] == ch("@") ? .comment : nil
                 if let kind { out.append(SyntaxToken(i, j - i, kind)) }
             }
             i = j + 1
@@ -122,23 +123,32 @@ nonisolated enum Syntax {
         }
 
         while i < num {
-            guard str[i] == ch("<") else { i += 1; continue }
+            guard str[i] == ch("<") else {
+                i += 1
+                continue
+            }
             if starts("<!--", at: i) {
                 let elem = until("-->", from: i + 4)
-                out.append(SyntaxToken(i, elem - i, .comment)); i = elem
+                out.append(SyntaxToken(i, elem - i, .comment))
+                i = elem
             } else if starts("<![CDATA[", at: i) {
                 let elem = until("]]>", from: i + 9)
-                out.append(SyntaxToken(i, elem - i, .string)); i = elem
+                out.append(SyntaxToken(i, elem - i, .string))
+                i = elem
             } else if starts("<?", at: i) || starts("<!", at: i) {
                 let elem = until(starts("<?", at: i) ? "?>" : ">", from: i + 2)
-                out.append(SyntaxToken(i, elem - i, .comment)); i = elem
+                out.append(SyntaxToken(i, elem - i, .comment))
+                i = elem
             } else {
                 // <tag, </tag; jméno vč. `:`, `-`, `.`
                 var j = i + 1
                 if j < num, str[j] == ch("/") { j += 1 }
                 let nameStart = j
                 while j < num, isWord(str[j]) || str[j] == ch(":") || str[j] == ch("-") || str[j] == ch(".") { j += 1 }
-                guard j > nameStart else { i += 1; continue }
+                guard j > nameStart else {
+                    i += 1
+                    continue
+                }
                 out.append(SyntaxToken(nameStart, j - nameStart, .keyword))
                 // atributy až do `>`
                 while j < num, str[j] != ch(">"), str[j] != ch("<") {
@@ -151,7 +161,9 @@ nonisolated enum Syntax {
                         out.append(SyntaxToken(start, j - start, .string))
                     } else if isWord(cur) {
                         let start = j
-                        while j < num, isWord(str[j]) || str[j] == ch(":") || str[j] == ch("-") || str[j] == ch(".") { j += 1 }
+                        while j < num, isWord(str[j]) || str[j] == ch(":") || str[j] == ch("-") || str[j] == ch(".") {
+                            j += 1
+                        }
                         out.append(SyntaxToken(start, j - start, .property))
                     } else {
                         j += 1
@@ -170,7 +182,7 @@ nonisolated enum Syntax {
         var out: [SyntaxToken] = []
         let num = str.count
         var i = 0
-        var fence: Int?   // začátek otevřeného bloku ```
+        var fence: Int?  // začátek otevřeného bloku ```
         while i < num {
             var elem = i
             while elem < num, str[elem] != 0x0A { elem += 1 }
@@ -178,7 +190,10 @@ nonisolated enum Syntax {
             while key < elem, str[key] == 0x20 { key += 1 }
             let isFence = key + 3 <= elem && str[key] == ch("`") && str[key + 1] == ch("`") && str[key + 2] == ch("`")
             if let fn = fence {
-                if isFence { out.append(SyntaxToken(fn, elem - fn, .string)); fence = nil }
+                if isFence {
+                    out.append(SyntaxToken(fn, elem - fn, .string))
+                    fence = nil
+                }
             } else if isFence {
                 fence = i
             } else if key < elem, str[key] == ch("#") {
@@ -188,11 +203,13 @@ nonisolated enum Syntax {
             } else {
                 var j = key
                 if j + 1 < elem, str[j] == ch("-") || str[j] == ch("*") || str[j] == ch("+"), str[j + 1] == 0x20 {
-                    out.append(SyntaxToken(j, 1, .number)); j += 2
+                    out.append(SyntaxToken(j, 1, .number))
+                    j += 2
                 } else {
                     while j < elem, str[j] >= 0x30, str[j] <= 0x39 { j += 1 }
                     if j > key, j + 1 < elem, str[j] == ch("."), str[j + 1] == 0x20 {
-                        out.append(SyntaxToken(key, j + 1 - key, .number)); j += 2
+                        out.append(SyntaxToken(key, j + 1 - key, .number))
+                        j += 2
                     } else {
                         j = key
                     }
@@ -212,12 +229,14 @@ nonisolated enum Syntax {
                 var key = j + 1
                 while key < end, str[key] != ch("`") { key += 1 }
                 guard key < end else { return }
-                out.append(SyntaxToken(j, key + 1 - j, .string)); j = key + 1
+                out.append(SyntaxToken(j, key + 1 - j, .string))
+                j = key + 1
             } else if str[j] == ch("]"), j + 1 < end, str[j + 1] == ch("(") {
                 var key = j + 2
                 while key < end, str[key] != ch(")") { key += 1 }
                 guard key < end else { return }
-                out.append(SyntaxToken(j + 1, key + 1 - (j + 1), .property)); j = key + 1
+                out.append(SyntaxToken(j + 1, key + 1 - (j + 1), .property))
+                j = key + 1
             } else {
                 j += 1
             }

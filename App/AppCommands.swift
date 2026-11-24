@@ -54,8 +54,10 @@ struct AppCommands: Commands {
     }
 
     /// Hledání v textovém poli s fokusem (`NSTextFinder` v `CodeTextView`); akce čte `tag` odesílatele.
-    private func find(_ key: String, _ action: NSTextFinder.Action, _ shortcut: KeyEquivalent,
-                      _ modifiers: EventModifiers = .command) -> some View {
+    private func find(
+        _ key: String, _ action: NSTextFinder.Action, _ shortcut: KeyEquivalent,
+        _ modifiers: EventModifiers = .command
+    ) -> some View {
         Button(t(key)) {
             let sender = NSMenuItem()
             sender.tag = action.rawValue

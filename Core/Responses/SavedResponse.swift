@@ -75,7 +75,9 @@ nonisolated struct SavedResponse: Sendable, Equatable {
         response.headers = map.headers(res.headers)
         response.sizes = res.sizes
         response.timing = res.timing
-        response.redirects = res.redirects.map { Redirect(status: $0.status, method: $0.method, url: map.text($0.url), location: map.text($0.location)) }
+        response.redirects = res.redirects.map {
+            Redirect(status: $0.status, method: $0.method, url: map.text($0.url), location: map.text($0.location))
+        }
         response.contentType = res.contentType
         response.charset = res.charset
     }
@@ -170,14 +172,17 @@ nonisolated extension SavedResponse: YAMLCodable {
         tm.add("totalMs", res.timing.totalMs)
         tm.addIfTrue("reused", res.timing.reused)
         str.add("timing", tm.node)
-        str.add("redirects", .seq(res.redirects.map { hdr in
-            var x = YMap()
-            x.add("status", hdr.status)
-            x.add("method", hdr.method)
-            x.add("url", hdr.url)
-            x.add("location", hdr.location)
-            return x.node
-        }))
+        str.add(
+            "redirects",
+            .seq(
+                res.redirects.map { hdr in
+                    var x = YMap()
+                    x.add("status", hdr.status)
+                    x.add("method", hdr.method)
+                    x.add("url", hdr.url)
+                    x.add("location", hdr.location)
+                    return x.node
+                }))
         str.add("contentType", res.contentType)
         str.add("charset", res.charset)
         map.add("response", str.node)
@@ -200,9 +205,9 @@ nonisolated extension SavedResponse: YAMLCodable {
     }
 }
 
-nonisolated private extension KV {
+nonisolated extension KV {
     /// Hlavička uložené odpovědi: jen název a hodnota.
-    var header: YNode {
+    fileprivate var header: YNode {
         var map = YMap()
         map.add("name", name)
         map.add("value", value)
@@ -265,8 +270,9 @@ nonisolated private struct TimingYAML: YAMLDecodable {
 nonisolated private struct RedirectYAML: YAMLDecodable {
     let value: Redirect
     init(yaml opt: YAMLObject) throws {
-        value = Redirect(status: try opt.int("status"), method: try opt.string("method"), url: try opt.string("url"),
-                         location: try opt.string("location"))
+        value = Redirect(
+            status: try opt.int("status"), method: try opt.string("method"), url: try opt.string("url"),
+            location: try opt.string("location"))
     }
 }
 

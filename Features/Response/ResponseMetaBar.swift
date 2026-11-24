@@ -22,7 +22,9 @@ struct ResponseMetaBar: View {
             if !result.remoteAddr.isEmpty {
                 Text(result.remoteAddr)
                     .textSelection(.enabled)
-                    .help(t("response.remote") + (result.localAddr.isEmpty ? "" : "\n" + t("response.local") + ": " + result.localAddr))
+                    .help(
+                        t("response.remote")
+                            + (result.localAddr.isEmpty ? "" : "\n" + t("response.local") + ": " + result.localAddr))
             }
             Spacer(minLength: 0)
         }
@@ -74,7 +76,7 @@ struct TimingView: View {
         let rows: [(String, Double, Color)] = [
             ("timing.dns", timing.dnsMs, .teal), ("timing.connect", timing.connectMs, .orange),
             ("timing.tls", timing.tlsMs, .purple), ("timing.ttfb", timing.ttfbMs, .green),
-            ("timing.download", timing.downloadMs, .blue),
+            ("timing.download", timing.downloadMs, .blue)
         ]
         let total = max(timing.totalMs, rows.reduce(0) { $0 + $1.1 }, 0.001)
         Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 6) {
@@ -117,8 +119,11 @@ struct SizesView: View {
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
             GridRow { Text(t("size.response")).bold().gridCellColumns(2) }
             row("size.headers", fmtBytes(sizes.headers))
-            row("size.body", sizes.bodyWire == sizes.bodyDecoded ? fmtBytes(sizes.bodyDecoded)
-                : t("size.transferred", ["wire": fmtBytes(sizes.bodyWire), "decoded": fmtBytes(sizes.bodyDecoded)]))
+            row(
+                "size.body",
+                sizes.bodyWire == sizes.bodyDecoded
+                    ? fmtBytes(sizes.bodyDecoded)
+                    : t("size.transferred", ["wire": fmtBytes(sizes.bodyWire), "decoded": fmtBytes(sizes.bodyDecoded)]))
             GridRow { Text(t("size.request")).bold().gridCellColumns(2) }.padding(.top, 6)
             row("size.headers", fmtBytes(sizes.reqHeaders))
             row("size.body", fmtBytes(sizes.reqBody))

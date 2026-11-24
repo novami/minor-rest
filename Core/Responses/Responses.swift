@@ -68,7 +68,8 @@ nonisolated struct Responses: Sendable {
     private func file(_ val: Int, _ ext: String) -> URL { dir.appending(path: String(format: "v%04d.%@", val, ext)) }
 
     private func size(_ val: Int) -> Int64 {
-        ((try? FileManager.default.attributesOfItem(atPath: file(val, "body").path))?[.size] as? NSNumber)?.int64Value ?? 0
+        ((try? FileManager.default.attributesOfItem(atPath: file(val, "body").path))?[.size] as? NSNumber)?.int64Value
+            ?? 0
     }
 
     /// Čísla verzí vzestupně.
@@ -81,6 +82,8 @@ nonisolated struct Responses: Sendable {
     }
 
     static func info(_ elem: SavedResponse, bodySize: Int64) -> SavedInfo {
-        SavedInfo(version: elem.version, savedAt: elem.savedAt, label: elem.label, status: elem.response.status, error: elem.error, bodySize: bodySize)
+        SavedInfo(
+            version: elem.version, savedAt: elem.savedAt, label: elem.label, status: elem.response.status,
+            error: elem.error, bodySize: bodySize)
     }
 }

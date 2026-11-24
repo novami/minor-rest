@@ -35,19 +35,31 @@ struct ResponseBodyPane<Bar: View>: View {
                     .disabled(filter != nil)
                 }
                 if mode != .preview || filter != nil, run.body != nil, !result.isBinary {
-                    Button { findTrigger += 1 } label: { Image(systemName: "magnifyingglass") }
-                        .buttonStyle(.borderless)
-                        .help(t("response.find"))
+                    Button {
+                        findTrigger += 1
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(t("response.find"))
                 }
                 if run.body != nil {
                     if !result.isBinary {
-                        Button { copyText(shown(mode)?.text ?? "") } label: { Image(systemName: "doc.on.doc") }
-                            .buttonStyle(.borderless)
-                            .help(t("response.copyBody"))
-                    }
-                    Button { saveBody() } label: { Image(systemName: "square.and.arrow.down") }
+                        Button {
+                            copyText(shown(mode)?.text ?? "")
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                        }
                         .buttonStyle(.borderless)
-                        .help(t("response.saveBody"))
+                        .help(t("response.copyBody"))
+                    }
+                    Button {
+                        saveBody()
+                    } label: {
+                        Image(systemName: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(t("response.saveBody"))
                 }
             }
             .padding(.horizontal, 8).padding(.vertical, 6)
@@ -84,14 +96,18 @@ struct ResponseBodyPane<Bar: View>: View {
 
     private var filterField: some View {
         let err = filterError
-        return TextField("", text: Binding(get: { model.runs.filters[tabID, default: ""] },
-                                           set: { model.runs.filters[tabID] = $0 }),
-                         prompt: Text(t("response.filter.placeholder")))
-            .textFieldStyle(.roundedBorder)
-            .font(fonts.code)
-            .frame(minWidth: 140, idealWidth: 220, maxWidth: 320)
-            .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.red, lineWidth: err == nil ? 0 : 1.5))
-            .help(err ?? t("response.filter.help"))
+        return TextField(
+            "",
+            text: Binding(
+                get: { model.runs.filters[tabID, default: ""] },
+                set: { model.runs.filters[tabID] = $0 }),
+            prompt: Text(t("response.filter.placeholder"))
+        )
+        .textFieldStyle(.roundedBorder)
+        .font(fonts.code)
+        .frame(minWidth: 140, idealWidth: 220, maxWidth: 320)
+        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.red, lineWidth: err == nil ? 0 : 1.5))
+        .help(err ?? t("response.filter.help"))
     }
 
     // MARK: Obsah
@@ -141,9 +157,15 @@ struct ResponseBodyPane<Bar: View>: View {
             } else {
                 let key = result.contentType.hasPrefix("image/") ? "response.imageTooLarge" : "response.binary"
                 VStack(spacing: 8) {
-                    EmptyState(title: t(key, ["type": result.contentType.isEmpty ? "?" : result.contentType,
-                                              "size": fmtBytes(result.sizes.bodyDecoded)]))
-                        .frame(maxHeight: 40)
+                    EmptyState(
+                        title: t(
+                            key,
+                            [
+                                "type": result.contentType.isEmpty ? "?" : result.contentType,
+                                "size": fmtBytes(result.sizes.bodyDecoded)
+                            ])
+                    )
+                    .frame(maxHeight: 40)
                     Button(t("response.saveBody")) { saveBody() }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -151,9 +173,11 @@ struct ResponseBodyPane<Bar: View>: View {
         } else if mode == .preview, filterText == nil, let buf = run.body {
             HTMLPreviewView(html: HTMLPreview.sandboxed(buf.text)).id(run.runID)
         } else if let buf = shown(mode) {
-            CodeTextView(text: .constant(buf.text), lang: SyntaxLang(rawValue: buf.lang) ?? .text,
-                         editable: false, font: fonts.codeNSFont, findTrigger: findTrigger)
-                .id(run.runID + mode.rawValue + (filterText == nil ? "" : "f" + filterExpr) + String(run.pretty != nil))
+            CodeTextView(
+                text: .constant(buf.text), lang: SyntaxLang(rawValue: buf.lang) ?? .text,
+                editable: false, font: fonts.codeNSFont, findTrigger: findTrigger
+            )
+            .id(run.runID + mode.rawValue + (filterText == nil ? "" : "f" + filterExpr) + String(run.pretty != nil))
         } else if run.body != nil {
             ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
@@ -190,7 +214,7 @@ struct ResponseBodyPane<Bar: View>: View {
         let last = URL(string: result.sent.url)?.lastPathComponent ?? ""
         var name = last.isEmpty || last == "/" ? "response" : last
         if (name as NSString).pathExtension.isEmpty,
-           let ext = UTType(mimeType: result.contentType)?.preferredFilenameExtension {
+            let ext = UTType(mimeType: result.contentType)?.preferredFilenameExtension {
             name += "." + ext
         }
         return name

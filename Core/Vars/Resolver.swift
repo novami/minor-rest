@@ -35,8 +35,10 @@ nonisolated struct VarInfo: Hashable, Sendable {
 nonisolated final class Resolver {
     static let masked = "***"
     /// Dynamické proměnné (`{{$uuid}}` …) pro našeptávač a zvýraznění.
-    static let dynamicNames = ["$uuid", "$ulid", "$timestamp", "$timestampMs", "$isoTimestamp",
-                                      "$randomInt", "$randomString"]
+    static let dynamicNames = [
+        "$uuid", "$ulid", "$timestamp", "$timestampMs", "$isoTimestamp",
+        "$randomInt", "$randomString"
+    ]
     static let maxDepth = 10
 
     private struct Entry {
@@ -75,12 +77,14 @@ nonisolated final class Resolver {
     func explain() -> [VarInfo] {
         let secrets = vars.values.filter { $0.variable.secret && !$0.variable.value.isEmpty }.map(\.variable.value)
         return vars.map { name, elem in
-            var info = VarInfo(name: name, value: "", resolved: "", source: elem.scope.source, ref: elem.scope.ref,
-                               secret: elem.variable.secret)
+            var info = VarInfo(
+                name: name, value: "", resolved: "", source: elem.scope.source, ref: elem.scope.ref,
+                secret: elem.variable.secret)
             if !elem.variable.secret {
                 var ignored: [String] = []
                 info.value = elem.variable.value
-                info.resolved = (try? resolve(elem.variable.value, stack: [name], unresolved: &ignored)) ?? elem.variable.value
+                info.resolved =
+                    (try? resolve(elem.variable.value, stack: [name], unresolved: &ignored)) ?? elem.variable.value
                 for str in secrets { info.resolved = info.resolved.replacingOccurrences(of: str, with: Self.masked) }
             }
             return info
@@ -154,8 +158,10 @@ nonisolated final class Resolver {
 
     /// Název proměnné `[A-Za-z0-9_.-]+`.
     static func isValidName(_ str: String) -> Bool {
-        !str.isEmpty && str.unicodeScalars.allSatisfy {
-            ("a"..."z").contains($0) || ("A"..."Z").contains($0) || ("0"..."9").contains($0) || "_.-".unicodeScalars.contains($0)
-        }
+        !str.isEmpty
+            && str.unicodeScalars.allSatisfy {
+                ("a"..."z").contains($0) || ("A"..."Z").contains($0) || ("0"..."9").contains($0)
+                    || "_.-".unicodeScalars.contains($0)
+            }
     }
 }

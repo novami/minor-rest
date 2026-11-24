@@ -44,21 +44,30 @@ actor HTTPEngine {
     /// `jar` se použije jen při `o.cookieJar` (doplní `Cookie`, uloží `Set-Cookie` i ze skoků redirectu; na disk ne).
     func send(runID: String, _ resVal: PreparedRequest, _ opt: Options, jar: CookieJar? = nil) async -> RunResult {
         var res = RunResult(runID: runID)
-        var req: URLRequest, payload: Payload
-        do { (req, payload) = try Self.makeRequest(resVal, opt) } catch { res.error = error; return res }
+        var req: URLRequest
+        var payload: Payload
+        do { (req, payload) = try Self.makeRequest(resVal, opt) } catch {
+            res.error = error
+            return res
+        }
         res.sent.bodySize = payload.size
         res.sent.bodyPreview = payload.preview
         let jar = opt.cookieJar ? jar : nil
         let userCookie = req.value(forHTTPHeaderField: "Cookie")
-        if let jar, let urlVal = req.url { req.setValue(Self.cookieHeader(userCookie, jar.header(for: urlVal)), forHTTPHeaderField: "Cookie") }
+        if let jar, let urlVal = req.url {
+            req.setValue(Self.cookieHeader(userCookie, jar.header(for: urlVal)), forHTTPHeaderField: "Cookie")
+        }
 
-        let dat = RunDelegate(options: opt, payload: payload, jar: jar, userCookie: userCookie, protocolClasses: protocolClasses)
+        let dat = RunDelegate(
+            options: opt, payload: payload, jar: jar, userCookie: userCookie, protocolClasses: protocolClasses)
         runs[runID] = dat
         defer { if runs[runID] === dat { runs[runID] = nil } }
-        let timeout: Task<Void, Never>? = opt.timeoutMs > 0 ? Task { [dat] in
-            try? await Task.sleep(for: .milliseconds(opt.timeoutMs))
-            if !Task.isCancelled { dat.cancel(CoreError(.netTimeout, "\(opt.timeoutMs) ms")) }
-        } : nil
+        let timeout: Task<Void, Never>? =
+            opt.timeoutMs > 0
+            ? Task { [dat] in
+                try? await Task.sleep(for: .milliseconds(opt.timeoutMs))
+                if !Task.isCancelled { dat.cancel(CoreError(.netTimeout, "\(opt.timeoutMs) ms")) }
+            } : nil
         let out = await withTaskCancellationHandler {
             await dat.run(req)
         } onCancel: {
@@ -127,7 +136,9 @@ actor HTTPEngine {
     /// JSONPath filtr nad celým tělem (do `BodyView.maxView`); výsledek = odsazené pole shod.
     func filter(runID: String, jsonPath: String) throws(CoreError) -> String {
         let str = try stored(runID)
-        guard !str.isBinary, str.body.size <= BodyView.maxView else { throw CoreError(.jsonInvalid, "body not available") }
+        guard !str.isBinary, str.body.size <= BodyView.maxView else {
+            throw CoreError(.jsonInvalid, "body not available")
+        }
         return try JSONPath.filter(json: ContentSniff.toUTF8(try str.body.read(), str.charset), jsonPath)
     }
 
@@ -173,9 +184,13 @@ actor HTTPEngine {
 
     static func makeRequest(_ resVal: PreparedRequest, _ opt: Options) throws(CoreError) -> (URLRequest, Payload) {
         let method = resVal.method.uppercased()
-        guard !method.isEmpty, method.allSatisfy({ tokenChars.contains($0) }) else { throw CoreError(.methodInvalid, resVal.method) }
-        guard let urlVal = URL(string: resVal.url), let scheme = urlVal.scheme?.lowercased(), scheme == "http" || scheme == "https",
-              let host = urlVal.host(), !host.isEmpty else { throw CoreError(.urlInvalid, resVal.url) }
+        guard !method.isEmpty, method.allSatisfy({ tokenChars.contains($0) }) else {
+            throw CoreError(.methodInvalid, resVal.method)
+        }
+        guard let urlVal = URL(string: resVal.url), let scheme = urlVal.scheme?.lowercased(),
+            scheme == "http" || scheme == "https",
+            let host = urlVal.host(), !host.isEmpty
+        else { throw CoreError(.urlInvalid, resVal.url) }
         var payload = try Payload.build(resVal.body, baseDir: resVal.baseDir)
         // URLSession tělo u GET/HEAD odmítne (NSURLErrorDataLengthExceedsMaximum), ani jako stream.
         if method == HTTPMethod.get || method == HTTPMethod.head {
@@ -206,7 +221,9 @@ actor HTTPEngine {
             fixBoundary(&req, payload.contentType)
         }
         // Prázdná hodnota = neposlat; jinak by systém doplnil vlastní.
-        if !has.contains("user-agent"), off.contains("user-agent") || opt.userAgent.isEmpty { req.setValue("", forHTTPHeaderField: "User-Agent") }
+        if !has.contains("user-agent"), off.contains("user-agent") || opt.userAgent.isEmpty {
+            req.setValue("", forHTTPHeaderField: "User-Agent")
+        }
         if !has.contains("accept"), off.contains("accept") { req.setValue("", forHTTPHeaderField: "Accept") }
 
         switch payload.source {
@@ -221,7 +238,9 @@ actor HTTPEngine {
 
     /// Doplní boundary do uživatelského multipart Content-Type bez něj.
     private static func fixBoundary(_ req: inout URLRequest, _ autoCT: String) {
-        guard let ct = req.value(forHTTPHeaderField: "Content-Type"), let buf = autoCT.range(of: "boundary=") else { return }
+        guard let ct = req.value(forHTTPHeaderField: "Content-Type"), let buf = autoCT.range(of: "boundary=") else {
+            return
+        }
         let lower = ct.lowercased()
         if lower.hasPrefix("multipart/"), !lower.contains("boundary=") {
             req.setValue(ct + "; " + autoCT[buf.lowerBound...], forHTTPHeaderField: "Content-Type")
@@ -276,8 +295,10 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
 
     private nonisolated(unsafe) let protocolClasses: [AnyClass]
 
-    init(options: HTTPEngine.Options, payload: Payload, jar: CookieJar? = nil, userCookie: String? = nil,
-         protocolClasses: [AnyClass] = []) {
+    init(
+        options: HTTPEngine.Options, payload: Payload, jar: CookieJar? = nil, userCookie: String? = nil,
+        protocolClasses: [AnyClass] = []
+    ) {
         self.protocolClasses = protocolClasses
         self.options = options
         self.payload = payload
@@ -322,17 +343,19 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
         task?.cancel()
     }
 
-    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge,
-                    completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+    func urlSession(
+        _ session: URLSession, didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
         let space = challenge.protectionSpace
         if space.authenticationMethod == NSURLAuthenticationMethodServerTrust, let trust = space.serverTrust,
-           let cur = TLSNames.certificate(trust) {
+            let cur = TLSNames.certificate(trust) {
             var info = TLSInfo()
             (info.subject, info.issuer, info.notAfter) = cur
             state.withLock { $0.certs[space.host.lowercased()] = info }
         }
         if space.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-           !options.verifyTLS, let trust = space.serverTrust {
+            !options.verifyTLS, let trust = space.serverTrust {
             completionHandler(.useCredential, URLCredential(trust: trust))
         } else {
             completionHandler(.performDefaultHandling, nil)
@@ -353,14 +376,17 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
         }
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
-                    newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
+    func urlSession(
+        _ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest, completionHandler: @escaping @Sendable (URLRequest?) -> Void
+    ) {
         receiveCookies(response)
         guard options.followRedirects else { return completionHandler(nil) }
         let prev = task.currentRequest
-        let hop = Redirect(status: response.statusCode, method: prev?.httpMethod ?? "",
-                           url: prev?.url?.absoluteString ?? "",
-                           location: response.value(forHTTPHeaderField: "Location") ?? request.url?.absoluteString ?? "")
+        let hop = Redirect(
+            status: response.statusCode, method: prev?.httpMethod ?? "",
+            url: prev?.url?.absoluteString ?? "",
+            location: response.value(forHTTPHeaderField: "Location") ?? request.url?.absoluteString ?? "")
         let count = state.withLock { str in
             str.redirects.append(hop)
             return str.redirects.count
@@ -372,12 +398,19 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
         var next = request
         // Jen na původní host (při změně hostu se neposílá).
         let auth = state.withLock { $0.authorization }
-        next.setValue(auth.flatMap { $0.host == request.url?.host()?.lowercased() ? $0.value : nil }, forHTTPHeaderField: "Authorization")
-        if let jar, let urlVal = request.url { next.setValue(HTTPEngine.cookieHeader(userCookie, jar.header(for: urlVal)), forHTTPHeaderField: "Cookie") }
+        next.setValue(
+            auth.flatMap { $0.host == request.url?.host()?.lowercased() ? $0.value : nil },
+            forHTTPHeaderField: "Authorization")
+        if let jar, let urlVal = request.url {
+            next.setValue(HTTPEngine.cookieHeader(userCookie, jar.header(for: urlVal)), forHTTPHeaderField: "Cookie")
+        }
         completionHandler(next)
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, needNewBodyStream completionHandler: @escaping @Sendable (InputStream?) -> Void) {
+    func urlSession(
+        _ session: URLSession, task: URLSessionTask,
+        needNewBodyStream completionHandler: @escaping @Sendable (InputStream?) -> Void
+    ) {
         completionHandler(payload.stream())
     }
 
@@ -450,7 +483,10 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
             } else {
                 str.sink.discard()
             }
-            defer { str.continuation = nil; str.task = nil }
+            defer {
+                str.continuation = nil
+                str.task = nil
+            }
             return (str.continuation, out)
         }
         var out = cur.1
@@ -459,7 +495,8 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
         out.sentHeaders = Self.sentHeaders(sent, proto: out.proto)
         if out.error == nil, let resVal = task.response as? HTTPURLResponse {
             out.status = resVal.statusCode
-            out.headers = Self.rows(resVal.allHeaderFields.reduce(into: [String: String]()) { $0["\($1.key)"] = "\($1.value)" })
+            out.headers = Self.rows(
+                resVal.allHeaderFields.reduce(into: [String: String]()) { $0["\($1.key)"] = "\($1.value)" })
         } else if out.error == nil {
             out.body.remove()
             out.body = .data(Data())
@@ -471,7 +508,8 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
     /// Řádky seřazené podle názvu; sloučené `Set-Cookie` rozdělí na samostatné řádky.
     static func rows(_ hdr: [String: String]) -> [KV] {
         hdr.sorted { $0.key.lowercased() < $1.key.lowercased() }.flatMap { keyVal, val in
-            keyVal.lowercased() == "set-cookie" ? SetCookie.split(val).map { KV(name: keyVal, value: $0) } : [KV(name: keyVal, value: val)]
+            keyVal.lowercased() == "set-cookie"
+                ? SetCookie.split(val).map { KV(name: keyVal, value: $0) } : [KV(name: keyVal, value: val)]
         }
     }
 
@@ -505,7 +543,7 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
         case .cannotConnectToHost: return CoreError(.netRefused, detail)
         case .timedOut: return CoreError(.netTimeout, detail)
         case .serverCertificateUntrusted, .serverCertificateHasBadDate, .serverCertificateHasUnknownRoot,
-             .serverCertificateNotYetValid, .clientCertificateRejected, .clientCertificateRequired:
+            .serverCertificateNotYetValid, .clientCertificateRejected, .clientCertificateRequired:
             return CoreError(.tlsVerify, detail)
         case .secureConnectionFailed: return CoreError(.tlsError, detail)
         case .cancelled: return CoreError(.canceled)
@@ -545,6 +583,6 @@ nonisolated enum HTTPStatus {
         429: "Too Many Requests", 431: "Request Header Fields Too Large", 451: "Unavailable For Legal Reasons",
         500: "Internal Server Error", 501: "Not Implemented", 502: "Bad Gateway", 503: "Service Unavailable",
         504: "Gateway Timeout", 505: "HTTP Version Not Supported", 506: "Variant Also Negotiates",
-        507: "Insufficient Storage", 508: "Loop Detected", 510: "Not Extended", 511: "Network Authentication Required",
+        507: "Insufficient Storage", 508: "Loop Detected", 510: "Not Extended", 511: "Network Authentication Required"
     ]
 }

@@ -10,7 +10,8 @@ nonisolated enum RequestSecrets {
     static func isLiteral(_ value: String) -> Bool { !value.isEmpty && !value.contains("{{") }
 
     /// Projde všechna citlivá pole (název pole, hodnota).
-    private static func visit(_ auth: inout Auth, _ headers: inout [KV], _ body: (String, inout String) throws -> Void) rethrows {
+    private static func visit(_ auth: inout Auth, _ headers: inout [KV], _ body: (String, inout String) throws -> Void)
+        rethrows {
         if auth.basic != nil { try body("basic.password", &auth.basic!.password) }
         if auth.bearer != nil { try body("bearer.token", &auth.bearer!.token) }
         if auth.apiKey != nil { try body("apikey.value", &auth.apiKey!.value) }
@@ -45,7 +46,8 @@ nonisolated enum RequestSecrets {
 
     /// Smaže všechny položky vlastníka (po smazání requestu).
     static func deleteAll(owner: String, secrets: SecretStore) {
-        let slots = ["basic.password", "bearer.token", "apikey.value", "oauth2.clientSecret", "oauth2.password"]
+        let slots =
+            ["basic.password", "bearer.token", "apikey.value", "oauth2.clientSecret", "oauth2.password"]
             + (0..<32).map { "header.\($0)" }
         for slot in slots { try? secrets.delete(account: "\(owner)/\(slot)") }
     }

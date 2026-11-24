@@ -23,8 +23,9 @@ final class AppModel {
         tabs = TabsStore(workspace: workspace, projects: projects, toasts: toasts)
         environments = EnvironmentsStore(workspace: workspace, projects: projects, toasts: toasts)
         vars = VarsStore(projects: projects, tabs: tabs, environments: environments)
-        runs = RunStore(projects: projects, environments: environments, vars: vars, toasts: toasts,
-                        appDir: workspace.directory)
+        runs = RunStore(
+            projects: projects, environments: environments, vars: vars, toasts: toasts,
+            appDir: workspace.directory)
         projects.onDiskChange = { [tree, tabs, environments, vars] id, rels in
             tree.diskChanged(id)
             vars.invalidate()
@@ -36,9 +37,13 @@ final class AppModel {
         tree.onCopyCurl = { [unowned self] rel in
             let pid = projects.activeID
             Task {
-                guard let project = try? await projects.project(pid), let req = try? project.loadRequest(rel) else { return }
+                guard let project = try? await projects.project(pid), let req = try? project.loadRequest(rel) else {
+                    return
+                }
                 let dat = UserDefaults.standard
-                await runs.copyCurl(pid, rel, req, multiline: dat.object(forKey: "curlMultiline") as? Bool ?? true, mask: dat.bool(forKey: "curlMask"))
+                await runs.copyCurl(
+                    pid, rel, req, multiline: dat.object(forKey: "curlMultiline") as? Bool ?? true,
+                    mask: dat.bool(forKey: "curlMask"))
             }
         }
         tree.onOpen = { [tabs] rel in await tabs.open(rel) }
@@ -71,7 +76,8 @@ final class AppModel {
     /// Zavře projekt; neuložené taby projektu se nejdřív nabídnou k uložení.
     func closeProject(_ id: String) async {
         guard let par = projects.list.first(where: { $0.id == id }),
-              await tabs.confirmCloseProject(id, name: par.name) else { return }
+            await tabs.confirmCloseProject(id, name: par.name)
+        else { return }
         await projects.close(id)
         environments.projectClosed(id)
         vars.projectClosed(id)

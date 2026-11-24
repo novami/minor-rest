@@ -32,15 +32,18 @@ struct HistoryView: View {
         }
         .task { await model.runs.loadHistory() }
         .sheet(item: $opened) { opt in
-            SavedResponseSheet(title: t("history.title"), entry: opt.entry, data: opt.data,
-                               openRequest: opt.entry.requestID.isEmpty ? nil : { openRequest(opt.entry.requestID) })
+            SavedResponseSheet(
+                title: t("history.title"), entry: opt.entry, data: opt.data,
+                openRequest: opt.entry.requestID.isEmpty ? nil : { openRequest(opt.entry.requestID) })
         }
     }
 
     private func row(_ i: HistoryItem) -> some View {
         Button {
             Task {
-                if let (elem, buf) = await model.runs.historyEntry(i.id) { opened = Opened(id: i.id, entry: elem, data: buf) }
+                if let (elem, buf) = await model.runs.historyEntry(i.id) {
+                    opened = Opened(id: i.id, entry: elem, data: buf)
+                }
             }
         } label: {
             VStack(alignment: .leading, spacing: 2) {

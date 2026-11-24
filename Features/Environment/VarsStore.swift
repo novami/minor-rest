@@ -37,23 +37,28 @@ final class VarsStore {
         guard projects.active != nil else { return nil }
         let pid = projects.activeID
         let tab = tabs.active
-        return Key(projectID: pid, tabID: tab?.id, rel: tab?.rel, requestVars: tab?.draft.vars ?? [],
-                   environment: environments.active(pid), globals: environments.globals,
-                   runtime: runtime[pid] ?? [], revision: revision)
+        return Key(
+            projectID: pid, tabID: tab?.id, rel: tab?.rel, requestVars: tab?.draft.vars ?? [],
+            environment: environments.active(pid), globals: environments.globals,
+            runtime: runtime[pid] ?? [], revision: revision)
     }
 
     func invalidate() { revision += 1 }
 
     /// Přepočet pro aktuální `key` (čtení složek mimo hlavní vlákno).
     func refresh() async {
-        guard let key else { context = nil; return }
+        guard let key else {
+            context = nil
+            return
+        }
         guard let project = try? await projects.project(key.projectID) else { return }
         let rel = key.rel
         let folders = await Task.detached { rel.flatMap { try? project.folderChain($0) } ?? [] }.value
-        guard self.key == key else { return }   // mezitím se změnil vstup
-        let input = PrepareInput(request: Request(vars: key.requestVars), project: project.config,
-                                 folders: folders, runtime: key.runtime,
-                                 environment: key.environment?.vars ?? [], globals: key.globals)
+        guard self.key == key else { return }  // mezitím se změnil vstup
+        let input = PrepareInput(
+            request: Request(vars: key.requestVars), project: project.config,
+            folders: folders, runtime: key.runtime,
+            environment: key.environment?.vars ?? [], globals: key.globals)
         context = VarContext(projectID: key.projectID, tabID: key.tabID, infos: Prepare.explain(input))
     }
 

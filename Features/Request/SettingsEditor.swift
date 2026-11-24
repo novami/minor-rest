@@ -35,24 +35,33 @@ struct SettingsEditor: View {
         }
     }
 
-    private func numberRow(_ key: String, _ path: WritableKeyPath<HTTPSettings, Int?>, min: Int, unit: String?) -> some View {
+    private func numberRow(_ key: String, _ path: WritableKeyPath<HTTPSettings, Int?>, min: Int, unit: String?)
+        -> some View {
         let own = settings[keyPath: path]
         return GridRow {
             Text(t(key)).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
             HStack(spacing: 6) {
-                Picker("", selection: Binding(get: { own != nil }, set: { on in
-                    settings[keyPath: path] = on ? (inherited?[keyPath: path] ?? min) : nil
-                })) {
-                    Text(inheritLabel(inherited?[keyPath: path].map { "\($0)" + (unit.map { " \($0)" } ?? "") })).tag(false)
+                Picker(
+                    "",
+                    selection: Binding(
+                        get: { own != nil },
+                        set: { on in
+                            settings[keyPath: path] = on ? (inherited?[keyPath: path] ?? min) : nil
+                        })
+                ) {
+                    Text(inheritLabel(inherited?[keyPath: path].map { "\($0)" + (unit.map { " \($0)" } ?? "") })).tag(
+                        false)
                     Text(t("settings.custom")).tag(true)
                 }
                 .labelsHidden()
                 .fixedSize()
                 if let own {
-                    TextField("", value: Binding(get: { own }, set: { settings[keyPath: path] = Swift.max(min, $0) }),
-                              format: .number.grouping(.never))
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 90)
+                    TextField(
+                        "", value: Binding(get: { own }, set: { settings[keyPath: path] = Swift.max(min, $0) }),
+                        format: .number.grouping(.never)
+                    )
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 90)
                     if let unit { Text(unit).foregroundStyle(.secondary) }
                 }
             }

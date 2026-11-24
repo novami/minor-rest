@@ -80,16 +80,21 @@ nonisolated private struct N {
 
 /// Ordered JSON pro ukázková těla.
 nonisolated private indirect enum J {
-    case null, bool(Bool), num(String), str(String), arr([J]), obj([(String, J)])
+    case null
+    case bool(Bool)
+    case num(String)
+    case str(String)
+    case arr([J])
+    case obj([(String, J)])
 
     var compact: String {
         switch self {
         case .null: "null"
-        case let .bool(buf): buf ? "true" : "false"
-        case let .num(strVal): strVal
-        case let .str(strVal): Self.quote(strVal)
-        case let .arr(arg): "[" + arg.map(\.compact).joined(separator: ",") + "]"
-        case let .obj(opt): "{" + opt.map { Self.quote($0.0) + ":" + $0.1.compact }.joined(separator: ",") + "}"
+        case .bool(let buf): buf ? "true" : "false"
+        case .num(let strVal): strVal
+        case .str(let strVal): Self.quote(strVal)
+        case .arr(let arg): "[" + arg.map(\.compact).joined(separator: ",") + "]"
+        case .obj(let opt): "{" + opt.map { Self.quote($0.0) + ":" + $0.1.compact }.joined(separator: ",") + "}"
         }
     }
 
@@ -103,7 +108,11 @@ nonisolated private indirect enum J {
             case "\r": out += "\\r"
             case "\t": out += "\\t"
             default:
-                if urlVal.value < 0x20 { out += String(format: "\\u%04x", urlVal.value) } else { out.unicodeScalars.append(urlVal) }
+                if urlVal.value < 0x20 {
+                    out += String(format: "\\u%04x", urlVal.value)
+                } else {
+                    out.unicodeScalars.append(urlVal)
+                }
             }
         }
         return out + "\""
@@ -112,9 +121,9 @@ nonisolated private indirect enum J {
     /// Řetězec pro hodnotu parametru / pole formuláře.
     var text: String {
         switch self {
-        case let .str(strVal): strVal
-        case let .num(strVal): strVal
-        case let .bool(buf): buf ? "true" : "false"
+        case .str(let strVal): strVal
+        case .num(let strVal): strVal
+        case .bool(let buf): buf ? "true" : "false"
         case .null: ""
         default: compact
         }
@@ -151,7 +160,10 @@ nonisolated private struct P {
             let item = deref(raw)
             for (key, opNode) in item.pairs {
                 let mapVal = key.uppercased()
-                if key.lowercased() == "trace" { warn("TRACE \(path)"); continue }
+                if key.lowercased() == "trace" {
+                    warn("TRACE \(path)")
+                    continue
+                }
                 guard HTTPMethod.all.contains(mapVal) else { continue }
                 var op = operation(mapVal, path, item, opNode)
                 if opNode["security"].exists {
@@ -181,7 +193,8 @@ nonisolated private struct P {
         return root["servers"].items.compactMap { strVal in
             guard var url = strVal["url"].str else { return nil }
             for (name, val) in strVal["variables"].pairs {
-                url = url.replacingOccurrences(of: "{\(name)}", with: val["default"].str ?? val["enum"].items.first?.str ?? "")
+                url = url.replacingOccurrences(
+                    of: "{\(name)}", with: val["default"].str ?? val["enum"].items.first?.str ?? "")
             }
             return APIServer(url: url, description: strVal["description"].str ?? "")
         }
@@ -196,13 +209,17 @@ nonisolated private struct P {
             let type = strVal["type"].str ?? ""
             switch type {
             case "basic":
-                need("username"); need("password")
-                schemes[name] = Auth(type: AuthType.basic, basic: BasicAuth(username: "{{username}}", password: "{{password}}"))
+                need("username")
+                need("password")
+                schemes[name] = Auth(
+                    type: AuthType.basic, basic: BasicAuth(username: "{{username}}", password: "{{password}}"))
             case "http":
                 switch (strVal["scheme"].str ?? "").lowercased() {
                 case "basic":
-                    need("username"); need("password")
-                    schemes[name] = Auth(type: AuthType.basic, basic: BasicAuth(username: "{{username}}", password: "{{password}}"))
+                    need("username")
+                    need("password")
+                    schemes[name] = Auth(
+                        type: AuthType.basic, basic: BasicAuth(username: "{{username}}", password: "{{password}}"))
                 case "bearer":
                     need("token")
                     schemes[name] = Auth(type: AuthType.bearer, bearer: BearerAuth(token: "{{token}}"))
@@ -210,9 +227,14 @@ nonisolated private struct P {
                 }
             case "apiKey":
                 let loc = strVal["in"].str ?? ""
-                guard loc == "header" || loc == "query" else { warn("security: \(name)"); continue }
+                guard loc == "header" || loc == "query" else {
+                    warn("security: \(name)")
+                    continue
+                }
                 need("apiKey")
-                schemes[name] = Auth(type: AuthType.apiKey, apiKey: APIKeyAuth(key: strVal["name"].str ?? "", value: "{{apiKey}}", location: loc))
+                schemes[name] = Auth(
+                    type: AuthType.apiKey,
+                    apiKey: APIKeyAuth(key: strVal["name"].str ?? "", value: "{{apiKey}}", location: loc))
             case "oauth2":
                 if let arg = oauth(strVal) { schemes[name] = arg } else { warn("security: \(name)") }
             default:
@@ -223,8 +245,11 @@ nonisolated private struct P {
 
     mutating func oauth(_ strVal: N) -> Auth? {
         var opt = OAuth2Auth()
-        var flow = N(nil), grant = ""
-        func url(_ urlVal: String?) -> String { (urlVal ?? "").hasPrefix("/") ? "{{baseUrl}}" + (urlVal ?? "") : (urlVal ?? "") }
+        var flow = N(nil)
+        var grant = ""
+        func url(_ urlVal: String?) -> String {
+            (urlVal ?? "").hasPrefix("/") ? "{{baseUrl}}" + (urlVal ?? "") : (urlVal ?? "")
+        }
         if v2 {
             flow = strVal
             switch strVal["flow"].str ?? "" {
@@ -235,7 +260,10 @@ nonisolated private struct P {
             }
             opt.authURL = url(flow["authorizationUrl"].str)
         } else {
-            let map = ["clientCredentials": "client_credentials", "password": "password", "authorizationCode": "authorization_code"]
+            let map = [
+                "clientCredentials": "client_credentials", "password": "password",
+                "authorizationCode": "authorization_code"
+            ]
             guard let fn = strVal["flows"].pairs.first(where: { map[$0.key] != nil }) else { return nil }
             flow = fn.value
             grant = map[fn.key] ?? ""
@@ -246,12 +274,18 @@ nonisolated private struct P {
         opt.scope = flow["scopes"].pairs.map(\.key).joined(separator: " ")
         opt.clientID = "{{clientId}}"
         opt.clientSecret = "{{clientSecret}}"
-        need("clientId"); need("clientSecret")
+        need("clientId")
+        need("clientSecret")
         opt.usePKCE = grant == "authorization_code"
         opt.clientAuth = "header"
         opt.tokenPlacement = "header"
         opt.autoRefresh = true
-        if grant == "password" { opt.username = "{{username}}"; opt.password = "{{password}}"; need("username"); need("password") }
+        if grant == "password" {
+            opt.username = "{{username}}"
+            opt.password = "{{password}}"
+            need("username")
+            need("password")
+        }
         return Auth(type: AuthType.oauth2, oauth2: opt)
     }
 
@@ -313,7 +347,9 @@ nonisolated private struct P {
 
     /// `example` → `default` → `enum[0]` → `const` přímo na uzlu.
     func direct(_ numVal: N) -> J? {
-        for keyVal in ["example", "x-example", "default", "const"] where numVal[keyVal].exists { return json(numVal[keyVal]) }
+        for keyVal in ["example", "x-example", "default", "const"] where numVal[keyVal].exists {
+            return json(numVal[keyVal])
+        }
         if let elem = numVal["examples"].items.first { return json(elem) }
         if let elem = numVal["enum"].items.first { return json(elem) }
         return nil
@@ -321,7 +357,8 @@ nonisolated private struct P {
 
     func sample(_ schema: N, depth: Int = 0, stack: [String] = []) -> J? {
         guard depth <= maxDepth else { return nil }
-        var strVal = schema, stack = stack
+        var strVal = schema
+        var stack = stack
         var guardCount = 0
         while let ref = strVal["$ref"].str {
             guardCount += 1
@@ -333,8 +370,14 @@ nonisolated private struct P {
         if !strVal["allOf"].items.isEmpty {
             var props: [(String, J)] = []
             for sub in strVal["allOf"].items {
-                if case let .obj(opt)? = sample(sub, depth: depth + 1, stack: stack) {
-                    for (keyVal, val) in opt { if let i = props.firstIndex(where: { $0.0 == keyVal }) { props[i].1 = val } else { props.append((keyVal, val)) } }
+                if case .obj(let opt)? = sample(sub, depth: depth + 1, stack: stack) {
+                    for (keyVal, val) in opt {
+                        if let i = props.firstIndex(where: { $0.0 == keyVal }) {
+                            props[i].1 = val
+                        } else {
+                            props.append((keyVal, val))
+                        }
+                    }
                 }
             }
             return .obj(props)
@@ -343,7 +386,9 @@ nonisolated private struct P {
             if let fn = strVal[keyVal].items.first { return sample(fn, depth: depth + 1, stack: stack) }
         }
         var type = strVal["type"].str ?? ""
-        if type.isEmpty, strVal["type"].isSequence { type = strVal["type"].items.compactMap(\.str).first { $0 != "null" } ?? "" }
+        if type.isEmpty, strVal["type"].isSequence {
+            type = strVal["type"].items.compactMap(\.str).first { $0 != "null" } ?? ""
+        }
         if type.isEmpty { type = strVal["properties"].exists ? "object" : (strVal["items"].exists ? "array" : "") }
         switch type {
         case "object":
@@ -400,8 +445,11 @@ nonisolated private struct P {
             let desc = par["description"].str ?? ""
             let value = paramValue(par)
             switch par["in"].str ?? "" {
-            case "query": op.query.append(KV(name: name, value: value, enabled: par["required"].bool == true, description: desc))
-            case "header": op.headers.append(KV(name: name, value: value, enabled: par["required"].bool == true, description: desc))
+            case "query":
+                op.query.append(KV(name: name, value: value, enabled: par["required"].bool == true, description: desc))
+            case "header":
+                op.headers.append(
+                    KV(name: name, value: value, enabled: par["required"].bool == true, description: desc))
             case "path": declaredPath[name] = PathParam(name: name, value: value, description: desc)
             case "formData": formParams.append(par)
             case "body": bodyParam = par
@@ -419,9 +467,19 @@ nonisolated private struct P {
     }
 
     static func colonPath(_ path: String) -> String {
-        var out = "", name: String?
+        var out = ""
+        var name: String?
         for ch in path {
-            if ch == "{" { name = "" } else if ch == "}", let numVal = name { out += ":" + numVal; name = nil } else if name != nil { name?.append(ch) } else { out.append(ch) }
+            if ch == "{" {
+                name = ""
+            } else if ch == "}", let numVal = name {
+                out += ":" + numVal
+                name = nil
+            } else if name != nil {
+                name?.append(ch)
+            } else {
+                out.append(ch)
+            }
         }
         if let numVal = name { out += "{" + numVal }
         return out
@@ -429,7 +487,9 @@ nonisolated private struct P {
 
     func paramValue(_ par: N) -> String {
         if let dat = direct(par) { return dat.text }
-        if let ex = par["examples"].pairs.first, let val = Optional(deref(ex.value)["value"]), val.exists { return json(val).text }
+        if let ex = par["examples"].pairs.first, let val = Optional(deref(ex.value)["value"]), val.exists {
+            return json(val).text
+        }
         if let dat = direct(deref(par["schema"])) { return dat.text }
         if par["type"].str == "array", let dat = direct(par["items"]) { return dat.text }
         return ""
@@ -439,8 +499,10 @@ nonisolated private struct P {
 
     func bodyV3(_ rb: N) -> Body? {
         let content = rb["content"].pairs
-        guard let pick = content.first(where: { $0.key == "application/json" })
-            ?? content.first(where: { $0.key.contains("json") }) ?? content.first else { return nil }
+        guard
+            let pick = content.first(where: { $0.key == "application/json" })
+                ?? content.first(where: { $0.key.contains("json") }) ?? content.first
+        else { return nil }
         let media = pick.value
         let schema = media["schema"]
         let ct = pick.key.lowercased()
@@ -470,8 +532,11 @@ nonisolated private struct P {
 
     func formBody(_ schema: N, multipart: Bool) -> Body {
         var strVal = deref(schema)
-        if !strVal["allOf"].items.isEmpty { strVal = strVal["allOf"].items.map(deref).first { $0["properties"].exists } ?? strVal }
-        var kv: [KV] = [], parts: [MultipartPart] = []
+        if !strVal["allOf"].items.isEmpty {
+            strVal = strVal["allOf"].items.map(deref).first { $0["properties"].exists } ?? strVal
+        }
+        var kv: [KV] = []
+        var parts: [MultipartPart] = []
         for (name, raw) in strVal["properties"].pairs {
             let par = deref(raw)
             let isFile = par["format"].str == "binary" || par["type"].str == "file"
@@ -490,11 +555,14 @@ nonisolated private struct P {
                 return Body(type: BodyType.json, raw: pretty(j))
             }
             let curVal = consumes[0]
-            return Body(type: curVal.contains("xml") ? BodyType.xml : (curVal.contains("html") ? BodyType.html : BodyType.text), raw: "")
+            return Body(
+                type: curVal.contains("xml") ? BodyType.xml : (curVal.contains("html") ? BodyType.html : BodyType.text),
+                raw: "")
         }
         guard !form.isEmpty else { return nil }
         let multi = consumes.contains { $0.contains("multipart") } || form.contains { $0["type"].str == "file" }
-        var kv: [KV] = [], parts: [MultipartPart] = []
+        var kv: [KV] = []
+        var parts: [MultipartPart] = []
         for par in form {
             let name = par["name"].str ?? ""
             let isFile = par["type"].str == "file"

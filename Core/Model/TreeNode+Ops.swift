@@ -63,7 +63,7 @@ nonisolated extension TreeNode {
             index = children.prefix(child).filter { $0.kind == dragged.kind && $0.rel != dragged.rel }.count
         }
         if Self.parent(of: dragged.rel) == rel,
-           children.filter({ $0.kind == dragged.kind }).firstIndex(where: { $0.rel == dragged.rel }) == index {
+            children.filter({ $0.kind == dragged.kind }).firstIndex(where: { $0.rel == dragged.rel }) == index {
             return nil
         }
         return index

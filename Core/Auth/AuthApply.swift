@@ -28,16 +28,22 @@ nonisolated enum AuthApply {
     /// Přidá auth do hlaviček (vyhodnotí proměnné); API klíč v query vrátí jako `query` (připojí volající).
     /// Ručně zadaná hlavička (`Authorization`, název API klíče) nebo zapnutý query parametr se stejným
     /// názvem (`queryNames`) má přednost. `secrets` = hodnoty k maskování (API klíč).
-    static func apply(_ auth: Auth, headers: inout [KV], queryNames: Set<String>,
-                      _ resVal: Resolver) throws -> (query: KV?, secrets: [String]) {
+    static func apply(
+        _ auth: Auth, headers: inout [KV], queryNames: Set<String>,
+        _ resVal: Resolver
+    ) throws -> (query: KV?, secrets: [String]) {
         func res(_ str: String) throws -> String { try resVal.resolve(str).value }
-        func hasHeader(_ name: String) -> Bool { headers.contains { $0.name.caseInsensitiveCompare(name) == .orderedSame } }
+        func hasHeader(_ name: String) -> Bool {
+            headers.contains { $0.name.caseInsensitiveCompare(name) == .orderedSame }
+        }
         switch auth.type {
         case AuthType.basic:
             let buf = auth.basic ?? BasicAuth()
-            let user = try res(buf.username), pass = try res(buf.password)
+            let user = try res(buf.username)
+            let pass = try res(buf.password)
             guard !(user.isEmpty && pass.isEmpty), !hasHeader("Authorization") else { return (nil, []) }
-            headers.append(KV(name: "Authorization", value: "Basic " + Data((user + ":" + pass).utf8).base64EncodedString()))
+            headers.append(
+                KV(name: "Authorization", value: "Basic " + Data((user + ":" + pass).utf8).base64EncodedString()))
         case AuthType.bearer:
             let buf = auth.bearer ?? BearerAuth()
             let token = try res(buf.token)
@@ -46,7 +52,8 @@ nonisolated enum AuthApply {
             headers.append(KV(name: "Authorization", value: (prefix.isEmpty ? "Bearer" : prefix) + " " + token))
         case AuthType.apiKey:
             let keyVal = auth.apiKey ?? APIKeyAuth()
-            let key = try res(keyVal.key).trimmingCharacters(in: .whitespaces), value = try res(keyVal.value)
+            let key = try res(keyVal.key).trimmingCharacters(in: .whitespaces)
+            let value = try res(keyVal.value)
             guard !key.isEmpty else { return (nil, []) }
             let secrets = value.isEmpty ? [] : [value]
             if keyVal.location == "query" {
@@ -63,9 +70,11 @@ nonisolated enum AuthApply {
 
     /// OAuth2: token z cache / refresh / nový; přidá ho jako hlavičku (`headerPrefix`) nebo query `access_token`.
     /// Ručně zadaná `Authorization` či query `access_token` má přednost (token se ani nezískává).
-    static func applyOAuth(_ arg: OAuth2Auth, client: OAuthClient, options: HTTPEngine.Options,
-                           headers: inout [KV], queryNames: Set<String>,
-                           _ resVal: Resolver) async throws -> (query: KV?, secrets: [String]) {
+    static func applyOAuth(
+        _ arg: OAuth2Auth, client: OAuthClient, options: HTTPEngine.Options,
+        headers: inout [KV], queryNames: Set<String>,
+        _ resVal: Resolver
+    ) async throws -> (query: KV?, secrets: [String]) {
         let par = try OAuthParams(arg) { try resVal.resolve($0).value }
         guard !par.tokenURL.isEmpty else { return (nil, []) }
         let inHeader = par.tokenPlacement == "header"

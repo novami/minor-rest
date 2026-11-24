@@ -71,7 +71,8 @@ final class EnvironmentsStore {
 
     func loadEditable(_ projectID: String) async throws -> Editable {
         let project = try await projects.project(projectID)
-        let secrets = secrets, dir = workspace.directory
+        let secrets = secrets
+        let dir = workspace.directory
         return try await Task.detached {
             let envs = try project.listEnvironments().map { elem in
                 var elem = elem
@@ -79,15 +80,17 @@ final class EnvironmentsStore {
                 return elem
             }
             let globals = try secrets.fill(try Globals.load(from: dir), account: Secrets.globalAccount)
-            return Editable(environments: envs, projectVars: project.config.vars, globals: globals,
-                            readOnly: project.info.readOnly)
+            return Editable(
+                environments: envs, projectVars: project.config.vars, globals: globals,
+                readOnly: project.info.readOnly)
         }.value
     }
 
     /// Uloží změny: smazaná prostředí, změněná/nová prostředí, proměnné projektu a globální.
     func saveEditable(_ projectID: String, original: Editable, edited: Editable) async throws {
         let project = try await projects.project(projectID)
-        let secrets = secrets, dir = workspace.directory
+        let secrets = secrets
+        let dir = workspace.directory
         try await Task.detached {
             let kept = Set(edited.environments.map(\.id))
             for elem in original.environments where !kept.contains(elem.id) {
@@ -129,7 +132,9 @@ final class EnvironmentsStore {
 
     /// Proměnné aktivního prostředí a globální s hodnotami z Keychain (pro `Prepare`).
     func varsForSend(_ projectID: String) async throws -> (environment: [Var], globals: [Var]) {
-        let env = active(projectID), globals = globals, secrets = secrets
+        let env = active(projectID)
+        let globals = globals
+        let secrets = secrets
         let project = try await projects.project(projectID)
         return try await Task.detached {
             let ev = try env.map { try secrets.fill($0.vars, account: project.secretAccount(envID: $0.id)) } ?? []

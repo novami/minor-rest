@@ -57,12 +57,13 @@ nonisolated extension Project {
         let dir = try url(rel)
         let names: [String]
         do { names = try FileIO.fm.contentsOfDirectory(atPath: dir.path).sorted() } catch { throw FileIO.error(error) }
-        var folders: [TreeNode] = [], requests: [TreeNode] = []
+        var folders: [TreeNode] = []
+        var requests: [TreeNode] = []
         for name in names where !name.hasPrefix(".") && !name.hasPrefix("_") {
             let childRel = RelPath.join(rel, name)
             if FileIO.isDirectory(dir.appending(path: name)) {
                 if rel.isEmpty && name == ProjectFormat.environmentDir { continue }
-                guard var num = try? folderNode(childRel) else { continue } // adresář bez _folder.yaml
+                guard var num = try? folderNode(childRel) else { continue }  // adresář bez _folder.yaml
                 if deep && num.error.isEmpty { num.children = try children(childRel, deep: true) }
                 folders.append(num)
             } else if name.hasSuffix(ProjectFormat.requestSuffix), let num = try? requestNode(childRel) {
@@ -78,9 +79,10 @@ nonisolated extension Project {
 
     static func sorted(_ nodes: [TreeNode]) -> [TreeNode] {
         nodes.sorted { arg, buf in
-            if arg.error.isEmpty != buf.error.isEmpty { return arg.error.isEmpty } // nečitelné na konec
+            if arg.error.isEmpty != buf.error.isEmpty { return arg.error.isEmpty }  // nečitelné na konec
             if arg.seq != buf.seq { return arg.seq < buf.seq }
-            let la = arg.name.lowercased(), lb = buf.name.lowercased()
+            let la = arg.name.lowercased()
+            let lb = buf.name.lowercased()
             return la != lb ? la < lb : arg.rel < buf.rel
         }
     }
@@ -94,7 +96,7 @@ nonisolated extension Project {
             }
         }
         collect(tree)
-        var replaced: [String: String] = [:] // rel → nové ID
+        var replaced: [String: String] = [:]  // rel → nové ID
         for (_, rels) in byID where rels.count > 1 {
             let ordered = rels.sorted { arg, buf in
                 let da = (try? url(arg)).map(FileIO.creationDate) ?? .distantPast
@@ -103,7 +105,9 @@ nonisolated extension Project {
             }
             for rel in ordered.dropFirst() {
                 let id = ULID.make()
-                guard let file = try? url(rel), var res = try? FileIO.readYAML(Request.self, from: file) else { continue }
+                guard let file = try? url(rel), var res = try? FileIO.readYAML(Request.self, from: file) else {
+                    continue
+                }
                 res.id = id
                 if (try? FileIO.writeYAML(res, to: file)) != nil { replaced[rel] = id }
             }

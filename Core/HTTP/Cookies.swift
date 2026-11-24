@@ -16,7 +16,8 @@ nonisolated final class CookieJar: Sendable {
     init(file: URL?) {
         self.file = file
         var str = State()
-        if let file, let dat = try? Data(contentsOf: file), let cur = try? JSONDecoder().decode([Cookie].self, from: dat) {
+        if let file, let dat = try? Data(contentsOf: file),
+            let cur = try? JSONDecoder().decode([Cookie].self, from: dat) {
             str.cookies = cur
         }
         state = Mutex(str)
@@ -42,7 +43,10 @@ nonisolated final class CookieJar: Sendable {
         let secure = Self.isSecure(url)
         return state.withLock { str in
             str.cookies
-                .filter { Self.domainMatch(host, $0.domain) && Self.pathMatch(path, $0.path) && (secure || !$0.secure) && !Self.expired($0, now) }
+                .filter {
+                    Self.domainMatch(host, $0.domain) && Self.pathMatch(path, $0.path) && (secure || !$0.secure)
+                        && !Self.expired($0, now)
+                }
                 .sorted { $0.path.count > $1.path.count }
                 .map { "\($0.name)=\($0.value)" }
                 .joined(separator: "; ")
@@ -54,7 +58,9 @@ nonisolated final class CookieJar: Sendable {
         guard !received.isEmpty else { return }
         state.withLock { str in
             for cur in received {
-                str.cookies.removeAll { $0.name == cur.name && $0.domain.lowercased() == cur.domain.lowercased() && $0.path == cur.path }
+                str.cookies.removeAll {
+                    $0.name == cur.name && $0.domain.lowercased() == cur.domain.lowercased() && $0.path == cur.path
+                }
                 if !Self.expired(cur, now) { str.cookies.append(cur) }
             }
             str.cookies.removeAll { Self.expired($0, now) }
@@ -86,7 +92,8 @@ nonisolated final class CookieJar: Sendable {
     // MARK: - Pravidla RFC 6265
 
     static func isSecure(_ url: URL) -> Bool {
-        url.scheme?.lowercased() == "https" || ["localhost", "127.0.0.1", "::1"].contains(url.host(percentEncoded: false)?.lowercased() ?? "")
+        url.scheme?.lowercased() == "https"
+            || ["localhost", "127.0.0.1", "::1"].contains(url.host(percentEncoded: false)?.lowercased() ?? "")
     }
 
     static func domainMatch(_ host: String, _ domain: String) -> Bool {
@@ -111,7 +118,9 @@ nonisolated final class CookieJar: Sendable {
 nonisolated enum SetCookie {
     /// Rozdělí sloučenou hodnotu na jednotlivé hlavičky (čárka v `Expires` zůstane).
     static func split(_ merged: String) -> [String] {
-        merged.split(separator: /,\s*(?=[^;,=\s]+=)/).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        merged.split(separator: /,\s*(?=[^;,=\s]+=)/).map { $0.trimmingCharacters(in: .whitespaces) }.filter {
+            !$0.isEmpty
+        }
     }
 
     /// Cookies z hlaviček odpovědi na `url`; `Domain` mimo host se zahodí.
@@ -121,8 +130,10 @@ nonisolated enum SetCookie {
         return lines.flatMap { HTTPCookie.cookies(withResponseHeaderFields: ["Set-Cookie": $0], for: url) }
             .filter { CookieJar.domainMatch(host, $0.domain) }
             .map { cur in
-                Cookie(name: cur.name, value: cur.value, domain: cur.domain, path: cur.path, expires: cur.expiresDate.map(fn.string) ?? "",
-                       secure: cur.isSecure, httpOnly: cur.isHTTPOnly, sameSite: cur.sameSitePolicy?.rawValue ?? "")
+                Cookie(
+                    name: cur.name, value: cur.value, domain: cur.domain, path: cur.path,
+                    expires: cur.expiresDate.map(fn.string) ?? "",
+                    secure: cur.isSecure, httpOnly: cur.isHTTPOnly, sameSite: cur.sameSitePolicy?.rawValue ?? "")
             }
     }
 }

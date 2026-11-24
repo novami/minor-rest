@@ -126,23 +126,29 @@ struct CodeTextView: NSViewRepresentable {
             guard let tcs = lm.textContentManager as? NSTextContentStorage else { return }
             let doc = tcs.documentRange.location
             let fr = fragment.rangeInElement
-            let range = NSRange(location: tcs.offset(from: doc, to: fr.location),
-                                length: tcs.offset(from: fr.location, to: fr.endLocation))
+            let range = NSRange(
+                location: tcs.offset(from: doc, to: fr.location),
+                length: tcs.offset(from: fr.location, to: fr.endLocation))
             lm.removeRenderingAttribute(.foregroundColor, for: fr)
             for list in [syntax, vars] {
                 for (res, color) in Self.overlapping(list, range) {
-                    let lo = max(res.location, range.location), hi = min(NSMaxRange(res), NSMaxRange(range))
+                    let lo = max(res.location, range.location)
+                    let hi = min(NSMaxRange(res), NSMaxRange(range))
                     guard lo < hi, let start = tcs.location(doc, offsetBy: lo),
-                          let end = tcs.location(start, offsetBy: hi - lo),
-                          let tr = NSTextRange(location: start, end: end) else { continue }
+                        let end = tcs.location(start, offsetBy: hi - lo),
+                        let tr = NSTextRange(location: start, end: end)
+                    else { continue }
                     lm.addRenderingAttribute(.foregroundColor, value: color, for: tr)
                 }
             }
         }
 
         /// Úseky protínající `range` (seznam je seřazený a nepřekrývající se → binární hledání začátku).
-        private static func overlapping(_ list: [(NSRange, NSColor)], _ range: NSRange) -> ArraySlice<(NSRange, NSColor)> {
-            var lo = 0, hi = list.count
+        private static func overlapping(_ list: [(NSRange, NSColor)], _ range: NSRange) -> ArraySlice<
+            (NSRange, NSColor)
+        > {
+            var lo = 0
+            var hi = list.count
             while lo < hi {
                 let mid = (lo + hi) / 2
                 if NSMaxRange(list[mid].0) <= range.location { lo = mid + 1 } else { hi = mid }
@@ -157,7 +163,7 @@ struct CodeTextView: NSViewRepresentable {
             .number: NSColor(named: "CodeNumber") ?? .systemGreen,
             .property: NSColor(named: "CodeProperty") ?? .systemBlue,
             .keyword: NSColor(named: "CodeKeyword") ?? .systemPurple,
-            .comment: .secondaryLabelColor,
+            .comment: .secondaryLabelColor
         ]
     }
 }

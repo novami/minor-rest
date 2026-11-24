@@ -16,8 +16,10 @@ final class WorkspaceStore {
             AppLog.app.error("workspace.yaml nelze načíst: \(error.localizedDescription, privacy: .public)")
             ws = Workspace()
         }
-        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil,
-                                               queue: .main) { [weak self] _ in
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil,
+            queue: .main
+        ) { [weak self] _ in
             MainActor.assumeIsolated { self?.saveNow() }
         }
     }

@@ -88,7 +88,10 @@ nonisolated indirect enum JSONValue: Sendable {
                 i += 1
                 var map: [Member] = []
                 space()
-                if peek(UInt8(ascii: "}")) { i += 1; return .object(map) }
+                if peek(UInt8(ascii: "}")) {
+                    i += 1
+                    return .object(map)
+                }
                 while true {
                     space()
                     guard peek(UInt8(ascii: "\"")) else { throw fail("expected object key") }
@@ -99,21 +102,36 @@ nonisolated indirect enum JSONValue: Sendable {
                     space()
                     map.append(Member(key: keyVal, value: try value(depth + 1)))
                     space()
-                    if peek(UInt8(ascii: ",")) { i += 1; continue }
-                    if peek(UInt8(ascii: "}")) { i += 1; return .object(map) }
+                    if peek(UInt8(ascii: ",")) {
+                        i += 1
+                        continue
+                    }
+                    if peek(UInt8(ascii: "}")) {
+                        i += 1
+                        return .object(map)
+                    }
                     throw fail("expected ',' or '}' in object")
                 }
             case UInt8(ascii: "["):
                 i += 1
                 var arg: [JSONValue] = []
                 space()
-                if peek(UInt8(ascii: "]")) { i += 1; return .array(arg) }
+                if peek(UInt8(ascii: "]")) {
+                    i += 1
+                    return .array(arg)
+                }
                 while true {
                     space()
                     arg.append(try value(depth + 1))
                     space()
-                    if peek(UInt8(ascii: ",")) { i += 1; continue }
-                    if peek(UInt8(ascii: "]")) { i += 1; return .array(arg) }
+                    if peek(UInt8(ascii: ",")) {
+                        i += 1
+                        continue
+                    }
+                    if peek(UInt8(ascii: "]")) {
+                        i += 1
+                        return .array(arg)
+                    }
                     throw fail("expected ',' or ']' in array")
                 }
             case UInt8(ascii: "\""): return .string(try string())
@@ -153,7 +171,11 @@ nonisolated indirect enum JSONValue: Sendable {
                             let save = i
                             i += 2
                             let lo = try hex4()
-                            if (0xDC00..<0xE000).contains(lo) { url = 0x10000 + ((url - 0xD800) << 10) + (lo - 0xDC00) } else { i = save }
+                            if (0xDC00..<0xE000).contains(lo) {
+                                url = 0x10000 + ((url - 0xD800) << 10) + (lo - 0xDC00)
+                            } else {
+                                i = save
+                            }
                         }
                         buf.append(contentsOf: String(Unicode.Scalar(url).map(Character.init) ?? "\u{FFFD}").utf8)
                     default: throw fail("invalid escape in string")
@@ -166,7 +188,8 @@ nonisolated indirect enum JSONValue: Sendable {
         }
 
         mutating func hex4() throws(CoreError) -> UInt32 {
-            guard i + 4 <= src.count, let val = UInt32(String(decoding: src[i..<i + 4], as: UTF8.self), radix: 16) else {
+            guard i + 4 <= src.count, let val = UInt32(String(decoding: src[i..<i + 4], as: UTF8.self), radix: 16)
+            else {
                 throw fail("invalid \\u escape")
             }
             i += 4
@@ -213,12 +236,15 @@ nonisolated extension JSONValue: Equatable {
     static func == (arg: JSONValue, bufVal: JSONValue) -> Bool {
         switch (arg, bufVal) {
         case (.null, .null): true
-        case let (.bool(x), .bool(y)): x == y
-        case let (.number(x, _), .number(y, _)): x == y
-        case let (.string(x), .string(y)): x.unicodeScalars.elementsEqual(y.unicodeScalars)
-        case let (.array(x), .array(y)): x == y
-        case let (.object(x), .object(y)):
-            x.count == y.count && x.allSatisfy { map in y.contains { $0.key.unicodeScalars.elementsEqual(map.key.unicodeScalars) && $0.value == map.value } }
+        case (.bool(let x), .bool(let y)): x == y
+        case (.number(let x, _), .number(let y, _)): x == y
+        case (.string(let x), .string(let y)): x.unicodeScalars.elementsEqual(y.unicodeScalars)
+        case (.array(let x), .array(let y)): x == y
+        case (.object(let x), .object(let y)):
+            x.count == y.count
+                && x.allSatisfy { map in
+                    y.contains { $0.key.unicodeScalars.elementsEqual(map.key.unicodeScalars) && $0.value == map.value }
+                }
         default: false
         }
     }

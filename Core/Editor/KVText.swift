@@ -20,8 +20,9 @@ nonisolated enum KVBulk {
             let colon = line.firstIndex(of: ":")
             let name = String(colon.map { line[..<$0] } ?? line[...]).trimmingCharacters(in: .whitespaces)
             let value = colon.map { String(line[line.index(after: $0)...]).trimmingCharacters(in: .whitespaces) } ?? ""
-            return KV(name: name, value: value, enabled: enabled, description: desc[name] ?? "",
-                      bare: colon == nil && allowBare)
+            return KV(
+                name: name, value: value, enabled: enabled, description: desc[name] ?? "",
+                bare: colon == nil && allowBare)
         }
     }
 }
@@ -36,7 +37,8 @@ nonisolated enum PathParams {
         if let end = rest.firstIndex(where: { $0 == "?" || $0 == "#" }) { rest = rest[..<end] }
         var out: [String] = []
         for seg in rest.split(separator: "/") where seg.first == ":" {
-            let name = String(seg.dropFirst().prefix { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") })
+            let name = String(
+                seg.dropFirst().prefix { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") })
             if !name.isEmpty, !out.contains(name) { out.append(name) }
         }
         return out
@@ -52,8 +54,10 @@ nonisolated enum PathParams {
 
 /// Našeptávač hlaviček requestu: běžné názvy a typické hodnoty.
 nonisolated enum HeaderHints {
-    private static let mime = ["application/json", "application/xml", "application/x-www-form-urlencoded",
-                               "multipart/form-data", "text/plain", "text/html", "application/octet-stream"]
+    private static let mime = [
+        "application/json", "application/xml", "application/x-www-form-urlencoded",
+        "multipart/form-data", "text/plain", "text/html", "application/octet-stream"
+    ]
 
     static let all: [(name: String, values: [String])] = [
         ("Accept", ["*/*"] + mime),
@@ -72,7 +76,7 @@ nonisolated enum HeaderHints {
         ("X-Correlation-ID", ["{{$uuid}}"]),
         ("X-Request-ID", ["{{$uuid}}"]),
         ("X-Forwarded-For", []),
-        ("X-Requested-With", ["XMLHttpRequest"]),
+        ("X-Requested-With", ["XMLHttpRequest"])
     ]
 
     static var names: [String] { all.map(\.name) }

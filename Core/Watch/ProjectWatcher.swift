@@ -47,11 +47,13 @@ nonisolated final class ProjectWatcher: @unchecked Sendable {
             version: 0, info: box.toOpaque(), retain: nil,
             release: { info in info.map { Unmanaged<Box>.fromOpaque($0).release() } },
             copyDescription: nil)
-        var flags = kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagUseCFTypes
+        var flags =
+            kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagNoDefer | kFSEventStreamCreateFlagUseCFTypes
         if ignoreSelf { flags |= kFSEventStreamCreateFlagIgnoreSelf }
-        guard let stream = FSEventStreamCreate(
-            nil, Self.callback, &context, [path] as CFArray,
-            FSEventStreamEventId(kFSEventStreamEventIdSinceNow), Self.latency, FSEventStreamCreateFlags(flags))
+        guard
+            let stream = FSEventStreamCreate(
+                nil, Self.callback, &context, [path] as CFArray,
+                FSEventStreamEventId(kFSEventStreamEventIdSinceNow), Self.latency, FSEventStreamCreateFlags(flags))
         else {
             box.release()
             return
@@ -76,8 +78,9 @@ nonisolated final class ProjectWatcher: @unchecked Sendable {
         guard let info else { return }
         let box = Unmanaged<Box>.fromOpaque(info).takeUnretainedValue()
         let paths = unsafeBitCast(paths, to: NSArray.self) as? [String] ?? []
-        let rescan = UInt32(kFSEventStreamEventFlagMustScanSubDirs | kFSEventStreamEventFlagKernelDropped
-            | kFSEventStreamEventFlagUserDropped | kFSEventStreamEventFlagRootChanged)
+        let rescan = UInt32(
+            kFSEventStreamEventFlagMustScanSubDirs | kFSEventStreamEventFlagKernelDropped
+                | kFSEventStreamEventFlagUserDropped | kFSEventStreamEventFlagRootChanged)
         var rels: [String] = []
         for i in 0..<count {
             if flags[i] & rescan != 0 {

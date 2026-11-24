@@ -21,13 +21,15 @@ struct TreeSidebar: View {
                     if tree.query.isEmpty { tree.focusTree() } else { tree.query = "" }
                     return .handled
                 }
-            TreeOutlineView(store: tree, version: tree.version, query: tree.query, pendingEdit: tree.pendingEdit,
-                            focusRequest: tree.focusRequest, font: font)
-                .overlay {
-                    if tree.filtering, tree.visibleRoot?.children.isEmpty ?? true {
-                        Text(t("tree.noMatches")).foregroundStyle(.secondary)
-                    }
+            TreeOutlineView(
+                store: tree, version: tree.version, query: tree.query, pendingEdit: tree.pendingEdit,
+                focusRequest: tree.focusRequest, font: font
+            )
+            .overlay {
+                if tree.filtering, tree.visibleRoot?.children.isEmpty ?? true {
+                    Text(t("tree.noMatches")).foregroundStyle(.secondary)
                 }
+            }
         }
     }
 }

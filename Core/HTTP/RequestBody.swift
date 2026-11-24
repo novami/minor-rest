@@ -30,15 +30,16 @@ nonisolated struct Payload: Sendable {
     static let previewLimit = 64 << 10
 
     static func bytes(_ dat: Data, _ contentType: String) -> Payload {
-        Payload(source: .data(dat), contentType: contentType, size: Int64(dat.count),
-                preview: String(decoding: dat.prefix(previewLimit), as: UTF8.self))
+        Payload(
+            source: .data(dat), contentType: contentType, size: Int64(dat.count),
+            preview: String(decoding: dat.prefix(previewLimit), as: UTF8.self))
     }
 
     static let rawTypes = [
         BodyType.json: "application/json; charset=utf-8",
         BodyType.xml: "application/xml; charset=utf-8",
         BodyType.text: "text/plain; charset=utf-8",
-        BodyType.html: "text/html; charset=utf-8",
+        BodyType.html: "text/html; charset=utf-8"
     ]
 
     /// Sestaví tělo; relativní cesty souborů se berou vůči `baseDir` (kořen projektu).
@@ -71,8 +72,8 @@ nonisolated struct Payload: Sendable {
         for buf in str.utf8 {
             switch buf {
             case UInt8(ascii: "a")...UInt8(ascii: "z"), UInt8(ascii: "A")...UInt8(ascii: "Z"),
-                 UInt8(ascii: "0")...UInt8(ascii: "9"), UInt8(ascii: "-"), UInt8(ascii: "_"),
-                 UInt8(ascii: "."), UInt8(ascii: "~"):
+                UInt8(ascii: "0")...UInt8(ascii: "9"), UInt8(ascii: "-"), UInt8(ascii: "_"),
+                UInt8(ascii: "."), UInt8(ascii: "~"):
                 out.unicodeScalars.append(Unicode.Scalar(buf))
             case UInt8(ascii: " "):
                 out += "+"
@@ -84,7 +85,8 @@ nonisolated struct Payload: Sendable {
     }
 
     /// Multipart do paměti (známá délka, opakovatelné při redirectu).
-    static func multipart(_ parts: [MultipartPart], baseDir: String, boundary: String = newBoundary()) throws(CoreError) -> Payload {
+    static func multipart(_ parts: [MultipartPart], baseDir: String, boundary: String = newBoundary()) throws(CoreError)
+        -> Payload {
         var dat = Data()
         var first = true
         func line(_ str: String) { dat.append(Data((str + "\r\n").utf8)) }
@@ -93,8 +95,12 @@ nonisolated struct Payload: Sendable {
             first = false
             if par.kind == "file" {
                 let urlVal = fileURL(par.path, baseDir)
-                guard !par.path.isEmpty, let data = try? Data(contentsOf: urlVal) else { throw CoreError(.fileNotFound, par.path) }
-                line("Content-Disposition: form-data; name=\"\(quoteEscape(par.name))\"; filename=\"\(quoteEscape(urlVal.lastPathComponent))\"")
+                guard !par.path.isEmpty, let data = try? Data(contentsOf: urlVal) else {
+                    throw CoreError(.fileNotFound, par.path)
+                }
+                line(
+                    "Content-Disposition: form-data; name=\"\(quoteEscape(par.name))\"; filename=\"\(quoteEscape(urlVal.lastPathComponent))\""
+                )
                 line("Content-Type: \(par.contentType.isEmpty ? mimeType(urlVal) : par.contentType)")
                 line("")
                 dat.append(data)
@@ -127,8 +133,9 @@ nonisolated struct Payload: Sendable {
 
     static func fileSize(_ urlVal: URL) -> Int64? {
         guard let arg = try? FileManager.default.attributesOfItem(atPath: urlVal.path),
-              arg[.type] as? FileAttributeType != .typeDirectory,
-              let num = arg[.size] as? NSNumber else { return nil }
+            arg[.type] as? FileAttributeType != .typeDirectory,
+            let num = arg[.size] as? NSNumber
+        else { return nil }
         return num.int64Value
     }
 

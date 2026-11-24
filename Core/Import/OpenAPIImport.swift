@@ -13,7 +13,10 @@ nonisolated struct ImportOptions: Sendable, Equatable {
 }
 
 nonisolated struct ImportPreview: Sendable, Equatable {
-    struct Folder: Sendable, Equatable { var name: String; var count: Int }
+    struct Folder: Sendable, Equatable {
+        var name: String
+        var count: Int
+    }
     var title: String
     var folders: [Folder]
     var requestCount: Int
@@ -56,13 +59,16 @@ nonisolated enum OpenAPIImport {
 
     static func preview(_ spec: APISpec, options: ImportOptions = ImportOptions()) -> ImportPreview {
         let groups = group(spec, options)
-        return ImportPreview(title: spec.title, folders: groups.map { .init(name: $0.name, count: $0.ops.count) },
-                             requestCount: spec.operations.count, serverCount: spec.servers.count, warnings: spec.warnings)
+        return ImportPreview(
+            title: spec.title, folders: groups.map { .init(name: $0.name, count: $0.ops.count) },
+            requestCount: spec.operations.count, serverCount: spec.servers.count, warnings: spec.warnings)
     }
 
     /// Nový projekt `name` (výchozí `info.title`) v `parentDir`.
-    static func importProject(_ spec: APISpec, name: String? = nil, in parentDir: URL, options: ImportOptions = ImportOptions(),
-                                     secrets: SecretStore, trash: @escaping Project.Trash = Project.systemTrash) throws -> ImportResult {
+    static func importProject(
+        _ spec: APISpec, name: String? = nil, in parentDir: URL, options: ImportOptions = ImportOptions(),
+        secrets: SecretStore, trash: @escaping Project.Trash = Project.systemTrash
+    ) throws -> ImportResult {
         let title = (name ?? spec.title).trimmingCharacters(in: .whitespacesAndNewlines)
         let project = try Project.create(name: title.isEmpty ? "API" : title, in: parentDir, trash: trash)
         var cfg = project.config
@@ -78,8 +84,9 @@ nonisolated enum OpenAPIImport {
             var envName = i == 0 ? "Default" : (str.description.isEmpty ? str.url : str.description)
             while used.contains(envName.lowercased()) { envName += " 2" }
             used.append(envName.lowercased())
-            let env = try project.saveEnvironment(EnvironmentConfig(name: envName, vars: [Var(name: "baseUrl", value: trimSlash(str.url))]),
-                                                  secrets: secrets)
+            let env = try project.saveEnvironment(
+                EnvironmentConfig(name: envName, vars: [Var(name: "baseUrl", value: trimSlash(str.url))]),
+                secrets: secrets)
             if i == 0 { firstEnv = env.id }
         }
         let num = try populate(project, parent: "", spec, options)
@@ -87,11 +94,16 @@ nonisolated enum OpenAPIImport {
     }
 
     /// Import do existujícího projektu jako nová složka (první server → proměnná `baseUrl` složky).
-    static func importFolder(_ spec: APISpec, into project: Project, options: ImportOptions = ImportOptions()) throws -> ImportResult {
+    static func importFolder(_ spec: APISpec, into project: Project, options: ImportOptions = ImportOptions()) throws
+        -> ImportResult {
         let title = spec.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let node = try project.createFolder(parent: "", name: title.isEmpty ? "API" : title)
         var fc = try project.loadFolderConfig(node.rel)
-        if let str = spec.servers.first { merge(&fc.vars, [Var(name: "baseUrl", value: trimSlash(str.url))]) } else { merge(&fc.vars, [Var(name: "baseUrl")]) }
+        if let str = spec.servers.first {
+            merge(&fc.vars, [Var(name: "baseUrl", value: trimSlash(str.url))])
+        } else {
+            merge(&fc.vars, [Var(name: "baseUrl")])
+        }
         merge(&fc.vars, names: spec.variables)
         fc.auth = spec.auth ?? fc.auth
         try project.saveFolderConfig(node.rel, fc)
@@ -111,11 +123,18 @@ nonisolated enum OpenAPIImport {
 
     private static func merge(_ vars: inout [Var], _ add: [Var]) {
         for val in add {
-            if let i = vars.firstIndex(where: { $0.name == val.name }) { if vars[i].value.isEmpty { vars[i].value = val.value } } else { vars.append(val) }
+            if let i = vars.firstIndex(where: { $0.name == val.name }) {
+                if vars[i].value.isEmpty { vars[i].value = val.value }
+            } else {
+                vars.append(val)
+            }
         }
     }
 
-    private struct Group { var name: String; var ops: [APIOperation] }
+    private struct Group {
+        var name: String
+        var ops: [APIOperation]
+    }
 
     private static func group(_ spec: APISpec, _ opt: ImportOptions) -> [Group] {
         var groups: [Group] = []
@@ -127,12 +146,17 @@ nonisolated enum OpenAPIImport {
             }
             name = name.trimmingCharacters(in: .whitespacesAndNewlines)
             if name.isEmpty { name = opt.otherFolder }
-            if let i = groups.firstIndex(where: { $0.name == name }) { groups[i].ops.append(op) } else { groups.append(Group(name: name, ops: [op])) }
+            if let i = groups.firstIndex(where: { $0.name == name }) {
+                groups[i].ops.append(op)
+            } else {
+                groups.append(Group(name: name, ops: [op]))
+            }
         }
         return groups
     }
 
-    private static func populate(_ project: Project, parent: String, _ spec: APISpec, _ opt: ImportOptions) throws -> Int {
+    private static func populate(_ project: Project, parent: String, _ spec: APISpec, _ opt: ImportOptions) throws
+        -> Int {
         var count = 0
         for grp in group(spec, opt) {
             let folder = try project.createFolder(parent: parent, name: grp.name)

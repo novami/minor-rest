@@ -15,9 +15,12 @@ nonisolated enum FileIO {
     static func error(_ error: Error) -> CoreError {
         if let elem = error as? CoreError { return elem }
         let ns = error as NSError
-        let missing = (ns.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(ns.code))
+        let missing =
+            (ns.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(ns.code))
             || (ns.domain == NSPOSIXErrorDomain && ns.code == Int(ENOENT))
-            || (ns.userInfo[NSUnderlyingErrorKey] as? NSError).map { $0.domain == NSPOSIXErrorDomain && $0.code == Int(ENOENT) } == true
+            || (ns.userInfo[NSUnderlyingErrorKey] as? NSError).map {
+                $0.domain == NSPOSIXErrorDomain && $0.code == Int(ENOENT)
+            } == true
         return CoreError(missing ? .notFound : .fsError, ns.localizedDescription)
     }
 
@@ -67,10 +70,12 @@ nonisolated enum FileIO {
     /// Názvy položek adresáře (lowercase, bez `.req.yaml`) – obsazené slugy.
     static func takenNames(in dir: URL) throws -> Set<String> {
         do {
-            return Set(try fm.contentsOfDirectory(atPath: dir.path).map {
-                ($0.hasSuffix(ProjectFormat.requestSuffix) ? String($0.dropLast(ProjectFormat.requestSuffix.count)) : $0)
-                    .lowercased()
-            })
+            return Set(
+                try fm.contentsOfDirectory(atPath: dir.path).map {
+                    ($0.hasSuffix(ProjectFormat.requestSuffix)
+                        ? String($0.dropLast(ProjectFormat.requestSuffix.count)) : $0)
+                        .lowercased()
+                })
         } catch {
             throw Self.error(error)
         }
@@ -117,7 +122,8 @@ nonisolated enum RelPath {
 
     static func slug(_ rel: String) -> String {
         let buf = base(rel)
-        return buf.hasSuffix(ProjectFormat.requestSuffix) ? String(buf.dropLast(ProjectFormat.requestSuffix.count)) : buf
+        return buf.hasSuffix(ProjectFormat.requestSuffix)
+            ? String(buf.dropLast(ProjectFormat.requestSuffix.count)) : buf
     }
 
     static func suffix(_ kind: TreeNode.Kind) -> String { kind == .request ? ProjectFormat.requestSuffix : "" }
@@ -126,6 +132,8 @@ nonisolated enum RelPath {
     static func isValid(_ rel: String) -> Bool {
         if rel.isEmpty { return true }
         if rel.contains("\\") || rel.hasPrefix("/") { return false }
-        return rel.split(separator: "/", omittingEmptySubsequences: false).allSatisfy { !$0.isEmpty && $0 != "." && $0 != ".." }
+        return rel.split(separator: "/", omittingEmptySubsequences: false).allSatisfy {
+            !$0.isEmpty && $0 != "." && $0 != ".."
+        }
     }
 }

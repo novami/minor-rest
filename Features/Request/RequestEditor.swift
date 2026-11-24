@@ -31,8 +31,14 @@ struct RequestEditor: View {
                 HStack {
                     Text(t("curl.importOffer"))
                     Spacer()
-                    Button(t("curl.import")) { importCurl(curl); pendingCurl = nil }
-                    Button(t("curl.keepText")) { applyURL(curl); pendingCurl = nil }
+                    Button(t("curl.import")) {
+                        importCurl(curl)
+                        pendingCurl = nil
+                    }
+                    Button(t("curl.keepText")) {
+                        applyURL(curl)
+                        pendingCurl = nil
+                    }
                     Button(t("common.cancel")) { pendingCurl = nil }
                 }
                 .padding(.horizontal, 10).padding(.vertical, 6)
@@ -40,10 +46,13 @@ struct RequestEditor: View {
                 Divider()
             }
             HStack(spacing: 8) {
-                MethodPicker(method: Binding(get: { tab.draft.method },
-                                             set: { map in tabs.edit { $0.draft.method = map } }))
-                VarField(text: urlText, placeholder: t("request.urlPlaceholder"), font: fonts.codeNSFont,
-                         focusRequest: tabs.focusURLRequest, onSubmit: send)
+                MethodPicker(
+                    method: Binding(
+                        get: { tab.draft.method },
+                        set: { map in tabs.edit { $0.draft.method = map } }))
+                VarField(
+                    text: urlText, placeholder: t("request.urlPlaceholder"), font: fonts.codeNSFont,
+                    focusRequest: tabs.focusURLRequest, onSubmit: send)
                 Menu {
                     Picker("", selection: $curlMultiline) {
                         Text(t("curl.multiline")).tag(true)
@@ -54,7 +63,10 @@ struct RequestEditor: View {
                 } label: {
                     Image(systemName: "doc.on.doc")
                 } primaryAction: {
-                    Task { await model.runs.copyCurl(tab.projectID, tab.rel, tab.draft, multiline: curlMultiline, mask: curlMask) }
+                    Task {
+                        await model.runs.copyCurl(
+                            tab.projectID, tab.rel, tab.draft, multiline: curlMultiline, mask: curlMask)
+                    }
                 }
                 .menuStyle(.button).fixedSize()
                 .help(t("curl.copy"))
@@ -68,14 +80,18 @@ struct RequestEditor: View {
             sectionBar
             Divider()
             if tab.section == .body {
-                BodyEditor(requestBody: Binding(get: { tab.draft.body }, set: { buf in tabs.edit { $0.draft.body = buf } }),
-                           tabID: tab.id, projectID: tab.projectID)
-                    .padding(10)
+                BodyEditor(
+                    requestBody: Binding(get: { tab.draft.body }, set: { buf in tabs.edit { $0.draft.body = buf } }),
+                    tabID: tab.id, projectID: tab.projectID
+                )
+                .padding(10)
             } else if tab.section == .docs {
-                CodeTextView(text: Binding(get: { tab.draft.docs }, set: { dat in tabs.edit { $0.draft.docs = dat } }),
-                             lang: .markdown, font: fonts.codeNSFont)
-                    .id(tab.id + "/docs")
-                    .padding(10)
+                CodeTextView(
+                    text: Binding(get: { tab.draft.docs }, set: { dat in tabs.edit { $0.draft.docs = dat } }),
+                    lang: .markdown, font: fonts.codeNSFont
+                )
+                .id(tab.id + "/docs")
+                .padding(10)
             } else {
                 ScrollView {
                     content.padding(10)
@@ -88,7 +104,9 @@ struct RequestEditor: View {
     private var sectionBar: some View {
         HStack(spacing: 2) {
             ForEach(RequestSection.allCases, id: \.self) { str in
-                Button { model.tabs.edit { $0.section = str } } label: {
+                Button {
+                    model.tabs.edit { $0.section = str }
+                } label: {
                     HStack(spacing: 4) {
                         Text(t("request.section.\(str.rawValue)"))
                         if (str == .body && tab.draft.body.type != "none" && !tab.draft.body.type.isEmpty)
@@ -118,10 +136,13 @@ struct RequestEditor: View {
         case .headers: return on(tab.draft.headers)
         case .settings:
             let st = tab.draft.settings
-            return [st.httpVersion != nil, st.followRedirects != nil, st.maxRedirects != nil,
-                    st.timeoutMs != nil, st.verifyTLS != nil, st.cookieJar != nil].filter { $0 }.count
-        case .vars: return tab.draft.vars.filter { $0.enabled && !$0.name.isEmpty }.count
-            + tab.draft.extract.filter { $0.enabled && !$0.name.isEmpty }.count
+            return [
+                st.httpVersion != nil, st.followRedirects != nil, st.maxRedirects != nil,
+                st.timeoutMs != nil, st.verifyTLS != nil, st.cookieJar != nil
+            ].filter { $0 }.count
+        case .vars:
+            return tab.draft.vars.filter { $0.enabled && !$0.name.isEmpty }.count
+                + tab.draft.extract.filter { $0.enabled && !$0.name.isEmpty }.count
         case .body, .docs, .auth: return nil
         }
     }
@@ -132,48 +153,69 @@ struct RequestEditor: View {
         switch tab.section {
         case .params:
             VStack(alignment: .leading, spacing: 6) {
-                KvEditor(title: t("request.query"), rows: Binding(get: { tab.draft.params.query },
-                                       set: { que in tabs.edit { $0.draft.params.query = que } }),
-                         allowBare: true)
+                KvEditor(
+                    title: t("request.query"),
+                    rows: Binding(
+                        get: { tab.draft.params.query },
+                        set: { que in tabs.edit { $0.draft.params.query = que } }),
+                    allowBare: true)
                 if !pathRows.isEmpty {
-                    KvEditor(title: t("request.path"), rows: Binding(get: { pathRows.map { KV(name: $0.name, value: $0.value, description: $0.description) } },
-                                           set: { rows in tabs.edit {
-                                               $0.draft.params.path = rows.map { PathParam(name: $0.name, value: $0.value, description: $0.description) }
-                                           } }),
-                             fixed: true)
+                    KvEditor(
+                        title: t("request.path"),
+                        rows: Binding(
+                            get: { pathRows.map { KV(name: $0.name, value: $0.value, description: $0.description) } },
+                            set: { rows in
+                                tabs.edit {
+                                    $0.draft.params.path = rows.map {
+                                        PathParam(name: $0.name, value: $0.value, description: $0.description)
+                                    }
+                                }
+                            }),
+                        fixed: true
+                    )
                     .padding(.top, 10)
                 }
             }
         case .headers:
-            KvEditor(rows: Binding(get: { tab.draft.headers }, set: { hdr in tabs.edit { $0.draft.headers = hdr } }),
-                     names: HeaderHints.names, valuesFor: HeaderHints.values(for:))
+            KvEditor(
+                rows: Binding(get: { tab.draft.headers }, set: { hdr in tabs.edit { $0.draft.headers = hdr } }),
+                names: HeaderHints.names, valuesFor: HeaderHints.values(for:))
         case .settings:
-            SettingsEditor(settings: Binding(get: { tab.draft.settings }, set: { st in tabs.edit { $0.draft.settings = st } }),
-                           inherited: inherited)
-                .task(id: tab.projectID) {
-                    inherited = (try? await model.projects.project(tab.projectID))?.config.settings.over(.builtin)
-                }
+            SettingsEditor(
+                settings: Binding(get: { tab.draft.settings }, set: { st in tabs.edit { $0.draft.settings = st } }),
+                inherited: inherited
+            )
+            .task(id: tab.projectID) {
+                inherited = (try? await model.projects.project(tab.projectID))?.config.settings.over(.builtin)
+            }
         case .auth:
-            AuthEditor(auth: Binding(get: { tab.draft.auth }, set: { arg in tabs.edit { $0.draft.auth = arg } }),
-                       scope: .request, projectID: tab.projectID, inherited: inheritedAuth,
-                       manualAuthorization: tab.draft.headers.contains {
-                           $0.enabled && $0.name.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare("Authorization") == .orderedSame
-                       }, oauthRel: tab.rel)
-                .task(id: "\(tab.projectID)|\(tab.rel)|\(model.vars.revision)") {
-                    guard let project = try? await model.projects.project(tab.projectID) else { return }
-                    let rel = tab.rel
-                    let folders = await Task.detached { (try? project.folderChain(rel)) ?? [] }.value
-                    inheritedAuth = InheritedAuth(folders: folders, project: project.config.auth)
-                }
+            AuthEditor(
+                auth: Binding(get: { tab.draft.auth }, set: { arg in tabs.edit { $0.draft.auth = arg } }),
+                scope: .request, projectID: tab.projectID, inherited: inheritedAuth,
+                manualAuthorization: tab.draft.headers.contains {
+                    $0.enabled
+                        && $0.name.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare("Authorization")
+                            == .orderedSame
+                }, oauthRel: tab.rel
+            )
+            .task(id: "\(tab.projectID)|\(tab.rel)|\(model.vars.revision)") {
+                guard let project = try? await model.projects.project(tab.projectID) else { return }
+                let rel = tab.rel
+                let folders = await Task.detached { (try? project.folderChain(rel)) ?? [] }.value
+                inheritedAuth = InheritedAuth(folders: folders, project: project.config.auth)
+            }
         case .vars:
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     Text(t("request.vars")).font(fonts.ui.bold())
-                    VarsEditor(vars: Binding(get: { tab.draft.vars }, set: { val in tabs.edit { $0.draft.vars = val } }),
-                               allowSecret: false, reveal: true)
+                    VarsEditor(
+                        vars: Binding(get: { tab.draft.vars }, set: { val in tabs.edit { $0.draft.vars = val } }),
+                        allowSecret: false, reveal: true)
                     Text(t("request.extract")).font(fonts.ui.bold())
                     Text(t("request.extract.hint")).font(fonts.small).foregroundStyle(.secondary)
-                    ExtractEditor(rules: Binding(get: { tab.draft.extract }, set: { res in tabs.edit { $0.draft.extract = res } }))
+                    ExtractEditor(
+                        rules: Binding(get: { tab.draft.extract }, set: { res in tabs.edit { $0.draft.extract = res } })
+                    )
                 }
                 .padding(.horizontal, 10)
             }
@@ -189,15 +231,20 @@ struct RequestEditor: View {
 
     /// Vlastní text se drží, dokud po rozparsování odpovídá draftu (např. rozepsané `?` nebo `&`).
     private var urlText: Binding<String> {
-        Binding(get: {
-            let composed = URLBar.compose(url: tab.draft.url, query: tab.draft.params.query)
-            guard let own = tab.urlText else { return composed }
-            let par = URLBar.parse(own, query: tab.draft.params.query)
-            return URLBar.compose(url: par.url, query: par.query) == composed ? own : composed
-        }, set: { text in
-            if CurlImport.looksLikeCurl(text) { pendingCurl = text; return }
-            applyURL(text)
-        })
+        Binding(
+            get: {
+                let composed = URLBar.compose(url: tab.draft.url, query: tab.draft.params.query)
+                guard let own = tab.urlText else { return composed }
+                let par = URLBar.parse(own, query: tab.draft.params.query)
+                return URLBar.compose(url: par.url, query: par.query) == composed ? own : composed
+            },
+            set: { text in
+                if CurlImport.looksLikeCurl(text) {
+                    pendingCurl = text
+                    return
+                }
+                applyURL(text)
+            })
     }
 
     private func applyURL(_ text: String) {

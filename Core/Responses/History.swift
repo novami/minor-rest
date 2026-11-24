@@ -34,7 +34,8 @@ nonisolated struct History: Sendable {
         try FileIO.createDirectory(dir, intermediate: true)
         if let body {
             if body.count > Self.maxBody { elem.truncated = true }
-            try FileIO.writeAtomic(body.count > Self.maxBody ? body.prefix(Self.maxBody) : body, to: file(elem.id, "body"))
+            try FileIO.writeAtomic(
+                body.count > Self.maxBody ? body.prefix(Self.maxBody) : body, to: file(elem.id, "body"))
         }
         try FileIO.writeYAML(elem, to: file(elem.id, "yaml"))
         try prune()
@@ -83,7 +84,9 @@ nonisolated struct History: Sendable {
     }
 
     static func item(_ elem: SavedResponse) -> HistoryItem {
-        HistoryItem(id: elem.id, savedAt: elem.savedAt, method: elem.request.method, url: elem.request.url, status: elem.response.status,
-                    error: elem.error, projectID: elem.projectID, requestID: elem.requestID, requestName: elem.requestName)
+        HistoryItem(
+            id: elem.id, savedAt: elem.savedAt, method: elem.request.method, url: elem.request.url,
+            status: elem.response.status,
+            error: elem.error, projectID: elem.projectID, requestID: elem.requestID, requestName: elem.requestName)
     }
 }

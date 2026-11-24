@@ -18,14 +18,16 @@ nonisolated enum DisplayFormat {
 /// prázdný text mezi značkami se zahodí; obsah `script`/`style`/`pre`/`textarea` v HTML beze změny.
 /// Neuzavřené HTML prvky (`<p>`) se uzavřou s nejbližší koncovou značkou nadřazeného prvku.
 nonisolated enum MarkupFormatter {
-    static let void: Set<String> = ["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
-                                    "param", "source", "track", "wbr"]
+    static let void: Set<String> = [
+        "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
+        "param", "source", "track", "wbr"
+    ]
     static let rawText: Set<String> = ["script", "style", "pre", "textarea"]
 
     enum Token: Equatable {
-        case open(String, String)   // název, celý text značky
+        case open(String, String)  // název, celý text značky
         case close(String, String)
-        case single(String)         // samouzavírací, void, komentář, <?…?>, <!…>, CDATA
+        case single(String)  // samouzavírací, void, komentář, <?…?>, <!…>, CDATA
         case text(String)
     }
 
@@ -40,11 +42,16 @@ nonisolated enum MarkupFormatter {
             case .open(let name, let raw):
                 // <a>text</a> a <a></a> na jednom řádku
                 if i + 1 < tokens.count, case .close(let num, let cur) = tokens[i + 1], same(num, name, html) {
-                    line(raw + cur); i += 2; continue
+                    line(raw + cur)
+                    i += 2
+                    continue
                 }
-                if i + 2 < tokens.count, case .text(let txt) = tokens[i + 1], case .close(let num, let cur) = tokens[i + 2],
-                   same(num, name, html), !txt.contains("\n") || (html && rawText.contains(name.lowercased())) {
-                    line(raw + (html && rawText.contains(name.lowercased()) ? txt : txt.trimmed) + cur); i += 3; continue
+                if i + 2 < tokens.count, case .text(let txt) = tokens[i + 1],
+                    case .close(let num, let cur) = tokens[i + 2],
+                    same(num, name, html), !txt.contains("\n") || (html && rawText.contains(name.lowercased())) {
+                    line(raw + (html && rawText.contains(name.lowercased()) ? txt : txt.trimmed) + cur)
+                    i += 3
+                    continue
                 }
                 line(raw)
                 stack.append(name)
@@ -59,8 +66,9 @@ nonisolated enum MarkupFormatter {
                 let strVal = txt.trimmed
                 if !strVal.isEmpty {
                     let pad = String(repeating: "  ", count: stack.count)
-                    out.append(contentsOf: strVal.split(separator: "\n", omittingEmptySubsequences: false)
-                        .map { pad + $0.trimmingCharacters(in: .whitespaces) })
+                    out.append(
+                        contentsOf: strVal.split(separator: "\n", omittingEmptySubsequences: false)
+                            .map { pad + $0.trimmingCharacters(in: .whitespaces) })
                 }
             }
             i += 1
@@ -91,7 +99,10 @@ nonisolated enum MarkupFormatter {
             if end > textStart { tokens.append(.text(str(textStart, end))) }
         }
         while i < strVal.count {
-            guard strVal[i] == "<", i + 1 < strVal.count else { i += 1; continue }
+            guard strVal[i] == "<", i + 1 < strVal.count else {
+                i += 1
+                continue
+            }
             let next = strVal[i + 1]
             var end: Int?
             if str(i, min(i + 4, strVal.count)) == "<!--" {
@@ -103,9 +114,10 @@ nonisolated enum MarkupFormatter {
             } else if next == "!" || next == "/" || next.properties.isAlphabetic {
                 end = tagEnd(strVal, from: i + 1)
             } else {
-                i += 1; continue
+                i += 1
+                continue
             }
-            guard let elem = end else { break }   // neuzavřené = zbytek je text
+            guard let elem = end else { break }  // neuzavřené = zbytek je text
             flushText(i)
             let raw = str(i, elem)
             if next == "/" {
@@ -120,7 +132,9 @@ nonisolated enum MarkupFormatter {
                     tokens.append(.open(num, raw))
                     if html, rawText.contains(num.lowercased()), let cur = closeTag(num, from: elem) {
                         if cur > elem { tokens.append(.text(str(elem, cur))) }
-                        i = cur; textStart = cur; continue
+                        i = cur
+                        textStart = cur
+                        continue
                     }
                 }
             }
@@ -133,7 +147,9 @@ nonisolated enum MarkupFormatter {
         func closeTag(_ num: String, from: Int) -> Int? {
             var j = from
             while let key = find("</", from: j) {
-                if str(key + 2, min(key + 2 + num.unicodeScalars.count, strVal.count)).lowercased() == num.lowercased() { return key }
+                if str(key + 2, min(key + 2 + num.unicodeScalars.count, strVal.count)).lowercased() == num.lowercased() {
+                    return key
+                }
                 j = key + 2
             }
             return nil
@@ -163,14 +179,15 @@ nonisolated enum MarkupFormatter {
     }
 }
 
-nonisolated private extension String {
-    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
+nonisolated extension String {
+    fileprivate var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
 }
 
 /// HTML pro náhled: CSP zakáže síťové požadavky i skripty (inline styly a `data:` obrázky povolí).
 /// Značka se vloží za `<!DOCTYPE …>`, aby stránka nepřešla do quirks režimu.
 nonisolated enum HTMLPreview {
-    static let csp = #"<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:">"#
+    static let csp =
+        #"<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:">"#
 
     static func sandboxed(_ html: String) -> String {
         let lead = html.prefix { $0.isWhitespace }.count

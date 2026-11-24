@@ -35,7 +35,7 @@ struct BodyEditor: View {
     private var content: some View {
         if let lang = SyntaxLang(bodyType: type) {
             CodeTextView(text: $requestBody.raw, lang: lang, font: fonts.codeNSFont)
-                .id(tabID)   // vlastní undo na tab
+                .id(tabID)  // vlastní undo na tab
                 .frame(minHeight: 120, maxHeight: .infinity)
             if type == BodyType.json, let warning = jsonWarning {
                 Text("⚠ \(warning)")
@@ -49,18 +49,23 @@ struct BodyEditor: View {
             ScrollView { KvEditor(rows: $requestBody.form) }
         } else if type == BodyType.multipart {
             ScrollView {
-                KvEditor(rows: $requestBody.multipart, noteTitle: t("kv.contentType"),
-                         valueCell: { part, ghost in AnyView(multipartValue(part, ghost)) })
+                KvEditor(
+                    rows: $requestBody.multipart, noteTitle: t("kv.contentType"),
+                    valueCell: { part, ghost in AnyView(multipartValue(part, ghost)) })
             }
         } else if type == BodyType.binary {
             HStack(spacing: 8) {
                 FileButton(path: requestBody.binaryPath, pick: { await pick($0) }) { requestBody.binaryPath = $0 }
                     .fixedSize()
                 if !requestBody.binaryPath.isEmpty {
-                    Button { requestBody.binaryPath = "" } label: { Image(systemName: "xmark") }
-                        .buttonStyle(.borderless)
-                        .foregroundStyle(.secondary)
-                        .help(t("kv.delete"))
+                    Button {
+                        requestBody.binaryPath = ""
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help(t("kv.delete"))
                 }
                 Spacer()
             }
@@ -90,26 +95,32 @@ struct BodyEditor: View {
     /// Validace jen jako varování (proměnné mimo řetězce bere formatter jako hodnotu).
     private var jsonWarning: String? {
         guard !requestBody.raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let err = JSONFormatter.validate(requestBody.raw) else { return nil }
+            let err = JSONFormatter.validate(requestBody.raw)
+        else { return nil }
         return errorText(err)
     }
 
     private func format() {
-        do { requestBody.raw = try JSONFormatter.format(requestBody.raw) } catch { model.toasts.show(errorText(error), isError: true) }
+        do { requestBody.raw = try JSONFormatter.format(requestBody.raw) } catch {
+            model.toasts.show(errorText(error), isError: true)
+        }
     }
 
     /// Soubor z dialogu (`nil` URL) nebo přetažený → cesta relativní k projektu, mimo něj absolutní.
     private func pick(_ dropped: URL?) async -> String? {
         do {
             let project = try await model.projects.project(projectID)
-            guard let url = dropped ?? {
-                let panel = NSOpenPanel()
-                panel.canChooseFiles = true
-                panel.canChooseDirectories = false
-                panel.allowsMultipleSelection = false
-                panel.directoryURL = project.root
-                return panel.runModal() == .OK ? panel.url : nil
-            }() else { return nil }
+            guard
+                let url = dropped
+                    ?? {
+                        let panel = NSOpenPanel()
+                        panel.canChooseFiles = true
+                        panel.canChooseDirectories = false
+                        panel.allowsMultipleSelection = false
+                        panel.directoryURL = project.root
+                        return panel.runModal() == .OK ? panel.url : nil
+                    }()
+            else { return nil }
             return project.fileRef(url.path)
         } catch {
             model.toasts.show(errorText(error), isError: true)
@@ -132,7 +143,9 @@ private struct FileButton: View {
     }
 
     var body: some View {
-        Button { choose(nil) } label: {
+        Button {
+            choose(nil)
+        } label: {
             Text(path.isEmpty ? t("kv.pickFile") : path)
                 .font(path.isEmpty ? fonts.ui : fonts.code)
                 .lineLimit(1)

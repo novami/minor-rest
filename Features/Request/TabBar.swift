@@ -16,7 +16,9 @@ struct TabBar: View {
                 }
             }
             .scrollIndicators(.never)
-            Button { Task { await model.tree.createRequest(near: nil) } } label: {
+            Button {
+                Task { await model.tree.createRequest(near: nil) }
+            } label: {
                 Image(systemName: "plus").frame(width: 28, height: 28)
             }
             .buttonStyle(.borderless)
@@ -42,7 +44,9 @@ private struct TabItem: View {
                 .font(.system(size: max(fonts.size - 3, 9), weight: .bold, design: .monospaced))
                 .foregroundStyle(methodColor(tab.draft.method))
             Text(name).lineLimit(1).truncationMode(.tail)
-            Button { Task { await model.tabs.close(tab.id) } } label: {
+            Button {
+                Task { await model.tabs.close(tab.id) }
+            } label: {
                 Group {
                     if tab.dirty && !hover {
                         Image(systemName: "circle.fill").font(.system(size: 7))

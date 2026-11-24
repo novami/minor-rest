@@ -173,17 +173,21 @@ struct TreeOutlineView: NSViewRepresentable {
         /// Návrh `NSOutlineView` (rodič + index mezi dětmi, -1 = na položku) převede na pravidla stromu:
         /// request na složku = dovnitř, request na request = za něj, složka na request = do jeho složky,
         /// složky jen mezi složky a requesty jen mezi requesty, složka ne do sebe.
-        func outlineView(_ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo, proposedItem item: Any?,
-                         proposedChildIndex index: Int) -> NSDragOperation {
+        func outlineView(
+            _ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo, proposedItem item: Any?,
+            proposedChildIndex index: Int
+        ) -> NSDragOperation {
             pendingDrop = nil
             guard !store.filtering, let rel = info.draggingPasteboard.string(forType: .treeRel),
-                  let dragged = store.node(rel), let root else { return [] }
+                let dragged = store.node(rel), let root
+            else { return [] }
             var target = item as? TreeItem
             var child: Int? = index < 0 ? nil : index
             if let txt = target, txt.node.kind == .request {
                 let parent = outlineView.parent(forItem: txt) as? TreeItem
                 target = parent
-                child = dragged.kind == .request ? (parent ?? root).children.firstIndex { $0 === txt }.map { $0 + 1 } : nil
+                child =
+                    dragged.kind == .request ? (parent ?? root).children.firstIndex { $0 === txt }.map { $0 + 1 } : nil
             }
             let parent = target ?? root
             let folders = parent.children.filter { $0.node.kind == .folder }.count
@@ -198,8 +202,10 @@ struct TreeOutlineView: NSViewRepresentable {
             return .move
         }
 
-        func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?,
-                         childIndex index: Int) -> Bool {
+        func outlineView(
+            _ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?,
+            childIndex index: Int
+        ) -> Bool {
             guard let drop = pendingDrop else { return false }
             pendingDrop = nil
             Task { await store.move(drop.rel, to: drop.parent, index: drop.index) }
@@ -210,7 +216,8 @@ struct TreeOutlineView: NSViewRepresentable {
 
         @objc func doubleClicked() {
             guard let outline, outline.clickedRow >= 0,
-                  let i = outline.item(atRow: outline.clickedRow) as? TreeItem else { return }
+                let i = outline.item(atRow: outline.clickedRow) as? TreeItem
+            else { return }
             if i.node.kind == .request { Task { await store.open(i.node.rel) } } else { toggle(i.node.rel) }
         }
 
@@ -256,7 +263,8 @@ struct TreeOutlineView: NSViewRepresentable {
             if store.pendingEdit == rel { store.pendingEdit = nil }
             let row = outline.row(forItem: item)
             guard row >= 0, let cell = outline.view(atColumn: 0, row: row, makeIfNecessary: true) as? TreeCellView,
-                  let field = cell.textField else { return }
+                let field = cell.textField
+            else { return }
             outline.scrollRowToVisible(row)
             editingRel = rel
             editCancelled = false
@@ -274,7 +282,8 @@ struct TreeOutlineView: NSViewRepresentable {
 
         func controlTextDidEndEditing(_ notification: Notification) {
             guard let field = notification.object as? NSTextField, let rel = editingRel,
-                  let node = item(rel)?.node else { return }
+                let node = item(rel)?.node
+            else { return }
             editingRel = nil
             field.isEditable = false
             let name = field.stringValue
@@ -335,7 +344,7 @@ final class TreeCellView: NSTableCellView {
             badge.centerYAnchor.constraint(equalTo: centerYAnchor),
             badgeWidth,
             name.centerYAnchor.constraint(equalTo: centerYAnchor),
-            name.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -4),
+            name.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -4)
         ])
         nameLeading = name.leadingAnchor.constraint(equalTo: icon.trailingAnchor, constant: 5)
         nameLeading.isActive = true
@@ -384,9 +393,9 @@ final class TreeOutline: NSOutlineView {
         let rel = cur.selectedRel
         let cmd = event.modifierFlags.contains(.command)
         switch event.keyCode {
-        case 36, 76: cur.activate(rel)                                   // Return, Enter
-        case 120: if let rel, !rel.isEmpty { cur.beginEditing(rel) }     // F2
-        case 51 where cmd, 117: Task { await cur.store.delete(rel) }     // Cmd+Backspace, Delete (fwd)
+        case 36, 76: cur.activate(rel)  // Return, Enter
+        case 120: if let rel, !rel.isEmpty { cur.beginEditing(rel) }  // F2
+        case 51 where cmd, 117: Task { await cur.store.delete(rel) }  // Cmd+Backspace, Delete (fwd)
         default: super.keyDown(with: event)
         }
     }

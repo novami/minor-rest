@@ -24,13 +24,14 @@ struct ResponseSplit<Top: View, Bottom: View>: View {
                     .onHover { inside in
                         if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
                     }
-                    .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                        .onChanged { grp in
-                            let start = dragStart ?? hdr
-                            dragStart = start
-                            height = min(max(start - grp.translation.height, minHeight), maxHeight).rounded()
-                        }
-                        .onEnded { _ in dragStart = nil })
+                    .gesture(
+                        DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                            .onChanged { grp in
+                                let start = dragStart ?? hdr
+                                dragStart = start
+                                height = min(max(start - grp.translation.height, minHeight), maxHeight).rounded()
+                            }
+                            .onEnded { _ in dragStart = nil })
                 bottom.frame(maxWidth: .infinity).frame(height: hdr)
             }
         }

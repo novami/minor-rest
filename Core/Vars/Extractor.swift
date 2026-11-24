@@ -27,13 +27,20 @@ nonisolated enum Extractor {
             if root == nil, rootError == nil {
                 do { root = try JSONValue.parse(body) } catch { rootError = error.detail }
             }
-            guard let root else { out.warnings.append("\(res.name): \(rootError ?? "")"); continue }
+            guard let root else {
+                out.warnings.append("\(res.name): \(rootError ?? "")")
+                continue
+            }
             do {
                 guard let val = try JSONPath(res.path).select(root).first else {
                     out.warnings.append("\(res.name): \(res.path)")
                     continue
                 }
-                if case .string(let str) = val { out.values.append(KV(name: res.name, value: str)) } else { out.values.append(KV(name: res.name, value: val.compact)) }
+                if case .string(let str) = val {
+                    out.values.append(KV(name: res.name, value: str))
+                } else {
+                    out.values.append(KV(name: res.name, value: val.compact))
+                }
             } catch {
                 out.warnings.append("\(res.name): \(error.detail)")
             }

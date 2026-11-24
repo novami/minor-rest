@@ -17,9 +17,12 @@ struct ResponseTabs: View {
             ResponseBodyPane(tabID: tabID, run: run, result: result) { bar(sections, current) }
         } else {
             VStack(spacing: 0) {
-                HStack { bar(sections, current); Spacer() }
-                    .frame(minHeight: 24)
-                    .padding(.horizontal, 8).padding(.vertical, 6)
+                HStack {
+                    bar(sections, current)
+                    Spacer()
+                }
+                .frame(minHeight: 24)
+                .padding(.horizontal, 8).padding(.vertical, 6)
                 content(current)
             }
         }
@@ -28,7 +31,9 @@ struct ResponseTabs: View {
     private func bar(_ sections: [ResponseSection], _ current: ResponseSection) -> some View {
         HStack(spacing: 2) {
             ForEach(sections, id: \.self) { str in
-                Button { model.tabs.edit { $0.responseSection = str } } label: {
+                Button {
+                    model.tabs.edit { $0.responseSection = str }
+                } label: {
                     HStack(spacing: 4) {
                         Text(t("response.tab.\(str.rawValue)"))
                         if let num = count(str), num > 0 {
@@ -50,7 +55,9 @@ struct ResponseTabs: View {
         case .cookies: result.cookies.count
         case .redirects: result.redirects.count
         case .versions:
-            model.tabs.list.first(where: { $0.id == tabID }).flatMap { model.runs.versions[RunStore.key($0.projectID, $0.draft.id)]?.count }
+            model.tabs.list.first(where: { $0.id == tabID }).flatMap {
+                model.runs.versions[RunStore.key($0.projectID, $0.draft.id)]?.count
+            }
         default: nil
         }
     }
@@ -93,8 +100,10 @@ struct HeaderTable: View {
         if rows.isEmpty {
             EmptyState(title: empty)
         } else {
-            Table(rows.enumerated().map { Row(id: $0.offset, name: $0.element.name, value: $0.element.value) },
-                  selection: $selection) {
+            Table(
+                rows.enumerated().map { Row(id: $0.offset, name: $0.element.name, value: $0.element.value) },
+                selection: $selection
+            ) {
                 TableColumn(t("response.col.name")) { Text($0.name).font(fonts.code) }
                     .width(min: 80, ideal: 200, max: 400)
                 TableColumn(t("response.col.value")) { Text($0.value).font(fonts.code).help($0.value) }
@@ -105,7 +114,9 @@ struct HeaderTable: View {
                     Button(t("response.copyRow")) { copyText(text(ids) { "\($0.name): \($0.value)" }) }
                 }
             }
-            .onCopyCommand { selection.isEmpty ? [] : [NSItemProvider(object: text(selection) { $0.value } as NSString)] }
+            .onCopyCommand {
+                selection.isEmpty ? [] : [NSItemProvider(object: text(selection) { $0.value } as NSString)]
+            }
         }
     }
 
@@ -155,13 +166,17 @@ struct CookieTable: View {
     private func expires(_ str: String) -> String {
         guard !str.isEmpty else { return t("cookie.session") }
         guard let dat = try? Date(str, strategy: .iso8601) else { return str }
-        return dat.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened)
-            .locale(Locale(identifier: L10n.shared.code)))
+        return dat.formatted(
+            Date.FormatStyle(date: .abbreviated, time: .shortened)
+                .locale(Locale(identifier: L10n.shared.code)))
     }
 
     private func flags(_ cur: Cookie) -> String {
-        [cur.secure ? "Secure" : nil, cur.httpOnly ? "HttpOnly" : nil, cur.sameSite.isEmpty ? nil : "SameSite=\(cur.sameSite)"]
-            .compactMap { $0 }.joined(separator: ", ")
+        [
+            cur.secure ? "Secure" : nil, cur.httpOnly ? "HttpOnly" : nil,
+            cur.sameSite.isEmpty ? nil : "SameSite=\(cur.sameSite)"
+        ]
+        .compactMap { $0 }.joined(separator: ", ")
     }
 }
 
@@ -172,15 +187,19 @@ struct TimingDetail: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             TimingView(timing: result.timing)
-            section("response.connection", [
-                ("response.proto", result.proto), ("response.remote", result.remoteAddr),
-                ("response.local", result.localAddr),
-            ])
-            if let tls = result.tls {
-                section("tls.title", [
-                    ("tls.version", tls.version), ("tls.cipher", tls.cipher), ("tls.serverName", tls.serverName),
-                    ("tls.subject", tls.subject), ("tls.issuer", tls.issuer), ("tls.notAfter", tls.notAfter),
+            section(
+                "response.connection",
+                [
+                    ("response.proto", result.proto), ("response.remote", result.remoteAddr),
+                    ("response.local", result.localAddr)
                 ])
+            if let tls = result.tls {
+                section(
+                    "tls.title",
+                    [
+                        ("tls.version", tls.version), ("tls.cipher", tls.cipher), ("tls.serverName", tls.serverName),
+                        ("tls.subject", tls.subject), ("tls.issuer", tls.issuer), ("tls.notAfter", tls.notAfter)
+                    ])
             }
         }
         .textSelection(.enabled)
@@ -236,10 +255,14 @@ struct SentView: View {
 
     @ViewBuilder private var sentBody: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(t(Int64(sent.bodyPreview.utf8.count) < sent.bodySize ? "response.sent.bodyPartial" : "response.sent.body",
-                   ["size": fmtBytes(sent.bodySize)]))
-                .font(fonts.small).foregroundStyle(.secondary)
-                .padding(.horizontal, 10).padding(.vertical, 4)
+            Text(
+                t(
+                    Int64(sent.bodyPreview.utf8.count) < sent.bodySize
+                        ? "response.sent.bodyPartial" : "response.sent.body",
+                    ["size": fmtBytes(sent.bodySize)])
+            )
+            .font(fonts.small).foregroundStyle(.secondary)
+            .padding(.horizontal, 10).padding(.vertical, 4)
             if sent.bodyPreview.isEmpty {
                 EmptyState(title: t("response.sent.noPreview"))
             } else {
@@ -249,7 +272,9 @@ struct SentView: View {
     }
 
     private var lang: SyntaxLang {
-        let ct = sent.headers.first { $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame }?.value.lowercased() ?? ""
+        let ct =
+            sent.headers.first { $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame }?.value.lowercased()
+            ?? ""
         if ct.contains("json") { return .json }
         if ct.contains("html") { return .html }
         if ct.contains("xml") { return .xml }

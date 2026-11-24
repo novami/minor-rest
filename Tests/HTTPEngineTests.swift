@@ -1,5 +1,6 @@
-@testable import MinorREST
 import XCTest
+
+@testable import MinorREST
 
 /// Odpovědi pro `StubProtocol`; `nil` handler = spojení se nikdy nedokončí (test zrušení).
 final class StubProtocol: URLProtocol {
@@ -27,12 +28,14 @@ final class HTTPEngineTests: XCTestCase {
 
     func testSuccessfulResponseHasStatusHeadersAndSize() async {
         StubProtocol.handler = { req in
-            let res = HTTPURLResponse(url: req.url!, statusCode: 201, httpVersion: "HTTP/1.1",
-                                      headerFields: ["Content-Type": "application/json", "X-Echo": req.httpMethod ?? ""])!
+            let res = HTTPURLResponse(
+                url: req.url!, statusCode: 201, httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json", "X-Echo": req.httpMethod ?? ""])!
             return (res, Data("{\"ok\":true}".utf8))
         }
         let engine = HTTPEngine(protocolClasses: [StubProtocol.self])
-        let resVal = PreparedRequest(method: "POST", url: "http://localhost/items", body: Body(type: BodyType.json, raw: "{}"))
+        let resVal = PreparedRequest(
+            method: "POST", url: "http://localhost/items", body: Body(type: BodyType.json, raw: "{}"))
         let result = await engine.send(runID: "r1", resVal, HTTPEngine.Options())
 
         XCTAssertNil(result.error)

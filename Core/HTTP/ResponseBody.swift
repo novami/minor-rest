@@ -73,7 +73,8 @@ nonisolated struct BodySink {
         }
         do {
             if file == nil, buf.count + dat.count > ResponseBody.memLimit {
-                let urlVal = FileManager.default.temporaryDirectory.appending(path: "minorrest-body-\(UUID().uuidString)")
+                let urlVal = FileManager.default.temporaryDirectory.appending(
+                    path: "minorrest-body-\(UUID().uuidString)")
                 guard FileManager.default.createFile(atPath: urlVal.path, contents: buf) else {
                     throw CoreError(.fsError, urlVal.path)
                 }
@@ -110,8 +111,10 @@ nonisolated struct BodySink {
 
 /// Media type, charset a binárnost z Content-Type a začátku těla.
 nonisolated enum ContentSniff {
-    private static let textTypes = ["text/", "json", "xml", "javascript", "ecmascript", "yaml", "csv", "graphql",
-                                    "x-www-form-urlencoded", "html"]
+    private static let textTypes = [
+        "text/", "json", "xml", "javascript", "ecmascript", "yaml", "csv", "graphql",
+        "x-www-form-urlencoded", "html"
+    ]
 
     /// `text/HTML; charset=X` → (`text/html`, `x`)
     static func parse(_ contentType: String) -> (mediaType: String, charset: String) {
@@ -120,7 +123,9 @@ nonisolated enum ContentSniff {
         var cs = ""
         for par in parts.dropFirst() {
             let kv = par.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
-            if kv.count == 2, kv[0].lowercased() == "charset" { cs = kv[1].trimmingCharacters(in: CharacterSet(charactersIn: "\"'")) }
+            if kv.count == 2, kv[0].lowercased() == "charset" {
+                cs = kv[1].trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            }
         }
         return (mt, cs)
     }
@@ -135,8 +140,9 @@ nonisolated enum ContentSniff {
         if mt.contains("html"), let meta = metaCharset(sample) { return (mt, canonical(meta), false) }
         if validUTF8(sample, cut: sample.count == ResponseBody.sniffLen) { return (mt, "utf-8", false) }
         var conv: NSString?
-        let enc = NSString.stringEncoding(for: sample, encodingOptions: [.allowLossyKey: false], convertedString: &conv,
-                                          usedLossyConversion: nil)
+        let enc = NSString.stringEncoding(
+            for: sample, encodingOptions: [.allowLossyKey: false], convertedString: &conv,
+            usedLossyConversion: nil)
         return (mt, enc == 0 ? "windows-1252" : name(String.Encoding(rawValue: enc)) ?? "windows-1252", false)
     }
 
@@ -188,7 +194,8 @@ nonisolated enum ContentSniff {
     static func validUTF8(_ datVal: Data, cut: Bool) -> Bool {
         var datVal = datVal[...]
         if cut, let i = datVal.indices.reversed().prefix(4).first(where: { datVal[$0] & 0xC0 != 0x80 }) {
-            let lead = datVal[i], need = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : lead >= 0xC0 ? 2 : 1
+            let lead = datVal[i]
+            let need = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : lead >= 0xC0 ? 2 : 1
             if datVal.endIndex - i < need { datVal = datVal[..<i] }
         }
         return String(validating: datVal, as: UTF8.self) != nil
@@ -243,7 +250,7 @@ nonisolated enum TLSNames {
         0xC009: "TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA", 0xC00A: "TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
         0xC013: "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", 0xC014: "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
         0x009C: "TLS_RSA_WITH_AES_128_GCM_SHA256", 0x009D: "TLS_RSA_WITH_AES_256_GCM_SHA384",
-        0x002F: "TLS_RSA_WITH_AES_128_CBC_SHA", 0x0035: "TLS_RSA_WITH_AES_256_CBC_SHA",
+        0x002F: "TLS_RSA_WITH_AES_128_CBC_SHA", 0x0035: "TLS_RSA_WITH_AES_256_CBC_SHA"
     ]
 
     /// Subjekt, vydavatel (`CN=…,O=…`) a expirace (RFC 3339) leaf certifikátu.
@@ -254,8 +261,10 @@ nonisolated enum TLSNames {
         func dn(_ key: CFString) -> String {
             let parts = vals[key as String]?[kSecPropertyKeyValue as String] as? [[String: Any]] ?? []
             return parts.reversed().compactMap { part -> String? in
-                guard let oid = part[kSecPropertyKeyLabel as String] as? String, let val = part[kSecPropertyKeyValue as String] as? String,
-                      let short = rdn[oid] else { return nil }
+                guard let oid = part[kSecPropertyKeyLabel as String] as? String,
+                    let val = part[kSecPropertyKeyValue as String] as? String,
+                    let short = rdn[oid]
+                else { return nil }
                 return "\(short)=\(val)"
             }.joined(separator: ",")
         }
@@ -268,6 +277,8 @@ nonisolated enum TLSNames {
         return (subject, dn(kSecOIDX509V1IssuerName), notAfter)
     }
 
-    private static let rdn = ["2.5.4.3": "CN", "2.5.4.10": "O", "2.5.4.11": "OU", "2.5.4.6": "C", "2.5.4.7": "L",
-                              "2.5.4.8": "ST", "2.5.4.5": "SERIALNUMBER"]
+    private static let rdn = [
+        "2.5.4.3": "CN", "2.5.4.10": "O", "2.5.4.11": "OU", "2.5.4.6": "C", "2.5.4.7": "L",
+        "2.5.4.8": "ST", "2.5.4.5": "SERIALNUMBER"
+    ]
 }

@@ -75,7 +75,9 @@ final class TabsStore {
 
     /// Otevře request `rel` aktivního projektu (už otevřený jen aktivuje).
     func open(_ rel: String) async {
-        guard let node = treeRoot()?.find(rel), node.kind == .request, !node.id.isEmpty, node.error.isEmpty else { return }
+        guard let node = treeRoot()?.find(rel), node.kind == .request, !node.id.isEmpty, node.error.isEmpty else {
+            return
+        }
         if !list.contains(where: { $0.id == node.id && $0.projectID == projectID }) {
             guard let tab = await load(projectID, node.id, rel) else { return }
             list.append(tab)
@@ -131,8 +133,9 @@ final class TabsStore {
     /// Před zavřením projektu s neuloženými taby: Uložit vše / Zahodit / Zrušit. `true` = pokračovat.
     func confirmCloseProject(_ pid: String, name: String) async -> Bool {
         guard list.contains(where: { $0.projectID == pid && $0.dirty }) else { return true }
-        switch ask(t("tabs.unsavedTitle"), t("tabs.unsavedProject", ["name": name]),
-                   save: t("tabs.saveAll"), discard: t("tabs.discard")) {
+        switch ask(
+            t("tabs.unsavedTitle"), t("tabs.unsavedProject", ["name": name]),
+            save: t("tabs.saveAll"), discard: t("tabs.discard")) {
         case .alertFirstButtonReturn: guard await saveAll(projectID: pid) else { return false }
         case .alertSecondButtonReturn: break
         default: return false
@@ -163,18 +166,19 @@ final class TabsStore {
 
     /// Zavře tab; neuložený se nejdřív zeptá Uložit / Zahodit / Zrušit.
     func close(_ id: String? = nil) async {
-        if id == nil, let wrd = NSApp.keyWindow, wrd !== mainWindow {   // Cmd+W v jiném okně (Nastavení)
+        if id == nil, let wrd = NSApp.keyWindow, wrd !== mainWindow {  // Cmd+W v jiném okně (Nastavení)
             wrd.performClose(nil)
             return
         }
         guard let i = index(id ?? activeID) else {
-            if id == nil { NSApp.terminate(nil) }   // Cmd+W bez tabu zavře okno = ukončí aplikaci
+            if id == nil { NSApp.terminate(nil) }  // Cmd+W bez tabu zavře okno = ukončí aplikaci
             return
         }
         let tab = list[i]
         if tab.dirty {
-            switch ask(t("tabs.unsavedTitle"), t("tabs.unsavedMessage", ["name": name(tab)]),
-                       save: t("tabs.save"), discard: t("tabs.discard")) {
+            switch ask(
+                t("tabs.unsavedTitle"), t("tabs.unsavedMessage", ["name": name(tab)]),
+                save: t("tabs.save"), discard: t("tabs.discard")) {
             case .alertFirstButtonReturn: guard await save(tab.id) else { return }
             case .alertSecondButtonReturn: break
             default: return
@@ -191,7 +195,8 @@ final class TabsStore {
         let changed = rels.map(Set.init)
         for tab in list where tab.projectID == pid && (changed?.contains(tab.rel) ?? true) {
             guard let res = try? await projects.project(pid).loadRequest(tab.rel),
-                  let i = index(tab.id, pid) else { continue }
+                let i = index(tab.id, pid)
+            else { continue }
             if res == list[i].saved {
                 list[i].diskChanged = nil
             } else if list[i].dirty {
@@ -238,7 +243,8 @@ final class TabsStore {
             restored.insert(pid)
             for id in workspace.ws.tabs[pid] ?? [] where !list.contains(where: { $0.id == id && $0.projectID == pid }) {
                 guard let num = root.findRequest(id: id), num.error.isEmpty,
-                      let tab = await load(pid, id, num.rel) else { continue }
+                    let tab = await load(pid, id, num.rel)
+                else { continue }
                 list.append(tab)
             }
         }

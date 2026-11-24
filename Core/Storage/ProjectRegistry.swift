@@ -31,7 +31,9 @@ actor ProjectRegistry {
     }
 
     func close(_ id: String) throws {
-        guard let i = projects.firstIndex(where: { $0.info.id == id }) else { throw CoreError(.notFound, "project \(id)") }
+        guard let i = projects.firstIndex(where: { $0.info.id == id }) else {
+            throw CoreError(.notFound, "project \(id)")
+        }
         projects.remove(at: i)
     }
 

@@ -12,7 +12,8 @@ struct AppFonts: Equatable, Sendable {
     var code: Font { isRetina ? .system(size: size, design: .monospaced) : .custom("Menlo", size: size) }
 
     @MainActor var codeNSFont: NSFont {
-        isRetina ? .monospacedSystemFont(ofSize: size, weight: .regular)
+        isRetina
+            ? .monospacedSystemFont(ofSize: size, weight: .regular)
             : NSFont(name: "Menlo", size: size) ?? .monospacedSystemFont(ofSize: size, weight: .regular)
     }
 

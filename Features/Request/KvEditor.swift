@@ -24,10 +24,16 @@ struct KvEditor<Row: KvRow>: View {
         VStack(alignment: .leading, spacing: 2) {
             toolbar
             if let bulk {
-                TextEditor(text: Binding(get: { bulk }, set: { text in
-                    self.bulk = text
-                    rows = KVBulk.parse(text, prev: bulkBase + (rows as? [KV] ?? []), allowBare: allowBare) as? [Row] ?? rows
-                }))
+                TextEditor(
+                    text: Binding(
+                        get: { bulk },
+                        set: { text in
+                            self.bulk = text
+                            rows =
+                                KVBulk.parse(text, prev: bulkBase + (rows as? [KV] ?? []), allowBare: allowBare)
+                                as? [Row] ?? rows
+                        })
+                )
                 .font(fonts.code)
                 .frame(minHeight: 120)
                 .overlay(RoundedRectangle(cornerRadius: 4).stroke(.separator))
@@ -94,16 +100,21 @@ struct KvEditor<Row: KvRow>: View {
                 Text(res.wrappedValue.name).font(fonts.code)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                VarField(text: res.name, placeholder: ghost ? t("kv.name") : "", font: fonts.codeNSFont,
-                         completions: names.isEmpty ? nil : { HeaderHints.complete($0, in: names) })
-                    .frame(maxWidth: .infinity)
+                VarField(
+                    text: res.name, placeholder: ghost ? t("kv.name") : "", font: fonts.codeNSFont,
+                    completions: names.isEmpty ? nil : { HeaderHints.complete($0, in: names) }
+                )
+                .frame(maxWidth: .infinity)
             }
             Group {
                 if let valueCell {
                     valueCell(res, ghost)
                 } else {
-                    VarField(text: res.value, placeholder: ghost ? t("kv.value") : "", font: fonts.codeNSFont,
-                             completions: valuesFor.map { fn in { [name = res.wrappedValue.name] in HeaderHints.complete($0, in: fn(name)) } })
+                    VarField(
+                        text: res.value, placeholder: ghost ? t("kv.value") : "", font: fonts.codeNSFont,
+                        completions: valuesFor.map { fn in
+                            { [name = res.wrappedValue.name] in HeaderHints.complete($0, in: fn(name)) }
+                        })
                 }
             }
             .frame(maxWidth: .infinity)
@@ -112,21 +123,28 @@ struct KvEditor<Row: KvRow>: View {
                 .font(fonts.ui)
                 .frame(maxWidth: .infinity)
             if !fixed {
-                Button { rows.remove(at: i) } label: { Image(systemName: "xmark") }
-                    .buttonStyle(.borderless)
-                    .frame(width: 16)
-                    .foregroundStyle(.secondary)
-                    .help(t("kv.delete"))
-                    .opacity(ghost ? 0 : 1)
-                    .disabled(ghost)
+                Button {
+                    rows.remove(at: i)
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+                .frame(width: 16)
+                .foregroundStyle(.secondary)
+                .help(t("kv.delete"))
+                .opacity(ghost ? 0 : 1)
+                .disabled(ghost)
             }
         }
         .frame(height: kvRowHeight)
         .opacity(res.wrappedValue.enabled || ghost ? 1 : 0.55)
         .overlay(alignment: .top) { dropIndicator(i) }
         .overlay(alignment: .bottom) { if i == rows.count - 1 { dropIndicator(rows.count) } }
-        .onDrop(of: [.text], delegate: RowDrop(index: i, count: rows.count, height: kvRowHeight,
-                                               dragging: $dragging, line: $dropLine, move: move))
+        .onDrop(
+            of: [.text],
+            delegate: RowDrop(
+                index: i, count: rows.count, height: kvRowHeight,
+                dragging: $dragging, line: $dropLine, move: move))
     }
 
     @ViewBuilder
@@ -138,9 +156,11 @@ struct KvEditor<Row: KvRow>: View {
 
     /// Duch řádek se stane skutečným při prvním neprázdném zápisu (stejný index → pole neztratí fokus).
     private func binding(_ i: Int) -> Binding<Row> {
-        Binding(get: { i < rows.count ? rows[i] : Row() }, set: { val in
-            if i < rows.count { rows[i] = val } else if val != Row() { rows.append(val) }
-        })
+        Binding(
+            get: { i < rows.count ? rows[i] : Row() },
+            set: { val in
+                if i < rows.count { rows[i] = val } else if val != Row() { rows.append(val) }
+            })
     }
 
     /// Přesun řádku `from` před pozici `line` (0…count).
@@ -202,7 +222,10 @@ private struct RowDrop: DropDelegate {
     func dropExited(info: DropInfo) { line = nil }
 
     func performDrop(info: DropInfo) -> Bool {
-        defer { dragging = nil; line = nil }
+        defer {
+            dragging = nil
+            line = nil
+        }
         guard let from = dragging else { return false }
         move(from, target(info))
         return true

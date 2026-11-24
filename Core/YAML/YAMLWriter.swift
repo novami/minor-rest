@@ -117,16 +117,25 @@ nonisolated enum YAMLWriter {
 
     // MARK: - Rozpoznání typu (yaml.v3 resolve)
 
-    private static let oldBools: Set<String> = ["y", "Y", "yes", "Yes", "YES", "n", "N", "no", "No", "NO",
-                                                "on", "On", "ON", "off", "Off", "OFF"]
-    private static let special: Set<String> = ["", "~", "null", "Null", "NULL", "true", "True", "TRUE",
-                                               "false", "False", "FALSE", ".inf", ".Inf", ".INF", "+.inf", "+.Inf",
-                                               "+.INF", "-.inf", "-.Inf", "-.INF", ".nan", ".NaN", ".NAN", "<<"]
-    private static var intRegex: Regex<(Substring, Substring)> { /^[-+]?(0[xX][0-9a-fA-F]+|0[oO][0-7]+|0[bB][01]+|[0-9]+)$/ }
-    private static var floatRegex: Regex<(Substring, Substring, Substring?, Substring?)> { /^[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?$/ }
+    private static let oldBools: Set<String> = [
+        "y", "Y", "yes", "Yes", "YES", "n", "N", "no", "No", "NO",
+        "on", "On", "ON", "off", "Off", "OFF"
+    ]
+    private static let special: Set<String> = [
+        "", "~", "null", "Null", "NULL", "true", "True", "TRUE",
+        "false", "False", "FALSE", ".inf", ".Inf", ".INF", "+.inf", "+.Inf",
+        "+.INF", "-.inf", "-.Inf", "-.INF", ".nan", ".NaN", ".NAN", "<<"
+    ]
+    private static var intRegex: Regex<(Substring, Substring)> {
+        /^[-+]?(0[xX][0-9a-fA-F]+|0[oO][0-7]+|0[bB][01]+|[0-9]+)$/
+    }
+    private static var floatRegex: Regex<(Substring, Substring, Substring?, Substring?)> {
+        /^[-+]?(\.[0-9]+|[0-9]+(\.[0-9]*)?)([eE][-+]?[0-9]+)?$/
+    }
     private static var base60Regex: Regex<Substring> { /^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+(?:\.[0-9_]*)?$/ }
     private static var timestampRegex: Regex<Substring> {
-        /^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}(?:(?:[Tt][0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}(?:\.[0-9]+)?(?:Z|[-+][0-9]{2}:[0-9]{2}))|(?: [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}(?:\.[0-9]+)?))?$/ }
+        /^[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}(?:(?:[Tt][0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}(?:\.[0-9]+)?(?:Z|[-+][0-9]{2}:[0-9]{2}))|(?: [0-9]{1,2}:[0-9]{1,2}:[0-9]{1,2}(?:\.[0-9]+)?))?$/
+    }
 
     /// Zda by plain zápis řetězce zůstal řetězcem (jinak yaml.v3 použije dvojité uvozovky).
     static func resolvesToString(_ str: String) -> Bool {
@@ -210,12 +219,24 @@ nonisolated enum YAMLWriter {
                 return
             }
             var blockIndicators = str.hasPrefix("---") || str.hasPrefix("...")
-            var leadingSpace = false, leadingBreak = false, trailingSpace = false, trailingBreak = false
-            var breakSpace = false, spaceBreak = false, previousSpace = false, previousBreak = false
-            var lineBreaks = false, specialCharacters = false, tabCharacters = false
+            var leadingSpace = false
+            var leadingBreak = false
+            var trailingSpace = false
+            var trailingBreak = false
+            var breakSpace = false
+            var spaceBreak = false
+            var previousSpace = false
+            var previousBreak = false
+            var lineBreaks = false
+            var specialCharacters = false
+            var tabCharacters = false
             var precededByWhitespace = true
-            func isBreak(_ cur: Unicode.Scalar) -> Bool { cur == "\n" || cur == "\r" || cur == "\u{85}" || cur == "\u{2028}" || cur == "\u{2029}" }
-            func isBlankz(_ cur: Unicode.Scalar?) -> Bool { cur == nil || cur == " " || cur == "\t" || cur == "\0" || isBreak(cur!) }
+            func isBreak(_ cur: Unicode.Scalar) -> Bool {
+                cur == "\n" || cur == "\r" || cur == "\u{85}" || cur == "\u{2028}" || cur == "\u{2029}"
+            }
+            func isBlankz(_ cur: Unicode.Scalar?) -> Bool {
+                cur == nil || cur == " " || cur == "\t" || cur == "\0" || isBreak(cur!)
+            }
 
             for (i, cur) in chars.enumerated() {
                 let next: Unicode.Scalar? = i + 1 < chars.count ? chars[i + 1] : nil
@@ -261,9 +282,19 @@ nonisolated enum YAMLWriter {
             }
             if leadingSpace || leadingBreak || trailingSpace || trailingBreak { blockPlainAllowed = false }
             if trailingSpace { blockAllowed = false }
-            if breakSpace { blockPlainAllowed = false; singleQuotedAllowed = false }
-            if spaceBreak || specialCharacters { blockPlainAllowed = false; singleQuotedAllowed = false; blockAllowed = false }
-            if tabCharacters { blockPlainAllowed = false; singleQuotedAllowed = false }
+            if breakSpace {
+                blockPlainAllowed = false
+                singleQuotedAllowed = false
+            }
+            if spaceBreak || specialCharacters {
+                blockPlainAllowed = false
+                singleQuotedAllowed = false
+                blockAllowed = false
+            }
+            if tabCharacters {
+                blockPlainAllowed = false
+                singleQuotedAllowed = false
+            }
             if lineBreaks { blockPlainAllowed = false }
             if blockIndicators { blockPlainAllowed = false }
         }

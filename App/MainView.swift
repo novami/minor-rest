@@ -47,7 +47,7 @@ struct MainView: View {
         .task {
             await model.projects.restore()
             #if DEBUG
-            DebugTools.runIfRequested(model)
+                DebugTools.runIfRequested(model)
             #endif
         }
     }

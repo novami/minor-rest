@@ -12,7 +12,8 @@ nonisolated enum URLBar {
     /// Rozdělí text na URL a query: rozparsované dvojice nahradí v pořadí zapnuté neprázdné řádky (popisy zůstanou),
     /// vypnuté a prázdné řádky zůstanou na svých místech, přebytečné zapnuté řádky zmizí.
     static func parse(_ text: String, query: [KV]) -> (url: String, query: [KV]) {
-        let (url, rest) = text.firstIndex(of: "?").map { (String(text[..<$0]), String(text[text.index(after: $0)...])) }
+        let (url, rest) =
+            text.firstIndex(of: "?").map { (String(text[..<$0]), String(text[text.index(after: $0)...])) }
             ?? (text, "")
         var parsed = rest.split(separator: "&", omittingEmptySubsequences: true).map(pair)[...]
         var out: [KV] = []
@@ -48,19 +49,32 @@ nonisolated extension VarToken {
     static func scan(_ str: String) -> [VarToken] {
         guard str.contains("{{") else { return [] }
         let urlVal = Array(str.utf16)
-        let open: UInt16 = 0x7B, close: UInt16 = 0x7D, slash: UInt16 = 0x5C
+        let open: UInt16 = 0x7B
+        let close: UInt16 = 0x7D
+        let slash: UInt16 = 0x5C
         var out: [VarToken] = []
         var i = 0
         while i + 1 < urlVal.count {
-            guard urlVal[i] == open, urlVal[i + 1] == open else { i += 1; continue }
-            if i > 0, urlVal[i - 1] == slash { i += 2; continue }
+            guard urlVal[i] == open, urlVal[i + 1] == open else {
+                i += 1
+                continue
+            }
+            if i > 0, urlVal[i - 1] == slash {
+                i += 2
+                continue
+            }
             var j = i + 2
             while j + 1 < urlVal.count, !(urlVal[j] == close && urlVal[j + 1] == close), urlVal[j] != open { j += 1 }
-            guard j + 1 < urlVal.count, urlVal[j] == close, urlVal[j + 1] == close else { i = j; continue }
+            guard j + 1 < urlVal.count, urlVal[j] == close, urlVal[j + 1] == close else {
+                i = j
+                continue
+            }
             let name = String(utf16CodeUnits: Array(urlVal[(i + 2)..<j]), count: j - i - 2)
                 .trimmingCharacters(in: .whitespaces)
-            out.append(VarToken(range: NSRange(location: i, length: j + 2 - i), name: name,
-                                kind: name.hasPrefix("$") ? .dynamic : .variable))
+            out.append(
+                VarToken(
+                    range: NSRange(location: i, length: j + 2 - i), name: name,
+                    kind: name.hasPrefix("$") ? .dynamic : .variable))
             i = j + 2
         }
         return out

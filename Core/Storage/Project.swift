@@ -50,8 +50,9 @@ nonisolated final class Project: @unchecked Sendable {
         let name = try cleanName(name)
         let file = root.appending(path: ProjectFormat.projectFile)
         if FileIO.exists(file) { throw CoreError(.projectInvalid, "already exists: \(root.path)") }
-        let cfg = ProjectConfig(formatVersion: ProjectFormat.version, id: ULID.make(), name: name,
-                                auth: Auth(type: AuthType.none), ignoreResponsesInGit: true)
+        let cfg = ProjectConfig(
+            formatVersion: ProjectFormat.version, id: ULID.make(), name: name,
+            auth: Auth(type: AuthType.none), ignoreResponsesInGit: true)
         try FileIO.writeYAML(cfg, to: file)
         try syncGitignore(root: root, ignore: true)
         return Project(root: root, config: cfg, trash: trash)
@@ -90,7 +91,8 @@ nonisolated final class Project: @unchecked Sendable {
             config.id = cfg.id
             config.formatVersion = cfg.formatVersion
             try FileIO.writeYAML(config.storingSecrets(secrets), to: root.appending(path: ProjectFormat.projectFile))
-            cfg = try FileIO.readYAML(ProjectConfig.self, from: root.appending(path: ProjectFormat.projectFile)).fillingSecrets(secrets)
+            cfg = try FileIO.readYAML(ProjectConfig.self, from: root.appending(path: ProjectFormat.projectFile))
+                .fillingSecrets(secrets)
             try Self.syncGitignore(root: root, ignore: config.ignoreResponsesInGit)
         }
     }
@@ -117,7 +119,8 @@ nonisolated final class Project: @unchecked Sendable {
     /// Odkaz na soubor pro YAML: uvnitř projektu relativní (s `/`), jinak absolutní; symlinky se rozvinou.
     func fileRef(_ path: String) -> String {
         let path = path.nfc
-        let base = FileIO.realPath(root.path), target = FileIO.realPath(path)
+        let base = FileIO.realPath(root.path)
+        let target = FileIO.realPath(path)
         guard target.hasPrefix(base + "/") else { return path }
         return String(target.dropFirst(base.count + 1))
     }

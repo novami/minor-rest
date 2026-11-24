@@ -1,5 +1,6 @@
-@testable import MinorREST
 import XCTest
+
+@testable import MinorREST
 
 final class SecretsTests: XCTestCase {
     func testTokenIsStoredInKeychainNotInRequestFile() throws {
@@ -36,8 +37,9 @@ final class SecretsTests: XCTestCase {
         let node = try project.createRequest(parent: "", name: "Old")
         var request = try project.loadRequest(node.rel)
         request.auth = Auth(type: AuthType.basic, basic: BasicAuth(username: "u", password: "plain-pass"))
-        let file = try XCTUnwrap(FileManager.default.subpathsOfDirectory(atPath: dir.path)
-            .first { $0.hasSuffix(".req.yaml") })
+        let file = try XCTUnwrap(
+            FileManager.default.subpathsOfDirectory(atPath: dir.path)
+                .first { $0.hasSuffix(".req.yaml") })
         try FileIO.writeYAML(request, to: dir.appending(path: file))
 
         project.secrets = store

@@ -72,11 +72,23 @@ struct EnvironmentsSheet: View {
                 }
                 .frame(width: 190)
                 HStack {
-                    Button { add() } label: { Image(systemName: "plus") }.help(t("envs.add"))
-                    Button { duplicate() } label: { Image(systemName: "plus.square.on.square") }
-                        .help(t("envs.duplicate")).disabled(selectedIndex == nil)
-                    Button { remove() } label: { Image(systemName: "minus") }
-                        .help(t("envs.delete")).disabled(selectedIndex == nil)
+                    Button {
+                        add()
+                    } label: {
+                        Image(systemName: "plus")
+                    }.help(t("envs.add"))
+                    Button {
+                        duplicate()
+                    } label: {
+                        Image(systemName: "plus.square.on.square")
+                    }
+                    .help(t("envs.duplicate")).disabled(selectedIndex == nil)
+                    Button {
+                        remove()
+                    } label: {
+                        Image(systemName: "minus")
+                    }
+                    .help(t("envs.delete")).disabled(selectedIndex == nil)
                     Spacer()
                 }
                 .buttonStyle(.borderless)
@@ -124,14 +136,16 @@ struct EnvironmentsSheet: View {
     }
 
     private var edited: EnvironmentsStore.Editable {
-        .init(environments: drafts.map(\.env), projectVars: projectVars.filter { !$0.name.isEmpty },
-              globals: globals.filter { !$0.name.isEmpty }, readOnly: original?.readOnly ?? false)
+        .init(
+            environments: drafts.map(\.env), projectVars: projectVars.filter { !$0.name.isEmpty },
+            globals: globals.filter { !$0.name.isEmpty }, readOnly: original?.readOnly ?? false)
     }
 
     private var isDirty: Bool {
         guard let opt = original else { return false }
         let elem = edited
-        return elem.environments != opt.environments || elem.projectVars != opt.projectVars || elem.globals != opt.globals
+        return elem.environments != opt.environments || elem.projectVars != opt.projectVars
+            || elem.globals != opt.globals
     }
 
     private func load() async {
@@ -141,7 +155,8 @@ struct EnvironmentsSheet: View {
             drafts = data.environments.map { Draft(env: $0) }
             projectVars = data.projectVars
             globals = data.globals
-            selection = model.environments.active(projectID).flatMap { arg in drafts.first { $0.env.id == arg.id }?.id }
+            selection =
+                model.environments.active(projectID).flatMap { arg in drafts.first { $0.env.id == arg.id }?.id }
                 ?? drafts.first?.id
         } catch {
             self.error = errorText(error)
@@ -211,18 +226,24 @@ struct VarsEditor: View {
                     .frame(width: 20).opacity(ghost ? 0 : 1).disabled(ghost)
                     .help(t("envs.secret"))
             }
-            Button { vars.remove(at: i) } label: { Image(systemName: "xmark") }
-                .buttonStyle(.borderless).foregroundStyle(.secondary)
-                .frame(width: 16).opacity(ghost ? 0 : 1).disabled(ghost)
-                .help(t("kv.delete"))
+            Button {
+                vars.remove(at: i)
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.borderless).foregroundStyle(.secondary)
+            .frame(width: 16).opacity(ghost ? 0 : 1).disabled(ghost)
+            .help(t("kv.delete"))
         }
         .opacity(buf.wrappedValue.enabled || ghost ? 1 : 0.55)
     }
 
     /// Duch řádek se stane skutečným při prvním zápisu (stejný index → pole neztratí fokus).
     private func binding(_ i: Int) -> Binding<Var> {
-        Binding(get: { i < vars.count ? vars[i] : Var() }, set: { val in
-            if i < vars.count { vars[i] = val } else if val != Var() { vars.append(val) }
-        })
+        Binding(
+            get: { i < vars.count ? vars[i] : Var() },
+            set: { val in
+                if i < vars.count { vars[i] = val } else if val != Var() { vars.append(val) }
+            })
     }
 }

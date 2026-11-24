@@ -22,8 +22,9 @@ nonisolated extension Project {
             let target = try url(rel)
             if kind == .folder {
                 try FileIO.createDirectory(target)
-                try FileIO.writeYAML(FolderConfig(name: name, seq: max(seq, 1), auth: Auth(type: AuthType.inherit)),
-                                     to: target.appending(path: ProjectFormat.folderFile))
+                try FileIO.writeYAML(
+                    FolderConfig(name: name, seq: max(seq, 1), auth: Auth(type: AuthType.inherit)),
+                    to: target.appending(path: ProjectFormat.folderFile))
             } else {
                 var res = Request.new(id: ULID.make(), name: name)
                 res.seq = max(seq, 1)
@@ -60,11 +61,13 @@ nonisolated extension Project {
         locked {
             for file in requestFiles(in: root) {
                 guard let res = try? FileIO.readYAML(Request.self, from: file), !res.id.isEmpty,
-                      let stored = try? res.storingSecrets(secrets), stored != res else { continue }
+                    let stored = try? res.storingSecrets(secrets), stored != res
+                else { continue }
                 try? FileIO.writeYAML(stored, to: file)
             }
-            if let cur = try? FileIO.readYAML(ProjectConfig.self, from: root.appending(path: ProjectFormat.projectFile)),
-               let stored = try? cur.storingSecrets(secrets), stored != cur {
+            if let cur = try? FileIO.readYAML(
+                ProjectConfig.self, from: root.appending(path: ProjectFormat.projectFile)),
+                let stored = try? cur.storingSecrets(secrets), stored != cur {
                 try? FileIO.writeYAML(stored, to: root.appending(path: ProjectFormat.projectFile))
             }
         }
@@ -92,8 +95,9 @@ nonisolated extension Project {
             let name = try Self.cleanName(newName)
             try requireNode(rel)
             try update(rel) { num, _ in num = name }
-            let newRel = try freeRel(parent: RelPath.parent(rel), slug: Slug.make(name), kind: RelPath.kind(rel),
-                                     self: RelPath.slug(rel))
+            let newRel = try freeRel(
+                parent: RelPath.parent(rel), slug: Slug.make(name), kind: RelPath.kind(rel),
+                self: RelPath.slug(rel))
             try move(from: rel, to: newRel)
             return try node(newRel, deep: true)
         }
@@ -126,10 +130,12 @@ nonisolated extension Project {
         try locked {
             try writable()
             try requireNode(rel)
-            let kind = RelPath.kind(rel), parent = RelPath.parent(rel)
+            let kind = RelPath.kind(rel)
+            let parent = RelPath.parent(rel)
             let name = try node(rel, deep: false).name + (copySuffix.isEmpty ? Self.defaultCopySuffix : copySuffix)
             let newRel = try freeRel(parent: parent, slug: Slug.make(name), kind: kind)
-            let src = try url(rel), dst = try url(newRel)
+            let src = try url(rel)
+            let dst = try url(newRel)
             if kind == .request {
                 var res = try FileIO.readYAML(Request.self, from: src).fillingSecrets(secrets)
                 res.id = ULID.make()
@@ -235,7 +241,7 @@ nonisolated extension Project {
         cfg.name = name
         try FileIO.writeYAML(cfg, to: cfgFile)
         for file in requestFiles(in: dst) {
-            guard var res = try? FileIO.readYAML(Request.self, from: file).fillingSecrets(secrets) else { continue } // poškozený nech být
+            guard var res = try? FileIO.readYAML(Request.self, from: file).fillingSecrets(secrets) else { continue }  // poškozený nech být
             res.id = ULID.make()
             try FileIO.writeYAML(res.storingSecrets(secrets), to: file)
         }
@@ -250,7 +256,8 @@ nonisolated extension Project {
     private func requestIDs(in url: URL) -> [String] {
         requestFiles(in: url).compactMap { file in
             guard let res = try? FileIO.readYAML(Request.self, from: file), !res.id.isEmpty,
-                  !res.id.contains(where: { "/\\.".contains($0) }) else { return nil }
+                !res.id.contains(where: { "/\\.".contains($0) })
+            else { return nil }
             return res.id
         }
     }

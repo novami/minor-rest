@@ -32,21 +32,29 @@ struct ExtractEditor: View {
                 Text(t("extract.header")).tag("header")
             }
             .labelsHidden().frame(width: 110)
-            TextField("", text: buf.path,
-                      prompt: Text(buf.wrappedValue.from == "header" ? "Location" : "$.data.token"))
-                .textFieldStyle(.roundedBorder).font(fonts.code)
-            Button { rules.remove(at: i) } label: { Image(systemName: "xmark") }
-                .buttonStyle(.borderless).foregroundStyle(.secondary)
-                .frame(width: 16).opacity(ghost ? 0 : 1).disabled(ghost)
-                .help(t("kv.delete"))
+            TextField(
+                "", text: buf.path,
+                prompt: Text(buf.wrappedValue.from == "header" ? "Location" : "$.data.token")
+            )
+            .textFieldStyle(.roundedBorder).font(fonts.code)
+            Button {
+                rules.remove(at: i)
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.borderless).foregroundStyle(.secondary)
+            .frame(width: 16).opacity(ghost ? 0 : 1).disabled(ghost)
+            .help(t("kv.delete"))
         }
         .opacity(buf.wrappedValue.enabled || ghost ? 1 : 0.55)
     }
 
     /// Duch řádek se stane skutečným při prvním zápisu.
     private func binding(_ i: Int) -> Binding<Extract> {
-        Binding(get: { i < rules.count ? rules[i] : Extract() }, set: { res in
-            if i < rules.count { rules[i] = res } else if res != Extract() { rules.append(res) }
-        })
+        Binding(
+            get: { i < rules.count ? rules[i] : Extract() },
+            set: { res in
+                if i < rules.count { rules[i] = res } else if res != Extract() { rules.append(res) }
+            })
     }
 }

@@ -76,7 +76,9 @@ actor OAuthClient {
         var scope: String
         var expiresAt: Date?
 
-        var info: TokenInfo { TokenInfo(tokenType: type, scope: scope, expiresAt: expiresAt, hasRefresh: !refresh.isEmpty) }
+        var info: TokenInfo {
+            TokenInfo(tokenType: type, scope: scope, expiresAt: expiresAt, hasRefresh: !refresh.isEmpty)
+        }
     }
 
     private struct Meta: Codable {
@@ -104,7 +106,9 @@ actor OAuthClient {
         let key = par.cacheKey
         if let str = try load(key), !str.info.isExpired(now: now()) { return str.access }
         if let str = try load(key), par.autoRefresh, !str.refresh.isEmpty,
-           let txt = try? await refresh(par, options: options) { return txt }
+            let txt = try? await refresh(par, options: options) {
+            return txt
+        }
         guard par.grantType != OAuthParams.authorizationCode else {
             throw CoreError(.oauthLoginRequired, par.tokenURL)
         }
@@ -150,9 +154,10 @@ actor OAuthClient {
 
     /// Uloží token získaný jiným způsobem (authorization_code, F7/3).
     func store(_ par: OAuthParams, _ txt: TokenResponse, previousRefresh: String = "") throws -> TokenInfo {
-        let str = Stored(access: txt.accessToken, refresh: txt.refreshToken.isEmpty ? previousRefresh : txt.refreshToken,
-                       type: txt.tokenType, scope: txt.scope.isEmpty ? par.scope : txt.scope,
-                       expiresAt: txt.expiresIn.map { now().addingTimeInterval($0) })
+        let str = Stored(
+            access: txt.accessToken, refresh: txt.refreshToken.isEmpty ? previousRefresh : txt.refreshToken,
+            type: txt.tokenType, scope: txt.scope.isEmpty ? par.scope : txt.scope,
+            expiresAt: txt.expiresIn.map { now().addingTimeInterval($0) })
         let key = par.cacheKey
         try secrets.set(account: Self.account(key, "access"), value: str.access)
         try secrets.set(account: Self.account(key, "refresh"), value: str.refresh)
@@ -170,8 +175,10 @@ actor OAuthClient {
     }
 
     /// POST na token endpoint s doplněním klientských údajů; úspěch uloží do cache.
-    func request(_ par: OAuthParams, _ form: [KV], _ options: HTTPEngine.Options,
-                 previousRefresh: String) async throws -> TokenInfo {
+    func request(
+        _ par: OAuthParams, _ form: [KV], _ options: HTTPEngine.Options,
+        previousRefresh: String
+    ) async throws -> TokenInfo {
         guard !par.tokenURL.isEmpty else { throw CoreError(.urlInvalid, "tokenUrl") }
         var form = form
         var headers = [KV(name: "Accept", value: "application/json")]
@@ -182,8 +189,9 @@ actor OAuthClient {
             let cred = Self.formEncode(par.clientID) + ":" + Self.formEncode(par.clientSecret)
             headers.append(KV(name: "Authorization", value: "Basic " + Data(cred.utf8).base64EncodedString()))
         }
-        let req = PreparedRequest(method: "POST", url: par.tokenURL, headers: headers,
-                                  body: Body(type: BodyType.form, form: form))
+        let req = PreparedRequest(
+            method: "POST", url: par.tokenURL, headers: headers,
+            body: Body(type: BodyType.form, form: form))
         let runID = ULID.make()
         let result = await engine.send(runID: runID, req, options, jar: nil)
         if let elem = result.error { throw elem }
@@ -220,8 +228,8 @@ actor OAuthClient {
         for buf in str.utf8 {
             switch buf {
             case UInt8(ascii: "0")...UInt8(ascii: "9"), UInt8(ascii: "A")...UInt8(ascii: "Z"),
-                 UInt8(ascii: "a")...UInt8(ascii: "z"), UInt8(ascii: "-"), UInt8(ascii: "."),
-                 UInt8(ascii: "_"), UInt8(ascii: "~"):
+                UInt8(ascii: "a")...UInt8(ascii: "z"), UInt8(ascii: "-"), UInt8(ascii: "."),
+                UInt8(ascii: "_"), UInt8(ascii: "~"):
                 out.unicodeScalars.append(Unicode.Scalar(buf))
             default:
                 out += String(format: "%%%02X", buf)
@@ -240,8 +248,11 @@ actor OAuthClient {
         let refresh = try secrets.get(account: Self.account(key, "refresh")) ?? ""
         var meta = Meta(type: "", scope: "", expiresAt: nil)
         if let map = try secrets.get(account: Self.account(key, "meta")),
-           let dat = try? JSONDecoder().decode(Meta.self, from: Data(map.utf8)) { meta = dat }
-        let str = Stored(access: access, refresh: refresh, type: meta.type, scope: meta.scope, expiresAt: meta.expiresAt)
+            let dat = try? JSONDecoder().decode(Meta.self, from: Data(map.utf8)) {
+            meta = dat
+        }
+        let str = Stored(
+            access: access, refresh: refresh, type: meta.type, scope: meta.scope, expiresAt: meta.expiresAt)
         memory[key] = str
         return str
     }

@@ -26,8 +26,12 @@ nonisolated enum CurlImport {
             } else if tok == "--" {
                 onlyArgs = true
             } else if tok.hasPrefix("--") {
-                var name = tok, inline: String?
-                if let eq = tok.firstIndex(of: "=") { name = String(tok[..<eq]); inline = String(tok[tok.index(after: eq)...]) }
+                var name = tok
+                var inline: String?
+                if let eq = tok.firstIndex(of: "=") {
+                    name = String(tok[..<eq])
+                    inline = String(tok[tok.index(after: eq)...])
+                }
                 if Self.longWithValue.contains(name) {
                     let val: String
                     if let inline { val = inline } else { val = try value(name) }
@@ -59,26 +63,34 @@ nonisolated enum CurlImport {
 
     // MARK: - Přepínače
 
-    private static let shortWithValue: Set<Character> = ["X", "H", "d", "F", "u", "A", "b", "m", "e", "o", "T", "w", "x", "c", "D", "K", "E", "z", "Y", "y"]
+    private static let shortWithValue: Set<Character> = [
+        "X", "H", "d", "F", "u", "A", "b", "m", "e", "o", "T", "w", "x", "c", "D", "K", "E", "z", "Y", "y"
+    ]
     private static let longWithValue: Set<String> = [
-        "--request", "--header", "--data", "--data-raw", "--data-binary", "--data-ascii", "--data-urlencode", "--form", "--form-string",
-        "--user", "--user-agent", "--cookie", "--max-time", "--max-redirs", "--url", "--referer", "--output", "--upload-file",
-        "--write-out", "--proxy", "--cookie-jar", "--config", "--cert", "--key", "--cacert", "--connect-timeout", "--retry",
-        "--limit-rate", "--resolve", "--interface", "--oauth2-bearer", "--proxy-user", "--dump-header", "--json",
+        "--request", "--header", "--data", "--data-raw", "--data-binary", "--data-ascii", "--data-urlencode", "--form",
+        "--form-string",
+        "--user", "--user-agent", "--cookie", "--max-time", "--max-redirs", "--url", "--referer", "--output",
+        "--upload-file",
+        "--write-out", "--proxy", "--cookie-jar", "--config", "--cert", "--key", "--cacert", "--connect-timeout",
+        "--retry",
+        "--limit-rate", "--resolve", "--interface", "--oauth2-bearer", "--proxy-user", "--dump-header", "--json"
     ]
     private static let ignored: Set<String> = [
         "-s", "-S", "-v", "-i", "-f", "-g", "-#", "-N", "-O", "-J", "-Z", "-q", "-4", "-6",
-        "--silent", "--show-error", "--verbose", "--include", "--fail", "--globoff", "--compressed", "--no-buffer", "--http1.0", "--http1.1",
-        "--http2", "--http2-prior-knowledge", "--http3", "--tcp-nodelay", "--no-keepalive", "--tlsv1.2", "--tlsv1.3", "--ipv4", "--ipv6",
-        "--location-trusted", "--remote-name", "--progress-bar", "--fail-with-body", "--raw", "--path-as-is", "--no-progress-meter",
+        "--silent", "--show-error", "--verbose", "--include", "--fail", "--globoff", "--compressed", "--no-buffer",
+        "--http1.0", "--http1.1",
+        "--http2", "--http2-prior-knowledge", "--http3", "--tcp-nodelay", "--no-keepalive", "--tlsv1.2", "--tlsv1.3",
+        "--ipv4", "--ipv6",
+        "--location-trusted", "--remote-name", "--progress-bar", "--fail-with-body", "--raw", "--path-as-is",
+        "--no-progress-meter"
     ]
 
     private struct State {
         var method: String?
         var url: String?
         var headers: [KV] = []
-        var data: [String] = []        // -d / --data* (raw)
-        var urlencoded: [KV] = []      // --data-urlencode
+        var data: [String] = []  // -d / --data* (raw)
+        var urlencoded: [KV] = []  // --data-urlencode
         var multipart: [MultipartPart] = []
         var user: String?
         var follow = false
@@ -100,7 +112,9 @@ nonisolated enum CurlImport {
             case "-H", "--header": header(val)
             case "-d", "--data", "--data-ascii", "--data-binary": data.append(fileRef(val, flag))
             case "--data-raw": data.append(val)
-            case "--json": data.append(fileRef(val, flag)); headers.append(KV(name: "Content-Type", value: "application/json"))
+            case "--json":
+                data.append(fileRef(val, flag))
+                headers.append(KV(name: "Content-Type", value: "application/json"))
             case "--data-urlencode": urlencode(val)
             case "-F", "--form", "--form-string": form(val, literal: flag == "--form-string")
             case "-u", "--user": user = val
@@ -121,7 +135,7 @@ nonisolated enum CurlImport {
         }
 
         mutating func header(_ val: String) {
-            guard let curVal = val.firstIndex(of: ":") else { return }   // `Name;` (prázdná hlavička) a nesmysly se přeskočí
+            guard let curVal = val.firstIndex(of: ":") else { return }  // `Name;` (prázdná hlavička) a nesmysly se přeskočí
             let name = val[..<curVal].trimmingCharacters(in: .whitespaces)
             let value = val[val.index(after: curVal)...].trimmingCharacters(in: .whitespaces)
             guard !name.isEmpty, !value.isEmpty else { return }
@@ -150,9 +164,11 @@ nonisolated enum CurlImport {
 
         mutating func form(_ val: String, literal: Bool) {
             guard let eq = val.firstIndex(of: "=") else { return }
-            let name = String(val[..<eq]), rest = String(val[val.index(after: eq)...])
+            let name = String(val[..<eq])
+            let rest = String(val[val.index(after: eq)...])
             if !literal, rest.hasPrefix("@") || rest.hasPrefix("<") {
-                var path = String(rest.dropFirst()), type = ""
+                var path = String(rest.dropFirst())
+                var type = ""
                 let segs = path.components(separatedBy: ";")
                 path = segs[0]
                 for str in segs.dropFirst() where str.hasPrefix("type=") { type = String(str.dropFirst(5)) }
@@ -182,17 +198,36 @@ nonisolated enum CurlImport {
                 data = []
             } else if !multipart.isEmpty {
                 body = Body(type: BodyType.multipart, multipart: multipart)
-                headers.removeAll { $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame && ct.hasPrefix("multipart/") }
+                headers.removeAll {
+                    $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame && ct.hasPrefix("multipart/")
+                }
             } else if !urlencoded.isEmpty || (!data.isEmpty && Self.looksLikeForm(joined, ct)) {
-                var rows = data.isEmpty ? [] : joined.split(separator: "&", omittingEmptySubsequences: true).map { Self.pair(String($0)) }
+                var rows =
+                    data.isEmpty
+                    ? [] : joined.split(separator: "&", omittingEmptySubsequences: true).map { Self.pair(String($0)) }
                 rows += urlencoded
                 body = Body(type: BodyType.form, form: rows)
-                headers.removeAll { $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame && ct.hasPrefix("application/x-www-form-urlencoded") }
+                headers.removeAll {
+                    $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame
+                        && ct.hasPrefix("application/x-www-form-urlencoded")
+                }
             } else if !data.isEmpty {
                 let type: String
-                if ct.contains("json") || (ct.isEmpty && Self.isJSON(joined)) { type = BodyType.json } else if ct.contains("xml") { type = BodyType.xml } else if ct.contains("html") { type = BodyType.html } else { type = BodyType.text }
+                if ct.contains("json") || (ct.isEmpty && Self.isJSON(joined)) {
+                    type = BodyType.json
+                } else if ct.contains("xml") {
+                    type = BodyType.xml
+                } else if ct.contains("html") {
+                    type = BodyType.html
+                } else {
+                    type = BodyType.text
+                }
                 body = Body(type: type, raw: joined)
-                let auto = [BodyType.json: "application/json", BodyType.xml: "application/xml", BodyType.html: "text/html", BodyType.text: "text/plain"][type] ?? ""
+                let auto =
+                    [
+                        BodyType.json: "application/json", BodyType.xml: "application/xml", BodyType.html: "text/html",
+                        BodyType.text: "text/plain"
+                    ][type] ?? ""
                 if ct == auto || ct.hasPrefix(auto + ";") {
                     headers.removeAll { $0.name.caseInsensitiveCompare("Content-Type") == .orderedSame }
                 }
@@ -207,10 +242,16 @@ nonisolated enum CurlImport {
             res.body = body
             if let user {
                 let curVal = user.firstIndex(of: ":")
-                res.auth = Auth(type: AuthType.basic, basic: BasicAuth(username: curVal.map { String(user[..<$0]) } ?? user,
-                                                                    password: curVal.map { String(user[user.index(after: $0)...]) } ?? ""))
+                res.auth = Auth(
+                    type: AuthType.basic,
+                    basic: BasicAuth(
+                        username: curVal.map { String(user[..<$0]) } ?? user,
+                        password: curVal.map { String(user[user.index(after: $0)...]) } ?? ""))
             }
-            if follow { res.settings.followRedirects = true; res.settings.maxRedirects = maxRedirs ?? res.settings.maxRedirects }
+            if follow {
+                res.settings.followRedirects = true
+                res.settings.maxRedirects = maxRedirs ?? res.settings.maxRedirects
+            }
             if insecure { res.settings.verifyTLS = false }
             if let timeoutMs { res.settings.timeoutMs = timeoutMs }
             return (res, warnings)
@@ -246,7 +287,8 @@ nonisolated enum CurlImport {
     static func tokenize(_ text: String) throws(CoreError) -> [String] {
         let str = Array(text.replacingOccurrences(of: "\\\r\n", with: " ").replacingOccurrences(of: "\\\n", with: " "))
         var out: [String] = []
-        var cur = "", has = false
+        var cur = ""
+        var has = false
         var i = 0
         func unterminated() -> CoreError { CoreError(.curlInvalid, "quote") }
         while i < str.count {
@@ -255,20 +297,32 @@ nonisolated enum CurlImport {
             case " ", "\t", "\n", "\r":
                 // Samostatná mezera vzniká z `\`+newline slepeného jednořádkovým polem při vložení; zahodit.
                 if has, cur != " " { out.append(cur) }
-                cur = ""; has = false
+                cur = ""
+                has = false
             case "'":
                 i += 1
                 var closed = false
-                while i < str.count { if str[i] == "'" { closed = true; break }; cur.append(str[i]); i += 1 }
+                while i < str.count {
+                    if str[i] == "'" {
+                        closed = true
+                        break
+                    }
+                    cur.append(str[i])
+                    i += 1
+                }
                 guard closed else { throw unterminated() }
                 has = true
             case "\"":
                 i += 1
                 var closed = false
                 while i < str.count {
-                    if str[i] == "\"" { closed = true; break }
+                    if str[i] == "\"" {
+                        closed = true
+                        break
+                    }
                     if str[i] == "\\", i + 1 < str.count, "\"\\$`".contains(str[i + 1]) { i += 1 }
-                    cur.append(str[i]); i += 1
+                    cur.append(str[i])
+                    i += 1
                 }
                 guard closed else { throw unterminated() }
                 has = true
@@ -276,7 +330,10 @@ nonisolated enum CurlImport {
                 i += 2
                 var closed = false
                 while i < str.count {
-                    if str[i] == "'" { closed = true; break }
+                    if str[i] == "'" {
+                        closed = true
+                        break
+                    }
                     if str[i] == "\\", i + 1 < str.count {
                         i += 1
                         switch str[i] {
@@ -286,18 +343,30 @@ nonisolated enum CurlImport {
                         case "x", "u", "U":
                             let num = str[i] == "x" ? 2 : str[i] == "u" ? 4 : 8
                             let hex = String(str[(i + 1)..<min(i + 1 + num, str.count)])
-                            if let val = UInt32(hex, radix: 16), let sc = Unicode.Scalar(val) { cur.append(Character(sc)); i += hex.count } else { cur.append(str[i]) }
+                            if let val = UInt32(hex, radix: 16), let sc = Unicode.Scalar(val) {
+                                cur.append(Character(sc))
+                                i += hex.count
+                            } else {
+                                cur.append(str[i])
+                            }
                         default: cur.append(str[i])
                         }
-                    } else { cur.append(str[i]) }
+                    } else {
+                        cur.append(str[i])
+                    }
                     i += 1
                 }
                 guard closed else { throw unterminated() }
                 has = true
             case "\\":
-                if i + 1 < str.count { i += 1; cur.append(str[i]); has = true }
+                if i + 1 < str.count {
+                    i += 1
+                    cur.append(str[i])
+                    has = true
+                }
             default:
-                cur.append(curVal); has = true
+                cur.append(curVal)
+                has = true
             }
             i += 1
         }

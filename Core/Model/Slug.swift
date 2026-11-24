@@ -12,7 +12,7 @@ nonisolated enum Slug {
 
     private static let map: [Unicode.Scalar: String] = [
         "ł": "l", "Ł": "l", "đ": "d", "Đ": "d", "ß": "ss",
-        "ø": "o", "Ø": "o", "æ": "ae", "Æ": "ae", "œ": "oe", "Œ": "oe",
+        "ø": "o", "Ø": "o", "æ": "ae", "Æ": "ae", "œ": "oe", "Œ": "oe"
     ]
 
     /// `Příliš žluťoučký kůň` → `prilis-zlutoucky-kun`; prázdný výsledek → `polozka`.

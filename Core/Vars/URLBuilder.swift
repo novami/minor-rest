@@ -68,11 +68,13 @@ nonisolated enum URLBuilder {
     /// `:name` na začátku segmentu cesty → hodnota (po vyhodnocení, percent-encoding segmentu).
     private static func replacePathParams(_ url: String, _ params: [PathParam], _ res: Resolver) throws -> String {
         guard !params.isEmpty, let scheme = url.range(of: "://"),
-              let pathStart = url[scheme.upperBound...].firstIndex(of: "/") else { return url }
+            let pathStart = url[scheme.upperBound...].firstIndex(of: "/")
+        else { return url }
         let pathEnd = url[pathStart...].firstIndex(where: { $0 == "?" || $0 == "#" }) ?? url.endIndex
         var values: [String: String] = [:]
         for par in params { values[par.name] = try res.resolve(par.value).value }
-        let segments = url[pathStart..<pathEnd].split(separator: "/", omittingEmptySubsequences: false).map { seg -> String in
+        let segments = url[pathStart..<pathEnd].split(separator: "/", omittingEmptySubsequences: false).map {
+            seg -> String in
             guard seg.count >= 2, seg.first == ":" else { return String(seg) }
             let name = seg.dropFirst().prefix { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "_" || $0 == "-") }
             guard let value = values[String(name)] else { return String(seg) }
@@ -84,15 +86,21 @@ nonisolated enum URLBuilder {
 
     /// Kontrola jako Go `url.Parse` + neprázdný host; vrací popis problému nebo `nil`.
     static func validate(_ url: String) -> String? {
-        guard url.wholeMatch(of: /[A-Za-z][A-Za-z0-9+.\-]*:\/\/.*/.dotMatchesNewlines()) != nil else { return "invalid scheme" }
-        if url.unicodeScalars.contains(where: { $0.value < 0x20 || $0.value == 0x7F }) { return "invalid control character" }
+        guard url.wholeMatch(of: /[A-Za-z][A-Za-z0-9+.\-]*:\/\/.*/.dotMatchesNewlines()) != nil else {
+            return "invalid scheme"
+        }
+        if url.unicodeScalars.contains(where: { $0.value < 0x20 || $0.value == 0x7F }) {
+            return "invalid control character"
+        }
         var host = hostPart(url)
         if let at = host.lastIndex(of: "@") { host = String(host[host.index(after: at)...]) }
         if host.isEmpty { return "missing host" }
         if host.hasPrefix("[") {
             guard let end = host.firstIndex(of: "]") else { return "missing ']' in host" }
             let after = host[host.index(after: end)...]
-            if !after.isEmpty && !(after.first == ":" && after.dropFirst().allSatisfy(\.isASCII) && after.dropFirst().allSatisfy(\.isNumber)) {
+            if !after.isEmpty
+                && !(after.first == ":" && after.dropFirst().allSatisfy(\.isASCII)
+                    && after.dropFirst().allSatisfy(\.isNumber)) {
                 return "invalid port"
             }
             return nil
@@ -119,6 +127,7 @@ nonisolated enum URLBuilder {
     }
 
     private static func keepInQuery(_ cur: UInt8) -> Bool {
-        (48...57).contains(cur) || (65...90).contains(cur) || (97...122).contains(cur) || "-._~!$'()*,;:@/?".utf8.contains(cur)
+        (48...57).contains(cur) || (65...90).contains(cur) || (97...122).contains(cur)
+            || "-._~!$'()*,;:@/?".utf8.contains(cur)
     }
 }

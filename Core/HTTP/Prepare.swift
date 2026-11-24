@@ -22,10 +22,12 @@ nonisolated struct PrepareInput: Sendable {
     /// OAuth2 klient; bez něj se OAuth2 auth nepřidá.
     var oauth: OAuthClient?
 
-    init(request: Request, project: ProjectConfig = ProjectConfig(), folders: [PrepareFolder] = [],
-                runtime: [Var] = [], environment: [Var] = [], globals: [Var] = [],
-                defaults: HTTPSettings = .builtin, baseDir: String = "", userAgent: String = "",
-                oauth: OAuthClient? = nil) {
+    init(
+        request: Request, project: ProjectConfig = ProjectConfig(), folders: [PrepareFolder] = [],
+        runtime: [Var] = [], environment: [Var] = [], globals: [Var] = [],
+        defaults: HTTPSettings = .builtin, baseDir: String = "", userAgent: String = "",
+        oauth: OAuthClient? = nil
+    ) {
         self.request = request
         self.project = project
         self.folders = folders
@@ -75,8 +77,9 @@ nonisolated enum Prepare {
         let options = HTTPEngine.Options(str, userAgent: input.userAgent)
         let applied: (query: KV?, secrets: [String])
         if auth.auth.type == AuthType.oauth2, let client = input.oauth {
-            applied = try await AuthApply.applyOAuth(auth.auth.oauth2 ?? OAuth2Auth(), client: client, options: options,
-                                                     headers: &headers, queryNames: queryNames, resVal)
+            applied = try await AuthApply.applyOAuth(
+                auth.auth.oauth2 ?? OAuth2Auth(), client: client, options: options,
+                headers: &headers, queryNames: queryNames, resVal)
         } else {
             applied = try AuthApply.apply(auth.auth, headers: &headers, queryNames: queryNames, resVal)
         }
@@ -85,9 +88,10 @@ nonisolated enum Prepare {
         }
 
         return Prepared(
-            request: PreparedRequest(method: req.method.trimmingCharacters(in: .whitespaces).uppercased(),
-                                     url: url, headers: headers, body: body,
-                                     baseDir: input.baseDir, noAuto: noAuto),
+            request: PreparedRequest(
+                method: req.method.trimmingCharacters(in: .whitespaces).uppercased(),
+                url: url, headers: headers, body: body,
+                baseDir: input.baseDir, noAuto: noAuto),
             options: options,
             unresolved: resVal.unresolved, authSource: auth.source,
             secrets: sc.flatMap(\.vars).filter { $0.secret && !$0.value.isEmpty }.map(\.value) + applied.secrets)
@@ -117,8 +121,10 @@ nonisolated enum Prepare {
     static func scopes(_ i: PrepareInput) -> [VarScope] {
         var str = [VarScope(.runtime, vars: i.runtime), VarScope(.request, vars: i.request.vars)]
         str += i.folders.reversed().map { VarScope(.folder, ref: $0.rel, vars: $0.config.vars) }
-        str += [VarScope(.environment, vars: i.environment), VarScope(.project, vars: i.project.vars),
-              VarScope(.global, vars: i.globals)]
+        str += [
+            VarScope(.environment, vars: i.environment), VarScope(.project, vars: i.project.vars),
+            VarScope(.global, vars: i.globals)
+        ]
         return str
     }
 
@@ -135,7 +141,10 @@ nonisolated enum Prepare {
                 if name.isEmpty { continue }
                 let key = name.lowercased()
                 names.insert(key)
-                guard hdr.enabled else { disabled.insert(key); continue }
+                guard hdr.enabled else {
+                    disabled.insert(key)
+                    continue
+                }
                 disabled.remove(key)
                 hdr.name = name
                 hdr.value = try resVal.resolve(hdr.value).value

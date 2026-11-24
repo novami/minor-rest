@@ -13,8 +13,10 @@ nonisolated extension KV: YAMLCodable {
     }
 
     init(yaml opt: YAMLObject) throws {
-        self.init(name: try opt.string("name"), value: try opt.string("value"), enabled: try opt.bool("enabled", default: true),
-                  description: try opt.string("description"), bare: try opt.bool("bare"))
+        self.init(
+            name: try opt.string("name"), value: try opt.string("value"),
+            enabled: try opt.bool("enabled", default: true),
+            description: try opt.string("description"), bare: try opt.bool("bare"))
     }
 }
 
@@ -28,7 +30,8 @@ nonisolated extension PathParam: YAMLCodable {
     }
 
     init(yaml opt: YAMLObject) throws {
-        self.init(name: try opt.string("name"), value: try opt.string("value"), description: try opt.string("description"))
+        self.init(
+            name: try opt.string("name"), value: try opt.string("value"), description: try opt.string("description"))
     }
 }
 
@@ -43,8 +46,9 @@ nonisolated extension Var: YAMLCodable {
     }
 
     init(yaml opt: YAMLObject) throws {
-        self.init(name: try opt.string("name"), value: try opt.string("value"), secret: try opt.bool("secret"),
-                  enabled: try opt.bool("enabled", default: true))
+        self.init(
+            name: try opt.string("name"), value: try opt.string("value"), secret: try opt.bool("secret"),
+            enabled: try opt.bool("enabled", default: true))
     }
 }
 
@@ -63,9 +67,11 @@ nonisolated extension HTTPSettings: YAMLCodable {
     }
 
     init(yaml opt: YAMLObject) throws {
-        self.init(httpVersion: try opt.optionalString("httpVersion"), followRedirects: try opt.optionalBool("followRedirects"),
-                  maxRedirects: try opt.optionalInt("maxRedirects"), timeoutMs: try opt.optionalInt("timeoutMs"),
-                  verifyTLS: try opt.optionalBool("verifyTls"), cookieJar: try opt.optionalBool("cookieJar"))
+        self.init(
+            httpVersion: try opt.optionalString("httpVersion"),
+            followRedirects: try opt.optionalBool("followRedirects"),
+            maxRedirects: try opt.optionalInt("maxRedirects"), timeoutMs: try opt.optionalInt("timeoutMs"),
+            verifyTLS: try opt.optionalBool("verifyTls"), cookieJar: try opt.optionalBool("cookieJar"))
     }
 }
 
@@ -160,8 +166,9 @@ nonisolated extension Auth: YAMLCodable {
     }
 
     init(yaml opt: YAMLObject) throws {
-        self.init(type: try opt.string("type"), basic: try opt.object("basic"), bearer: try opt.object("bearer"),
-                  apiKey: try opt.object("apikey"), oauth2: try opt.object("oauth2"))
+        self.init(
+            type: try opt.string("type"), basic: try opt.object("basic"), bearer: try opt.object("bearer"),
+            apiKey: try opt.object("apikey"), oauth2: try opt.object("oauth2"))
     }
 }
 
@@ -193,9 +200,10 @@ nonisolated extension MultipartPart: YAMLCodable {
     }
 
     init(yaml opt: YAMLObject) throws {
-        self.init(name: try opt.string("name"), kind: try opt.string("kind"), value: try opt.string("value"),
-                  path: try opt.string("path"), contentType: try opt.string("contentType"),
-                  enabled: try opt.bool("enabled", default: true))
+        self.init(
+            name: try opt.string("name"), kind: try opt.string("kind"), value: try opt.string("value"),
+            path: try opt.string("path"), contentType: try opt.string("contentType"),
+            enabled: try opt.bool("enabled", default: true))
     }
 }
 
@@ -211,8 +219,9 @@ nonisolated extension Body: YAMLCodable {
     }
 
     init(yaml opt: YAMLObject) throws {
-        self.init(type: try opt.string("type"), raw: try opt.string("raw"), form: try opt.list("form"),
-                  multipart: try opt.list("multipart"), binaryPath: try opt.string("binaryPath"))
+        self.init(
+            type: try opt.string("type"), raw: try opt.string("raw"), form: try opt.list("form"),
+            multipart: try opt.list("multipart"), binaryPath: try opt.string("binaryPath"))
     }
 }
 
@@ -227,8 +236,9 @@ nonisolated extension Extract: YAMLCodable {
     }
 
     init(yaml opt: YAMLObject) throws {
-        self.init(name: try opt.string("name"), from: try opt.string("from"), path: try opt.string("path"),
-                  enabled: try opt.bool("enabled", default: true))
+        self.init(
+            name: try opt.string("name"), from: try opt.string("from"), path: try opt.string("path"),
+            enabled: try opt.bool("enabled", default: true))
     }
 }
 
@@ -252,12 +262,13 @@ nonisolated extension Request: YAMLCodable {
     }
 
     init(yaml opt: YAMLObject) throws {
-        self.init(id: try opt.string("id"), name: try opt.string("name"), seq: try opt.int("seq"),
-                  method: try opt.string("method"), url: try opt.string("url"),
-                  params: try opt.object("params") ?? Params(), headers: try opt.list("headers"),
-                  auth: try opt.object("auth") ?? Auth(), body: try opt.object("body") ?? Body(),
-                  vars: try opt.list("vars"), extract: try opt.list("extract"),
-                  settings: try opt.object("settings") ?? HTTPSettings(), docs: try opt.string("docs"))
+        self.init(
+            id: try opt.string("id"), name: try opt.string("name"), seq: try opt.int("seq"),
+            method: try opt.string("method"), url: try opt.string("url"),
+            params: try opt.object("params") ?? Params(), headers: try opt.list("headers"),
+            auth: try opt.object("auth") ?? Auth(), body: try opt.object("body") ?? Body(),
+            vars: try opt.list("vars"), extract: try opt.list("extract"),
+            settings: try opt.object("settings") ?? HTTPSettings(), docs: try opt.string("docs"))
     }
 }
 
@@ -273,8 +284,9 @@ nonisolated extension FolderConfig: YAMLCodable {
     }
 
     init(yaml opt: YAMLObject) throws {
-        self.init(name: try opt.string("name"), seq: try opt.int("seq"), vars: try opt.list("vars"),
-                  headers: try opt.list("headers"), auth: try opt.object("auth") ?? Auth())
+        self.init(
+            name: try opt.string("name"), seq: try opt.int("seq"), vars: try opt.list("vars"),
+            headers: try opt.list("headers"), auth: try opt.object("auth") ?? Auth())
     }
 }
 
@@ -294,10 +306,11 @@ nonisolated extension ProjectConfig: YAMLCodable {
     }
 
     init(yaml opt: YAMLObject) throws {
-        self.init(formatVersion: try opt.int("formatVersion"), id: try opt.string("id"), name: try opt.string("name"),
-                  description: try opt.string("description"), vars: try opt.list("vars"), headers: try opt.list("headers"),
-                  auth: try opt.object("auth") ?? Auth(), settings: try opt.object("settings") ?? HTTPSettings(),
-                  ignoreResponsesInGit: try opt.bool("ignoreResponsesInGit"))
+        self.init(
+            formatVersion: try opt.int("formatVersion"), id: try opt.string("id"), name: try opt.string("name"),
+            description: try opt.string("description"), vars: try opt.list("vars"), headers: try opt.list("headers"),
+            auth: try opt.object("auth") ?? Auth(), settings: try opt.object("settings") ?? HTTPSettings(),
+            ignoreResponsesInGit: try opt.bool("ignoreResponsesInGit"))
     }
 }
 

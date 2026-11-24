@@ -12,7 +12,10 @@ nonisolated struct PreparedRequest: Sendable, Equatable {
     /// Automatické hlavičky vypnuté uživatelem (`User-Agent`, `Accept`, `Content-Type`).
     var noAuto: [String]
 
-    init(method: String, url: String, headers: [KV] = [], body: Body = Body(), baseDir: String = "", noAuto: [String] = []) {
+    init(
+        method: String, url: String, headers: [KV] = [], body: Body = Body(), baseDir: String = "",
+        noAuto: [String] = []
+    ) {
         self.method = method
         self.url = url
         self.headers = headers
@@ -81,8 +84,10 @@ nonisolated struct Cookie: Codable, Sendable, Equatable {
     var httpOnly: Bool
     var sameSite: String
 
-    init(name: String, value: String, domain: String = "", path: String = "/", expires: String = "",
-                secure: Bool = false, httpOnly: Bool = false, sameSite: String = "") {
+    init(
+        name: String, value: String, domain: String = "", path: String = "/", expires: String = "",
+        secure: Bool = false, httpOnly: Bool = false, sameSite: String = ""
+    ) {
         self.name = name
         self.value = value
         self.domain = domain
@@ -137,8 +142,10 @@ nonisolated extension HTTPEngine {
         var cookieJar = true
         var proxy = Proxy.system
 
-        init(followRedirects: Bool = true, maxRedirects: Int = 10, timeoutMs: Int = 30_000,
-                    verifyTLS: Bool = true, userAgent: String = "", cookieJar: Bool = true, proxy: Proxy = .system) {
+        init(
+            followRedirects: Bool = true, maxRedirects: Int = 10, timeoutMs: Int = 30_000,
+            verifyTLS: Bool = true, userAgent: String = "", cookieJar: Bool = true, proxy: Proxy = .system
+        ) {
             self.followRedirects = followRedirects
             self.maxRedirects = maxRedirects
             self.timeoutMs = timeoutMs
@@ -150,9 +157,10 @@ nonisolated extension HTTPEngine {
 
         /// Z nastavení složeného přes `over(.builtin)` (chybějící položky = výchozí hodnoty).
         init(_ str: HTTPSettings, userAgent: String) {
-            self.init(followRedirects: str.followRedirects ?? true, maxRedirects: str.maxRedirects ?? 10,
-                      timeoutMs: str.timeoutMs ?? 30_000, verifyTLS: str.verifyTLS ?? true, userAgent: userAgent,
-                      cookieJar: str.cookieJar ?? true)
+            self.init(
+                followRedirects: str.followRedirects ?? true, maxRedirects: str.maxRedirects ?? 10,
+                timeoutMs: str.timeoutMs ?? 30_000, verifyTLS: str.verifyTLS ?? true, userAgent: userAgent,
+                cookieJar: str.cookieJar ?? true)
         }
     }
 
@@ -170,8 +178,10 @@ nonisolated extension HTTPEngine {
             case .system: return nil
             case .none: return [:]
             case .manual(let host, let port):
-                return [kCFNetworkProxiesHTTPEnable: 1, kCFNetworkProxiesHTTPProxy: host, kCFNetworkProxiesHTTPPort: port,
-                        kCFNetworkProxiesHTTPSEnable: 1, kCFNetworkProxiesHTTPSProxy: host, kCFNetworkProxiesHTTPSPort: port]
+                return [
+                    kCFNetworkProxiesHTTPEnable: 1, kCFNetworkProxiesHTTPProxy: host, kCFNetworkProxiesHTTPPort: port,
+                    kCFNetworkProxiesHTTPSEnable: 1, kCFNetworkProxiesHTTPSProxy: host, kCFNetworkProxiesHTTPSPort: port
+                ]
             }
         }
     }

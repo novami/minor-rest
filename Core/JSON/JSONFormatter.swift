@@ -11,7 +11,9 @@ nonisolated enum JSONFormatter {
     /// Jen kontrola syntaxe (varování v editoru těla).
     static func validate(_ text: String) -> CoreError? {
         var par = Parser(Array(text.utf8), output: false)
-        do { try par.run() } catch let elem as CoreError { return elem } catch { return CoreError(.jsonInvalid, "\(error)") }
+        do { try par.run() } catch let elem as CoreError { return elem } catch {
+            return CoreError(.jsonInvalid, "\(error)")
+        }
         return nil
     }
 
@@ -20,7 +22,7 @@ nonisolated enum JSONFormatter {
         let output: Bool
         var i = 0
         var out: [UInt8] = []
-        var stack: [UInt8] = [] // `{` nebo `[`
+        var stack: [UInt8] = []  // `{` nebo `[`
 
         enum Expect { case value, valueOrClose, key, keyOrClose, colon, after }
 
@@ -32,7 +34,7 @@ nonisolated enum JSONFormatter {
 
         mutating func run() throws {
             var expect = Expect.value
-            var pendingOpen = false // za `{`/`[` čeká nový řádek, pokud nepřijde hned zavření
+            var pendingOpen = false  // za `{`/`[` čeká nový řádek, pokud nepřijde hned zavření
             skipSpace()
             while true {
                 skipSpace()
@@ -45,11 +47,16 @@ nonisolated enum JSONFormatter {
                     throw fail("invalid character \(quoted(cur)) after top-level value")
                 }
                 func newlineIfPending() {
-                    if pendingOpen { newline(stack.count); pendingOpen = false }
+                    if pendingOpen {
+                        newline(stack.count)
+                        pendingOpen = false
+                    }
                 }
                 switch expect {
                 case .colon:
-                    guard cur == UInt8(ascii: ":") else { throw fail("invalid character \(quoted(cur)) after object key") }
+                    guard cur == UInt8(ascii: ":") else {
+                        throw fail("invalid character \(quoted(cur)) after object key")
+                    }
                     i += 1
                     emit(": ")
                     expect = .value
@@ -64,7 +71,9 @@ nonisolated enum JSONFormatter {
                         try close(cur)
                         expect = .after
                     } else {
-                        throw fail("invalid character \(quoted(cur)) after \(top == UInt8(ascii: "{") ? "object key:value pair" : "array element")")
+                        throw fail(
+                            "invalid character \(quoted(cur)) after \(top == UInt8(ascii: "{") ? "object key:value pair" : "array element")"
+                        )
                     }
                 case .keyOrClose, .valueOrClose:
                     let top = stack.last!
@@ -149,13 +158,13 @@ nonisolated enum JSONFormatter {
                 if cur == UInt8(ascii: "\\") {
                     guard i + 1 < src.count else { break }
                     let elem = src[i + 1]
-                    if variableLength(at: i + 1) > 0 { // `\{{…}}` uvnitř řetězce
+                    if variableLength(at: i + 1) > 0 {  // `\{{…}}` uvnitř řetězce
                         i += 1 + variableLength(at: i + 1)
                         continue
                     }
                     switch elem {
                     case UInt8(ascii: "\""), UInt8(ascii: "\\"), UInt8(ascii: "/"), UInt8(ascii: "b"),
-                         UInt8(ascii: "f"), UInt8(ascii: "n"), UInt8(ascii: "r"), UInt8(ascii: "t"):
+                        UInt8(ascii: "f"), UInt8(ascii: "n"), UInt8(ascii: "r"), UInt8(ascii: "t"):
                         i += 2
                     case UInt8(ascii: "u"):
                         guard i + 5 < src.count, src[i + 2...i + 5].allSatisfy(isHex) else {
@@ -236,8 +245,12 @@ nonisolated enum JSONFormatter {
         }
 
         private func isSpace(_ cur: UInt8) -> Bool { cur == 0x20 || cur == 0x09 || cur == 0x0A || cur == 0x0D }
-        private func isHex(_ cur: UInt8) -> Bool { (48...57).contains(cur) || (65...70).contains(cur) || (97...102).contains(cur) }
-        private func closing(_ open: UInt8) -> UInt8 { open == UInt8(ascii: "{") ? UInt8(ascii: "}") : UInt8(ascii: "]") }
+        private func isHex(_ cur: UInt8) -> Bool {
+            (48...57).contains(cur) || (65...70).contains(cur) || (97...102).contains(cur)
+        }
+        private func closing(_ open: UInt8) -> UInt8 {
+            open == UInt8(ascii: "{") ? UInt8(ascii: "}") : UInt8(ascii: "]")
+        }
 
         private mutating func emit(_ str: String) { if output { out.append(contentsOf: str.utf8) } }
         private mutating func emit(_ bytes: ArraySlice<UInt8>) { if output { out.append(contentsOf: bytes) } }

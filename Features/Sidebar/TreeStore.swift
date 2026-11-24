@@ -64,7 +64,12 @@ final class TreeStore {
 
     /// Probíhá inline editace názvu (reload by zahodil field editor a přejmenoval na rozepsaný text).
     @ObservationIgnored var editing = false {
-        didSet { if !editing && reloadPending { reloadPending = false; Task { await reload() } } }
+        didSet {
+            if !editing && reloadPending {
+                reloadPending = false
+                Task { await reload() }
+            }
+        }
     }
     @ObservationIgnored private var reloadPending = false
 
@@ -148,8 +153,9 @@ final class TreeStore {
         guard let rel, !rel.isEmpty, let num = node(rel) else { return }
         let alert = NSAlert()
         alert.messageText = t("tree.deleteTitle")
-        alert.informativeText = t(num.kind == .folder ? "tree.deleteFolderMessage" : "tree.deleteRequestMessage",
-                                  ["name": num.name])
+        alert.informativeText = t(
+            num.kind == .folder ? "tree.deleteFolderMessage" : "tree.deleteRequestMessage",
+            ["name": num.name])
         alert.addButton(withTitle: t("tree.delete")).hasDestructiveAction = true
         alert.addButton(withTitle: t("common.cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
@@ -170,7 +176,8 @@ final class TreeStore {
 
     func reveal(_ rel: String?) async {
         guard let project = try? await projects.project(projectID),
-              let url = try? project.absoluteURL(rel ?? "") else { return }
+            let url = try? project.absoluteURL(rel ?? "")
+        else { return }
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 

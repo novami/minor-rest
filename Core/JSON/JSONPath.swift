@@ -34,7 +34,10 @@ nonisolated struct Query: Sendable {
     var singular: Bool {
         segments.allSatisfy { str in
             guard !str.descendant, str.selectors.count == 1 else { return false }
-            switch str.selectors[0] { case .name, .index: return true; default: return false }
+            switch str.selectors[0] {
+            case .name, .index: return true
+            default: return false
+            }
         }
     }
 }
@@ -61,12 +64,19 @@ nonisolated indirect enum Expr: Sendable {
     case compare(Operand, CompareOp, Operand)
 }
 
-nonisolated enum CompareOp: String, Sendable { case eq = "==", ne = "!=", lt = "<", le = "<=", gt = ">", ge = ">=" }
+nonisolated enum CompareOp: String, Sendable {
+    case eq = "=="
+    case ne = "!="
+    case lt = "<"
+    case le = "<="
+    case gt = ">"
+    case ge = ">="
+}
 
 nonisolated indirect enum Operand: Sendable {
     case literal(JSONValue)
-    case query(Query) // jen singulární
-    case fn(Fn) // jen ValueType
+    case query(Query)  // jen singulární
+    case fn(Fn)  // jen ValueType
 }
 
 nonisolated struct Fn: Sendable {
@@ -103,7 +113,9 @@ nonisolated private struct Parser {
             space()
             if peek("..") {
                 i += 2
-                if peek("[") { segs.append(Segment(descendant: true, selectors: try bracket())) } else if peek("*") {
+                if peek("[") {
+                    segs.append(Segment(descendant: true, selectors: try bracket()))
+                } else if peek("*") {
                     i += 1
                     segs.append(Segment(descendant: true, selectors: [.wildcard]))
                 } else {
@@ -143,7 +155,10 @@ nonisolated private struct Parser {
             space()
             sels.append(try selector())
             space()
-            if peek(",") { i += 1; continue }
+            if peek(",") {
+                i += 1
+                continue
+            }
             guard peek("]") else { throw fail("expected ',' or ']'") }
             i += 1
             return sels
@@ -154,7 +169,9 @@ nonisolated private struct Parser {
         guard i < str.count else { throw fail("unexpected end of query") }
         switch str[i] {
         case "'", "\"": return .name(try string())
-        case "*": i += 1; return .wildcard
+        case "*":
+            i += 1
+            return .wildcard
         case "?":
             i += 1
             space()
@@ -189,8 +206,14 @@ nonisolated private struct Parser {
         let ds = i
         while i < str.count, ("0"..."9").contains(str[i]) { i += 1 }
         let text = String(String.UnicodeScalarView(str[start..<i]))
-        guard i > ds, !(str[ds] == "0" && (i - ds > 1 || start != ds)) else { i = start; throw fail("invalid integer") }
-        guard let numVal = Int(text), abs(numVal) <= 9_007_199_254_740_991 else { i = start; throw fail("integer out of range") }
+        guard i > ds, !(str[ds] == "0" && (i - ds > 1 || start != ds)) else {
+            i = start
+            throw fail("invalid integer")
+        }
+        guard let numVal = Int(text), abs(numVal) <= 9_007_199_254_740_991 else {
+            i = start
+            throw fail("integer out of range")
+        }
         return numVal
     }
 
@@ -225,11 +248,17 @@ nonisolated private struct Parser {
                     guard let sc = Unicode.Scalar(url) else { throw fail("lone surrogate") }
                     out.append(sc)
                 default:
-                    guard elem == que else { i -= 1; throw fail("invalid escape") }
+                    guard elem == que else {
+                        i -= 1
+                        throw fail("invalid escape")
+                    }
                     out.append(elem)
                 }
             } else {
-                guard curVal.value >= 0x20 else { i -= 1; throw fail("control character in string") }
+                guard curVal.value >= 0x20 else {
+                    i -= 1
+                    throw fail("control character in string")
+                }
                 out.append(curVal)
             }
         }
@@ -328,7 +357,8 @@ nonisolated private struct Parser {
     func comparable(_ opt: Operand, at pos: Int) throws(CoreError) {
         switch opt {
         case .query(let que) where !que.singular: throw fail("query in comparison must be singular", at: pos)
-        case .fn(let fnVal) where fnVal.result == .logical: throw fail("\(fnVal.kind.rawValue)() cannot be compared", at: pos)
+        case .fn(let fnVal) where fnVal.result == .logical:
+            throw fail("\(fnVal.kind.rawValue)() cannot be compared", at: pos)
         default: break
         }
     }
@@ -350,7 +380,9 @@ nonisolated private struct Parser {
     func peekWord(_ wrd: String) -> Bool {
         let numVal = wrd.unicodeScalars.count
         guard peek(wrd) else { return false }
-        return i + numVal >= str.count || !(("a"..."z").contains(str[i + numVal]) || ("0"..."9").contains(str[i + numVal]) || str[i + numVal] == "_")
+        return i + numVal >= str.count
+            || !(("a"..."z").contains(str[i + numVal]) || ("0"..."9").contains(str[i + numVal])
+                || str[i + numVal] == "_")
     }
 
     mutating func number() throws(CoreError) -> JSONValue {
@@ -358,7 +390,10 @@ nonisolated private struct Parser {
         if peek("-") { i += 1 }
         let ds = i
         while i < str.count, ("0"..."9").contains(str[i]) { i += 1 }
-        guard i > ds, !(str[ds] == "0" && i - ds > 1) else { i = start; throw fail("invalid number") }
+        guard i > ds, !(str[ds] == "0" && i - ds > 1) else {
+            i = start
+            throw fail("invalid number")
+        }
         if peek(".") {
             i += 1
             let fnVal = i
@@ -380,7 +415,10 @@ nonisolated private struct Parser {
         let start = i
         while i < str.count, ("a"..."z").contains(str[i]) || ("0"..."9").contains(str[i]) || str[i] == "_" { i += 1 }
         let name = String(String.UnicodeScalarView(str[start..<i]))
-        guard peek("(") else { i = start; throw fail("unexpected '\(name)'") }
+        guard peek("(") else {
+            i = start
+            throw fail("unexpected '\(name)'")
+        }
         guard let kind = Fn.Kind(rawValue: name) else { throw fail("unknown function \(name)()", at: start) }
         i += 1
         var args: [(Operand, Int)] = []
@@ -391,20 +429,27 @@ nonisolated private struct Parser {
                 let par = i
                 args.append((try operand(), par))
                 space()
-                if peek(",") { i += 1; continue }
+                if peek(",") {
+                    i += 1
+                    continue
+                }
                 break
             }
         }
         guard peek(")") else { throw fail("expected ')'") }
         i += 1
         let want = kind == .match || kind == .search ? 2 : 1
-        guard args.count == want else { throw fail("\(name)() takes \(want) argument\(want == 1 ? "" : "s")", at: start) }
+        guard args.count == want else {
+            throw fail("\(name)() takes \(want) argument\(want == 1 ? "" : "s")", at: start)
+        }
         for (arg, par) in args {
             switch (kind, arg) {
             case (.count, .query), (.value, .query): break
             case (.count, _), (.value, _): throw fail("\(name)() argument must be a query", at: par)
-            case (_, .query(let que)) where !que.singular: throw fail("\(name)() argument must be a singular query", at: par)
-            case (_, .fn(let fnVal)) where fnVal.result == .logical: throw fail("\(fnVal.kind.rawValue)() is not a value", at: par)
+            case (_, .query(let que)) where !que.singular:
+                throw fail("\(name)() argument must be a singular query", at: par)
+            case (_, .fn(let fnVal)) where fnVal.result == .logical:
+                throw fail("\(fnVal.kind.rawValue)() is not a value", at: par)
             default: break
             }
         }
@@ -444,7 +489,11 @@ nonisolated private final class Evaluator {
         for seg in que.segments {
             var next: [JSONValue] = []
             for numVal in nodes {
-                if seg.descendant { descend(numVal) { self.apply(seg.selectors, $0, &next) } } else { apply(seg.selectors, numVal, &next) }
+                if seg.descendant {
+                    descend(numVal) { self.apply(seg.selectors, $0, &next) }
+                } else {
+                    apply(seg.selectors, numVal, &next)
+                }
             }
             nodes = next
             if nodes.isEmpty { break }
@@ -464,17 +513,20 @@ nonisolated private final class Evaluator {
     func apply(_ sels: [JSONSelector], _ val: JSONValue, _ out: inout [JSONValue]) {
         for sel in sels {
             switch (sel, val) {
-            case let (.name(key), .object(map)):
-                if let elem = map.first(where: { $0.key.unicodeScalars.elementsEqual(key.unicodeScalars) }) { out.append(elem.value) }
+            case (.name(let key), .object(let map)):
+                if let elem = map.first(where: { $0.key.unicodeScalars.elementsEqual(key.unicodeScalars) }) {
+                    out.append(elem.value)
+                }
             case (.wildcard, .array(let arg)): out.append(contentsOf: arg)
             case (.wildcard, .object(let map)): out.append(contentsOf: map.map(\.value))
-            case let (.index(numVal), .array(arg)):
+            case (.index(let numVal), .array(let arg)):
                 let j = numVal < 0 ? arg.count + numVal : numVal
                 if arg.indices.contains(j) { out.append(arg[j]) }
-            case let (.slice(start, end, step), .array(arg)):
+            case (.slice(let start, let end, let step), .array(let arg)):
                 for j in Self.slice(arg.count, start, end, step) { out.append(arg[j]) }
-            case let (.filter(elem), .array(arg)): out.append(contentsOf: arg.filter { test(elem, $0) })
-            case let (.filter(elem), .object(map)): out.append(contentsOf: map.map(\.value).filter { test(elem, $0) })
+            case (.filter(let elem), .array(let arg)): out.append(contentsOf: arg.filter { test(elem, $0) })
+            case (.filter(let elem), .object(let map)):
+                out.append(contentsOf: map.map(\.value).filter { test(elem, $0) })
             default: break
             }
         }
@@ -486,14 +538,21 @@ nonisolated private final class Evaluator {
         func norm(_ i: Int) -> Int { i >= 0 ? i : len + i }
         var res: [Int] = []
         if step > 0 {
-            let lower = min(max(norm(start ?? 0), 0), len), upper = min(max(norm(end ?? len), 0), len)
+            let lower = min(max(norm(start ?? 0), 0), len)
+            let upper = min(max(norm(end ?? len), 0), len)
             var i = lower
-            while i < upper { res.append(i); i += step }
+            while i < upper {
+                res.append(i)
+                i += step
+            }
         } else {
             let upper = min(max(norm(start ?? len - 1), -1), len - 1)
             let lower = min(max(end.map(norm) ?? -1, -1), len - 1)
             var i = upper
-            while lower < i { res.append(i); i += step }
+            while lower < i {
+                res.append(i)
+                i += step
+            }
         }
         return res
     }
@@ -505,7 +564,7 @@ nonisolated private final class Evaluator {
         case .not(let x): !test(x, cur)
         case .test(let que): !run(que, current: cur).isEmpty
         case .logicalFn(let fnVal): logical(fnVal, cur)
-        case let .compare(lst, op, res): compare(value(lst, cur), op, value(res, cur))
+        case .compare(let lst, let op, let res): compare(value(lst, cur), op, value(res, cur))
         }
     }
 
@@ -538,10 +597,13 @@ nonisolated private final class Evaluator {
     }
 
     func logical(_ fnVal: Fn, _ cur: JSONValue) -> Bool {
-        guard case .string(let str)? = value(fnVal.args[0], cur), case .string(let par)? = value(fnVal.args[1], cur) else { return false }
+        guard case .string(let str)? = value(fnVal.args[0], cur), case .string(let par)? = value(fnVal.args[1], cur)
+        else { return false }
         let pattern = fnVal.kind == .match ? "\\A(?:\(par))\\z" : par
         let re: NSRegularExpression?
-        if let curVal = regexes[pattern] { re = curVal } else {
+        if let curVal = regexes[pattern] {
+            re = curVal
+        } else {
             re = try? NSRegularExpression(pattern: pattern)
             regexes[pattern] = re
         }
@@ -562,8 +624,8 @@ nonisolated private final class Evaluator {
 
     func less(_ arg: JSONValue?, _ buf: JSONValue?) -> Bool {
         switch (arg, buf) {
-        case let (.number(x, _)?, .number(y, _)?): x < y
-        case let (.string(x)?, .string(y)?): x.unicodeScalars.lexicographicallyPrecedes(y.unicodeScalars)
+        case (.number(let x, _)?, .number(let y, _)?): x < y
+        case (.string(let x)?, .string(let y)?): x.unicodeScalars.lexicographicallyPrecedes(y.unicodeScalars)
         default: false
         }
     }

@@ -32,7 +32,8 @@ final class ProjectsStore {
             do {
                 try await registry.open(URL(fileURLWithPath: path))
             } catch {
-                AppLog.app.error("projekt \(path, privacy: .public) nelze otevřít: \(error.localizedDescription, privacy: .public)")
+                AppLog.app.error(
+                    "projekt \(path, privacy: .public) nelze otevřít: \(error.localizedDescription, privacy: .public)")
             }
         }
         await sync(activate: nil)
@@ -124,7 +125,9 @@ final class ProjectsStore {
             do {
                 try project.reloadConfig()
             } catch {
-                AppLog.app.error("konfigurace projektu \(id, privacy: .public) nelze načíst: \(error.localizedDescription, privacy: .public)")
+                AppLog.app.error(
+                    "konfigurace projektu \(id, privacy: .public) nelze načíst: \(error.localizedDescription, privacy: .public)"
+                )
             }
             list = await registry.list()
         }

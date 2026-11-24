@@ -49,7 +49,8 @@ final class RunStore {
     @ObservationIgnored private var jars: [String: CookieJar] = [:]
     @ObservationIgnored let history: History
 
-    static let userAgent = "MinorREST/" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0")
+    static let userAgent =
+        "MinorREST/" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0")
 
     init(projects: ProjectsStore, environments: EnvironmentsStore, vars: VarsStore, toasts: ToastCenter, appDir: URL) {
         self.projects = projects
@@ -69,14 +70,18 @@ final class RunStore {
     }
 
     /// Vyhodnocená OAuth2 pole a nastavení odeslání pro panel tokenu; `rel` = cesta, od které se skládají složky.
-    func oauthParams(_ arg: OAuth2Auth, projectID: String, rel: String?) async throws -> (OAuthParams, HTTPEngine.Options) {
+    func oauthParams(_ arg: OAuth2Auth, projectID: String, rel: String?) async throws -> (
+        OAuthParams, HTTPEngine.Options
+    ) {
         let project = try await projects.project(projectID)
         let vars = try await environments.varsForSend(projectID)
         let input = PrepareInput(
             request: Request(), project: project.config, folders: try rel.map { try project.folderChain($0) } ?? [],
             runtime: self.vars.runtimeVars(projectID), environment: vars.environment, globals: vars.globals)
-        return (try Prepare.oauthParams(arg, input),
-                HTTPEngine.Options(project.config.settings.over(.builtin), userAgent: Self.userAgent))
+        return (
+            try Prepare.oauthParams(arg, input),
+            HTTPEngine.Options(project.config.settings.over(.builtin), userAgent: Self.userAgent)
+        )
     }
 
     func run(_ tabID: String) -> Run? { runs[tabID] }
@@ -116,17 +121,19 @@ final class RunStore {
     private func prepare(_ projectID: String, _ rel: String, _ draft: Request) async throws -> Prepared {
         let project = try await projects.project(projectID)
         let vars = try await environments.varsForSend(projectID)
-        return try await Prepare.prepare(PrepareInput(
-            request: draft, project: project.config, folders: try project.folderChain(rel),
-            runtime: self.vars.runtimeVars(projectID), environment: vars.environment, globals: vars.globals,
-            baseDir: project.root.path, userAgent: Self.userAgent, oauth: oauth))
+        return try await Prepare.prepare(
+            PrepareInput(
+                request: draft, project: project.config, folders: try project.folderChain(rel),
+                runtime: self.vars.runtimeVars(projectID), environment: vars.environment, globals: vars.globals,
+                baseDir: project.root.path, userAgent: Self.userAgent, oauth: oauth))
     }
 
     /// cURL requestu do schránky; chyba přípravy = toast.
     func copyCurl(_ projectID: String, _ rel: String, _ draft: Request, multiline: Bool, mask: Bool) async {
         do {
             let par = try await prepare(projectID, rel, draft)
-            copyText(Export.curl(par.request, options: par.options, multiline: multiline, mask: mask, secrets: par.secrets))
+            copyText(
+                Export.curl(par.request, options: par.options, multiline: multiline, mask: mask, secrets: par.secrets))
             toasts.show(t("curl.copied"))
         } catch {
             toasts.show(errorText(error), isError: true)
@@ -139,7 +146,9 @@ final class RunStore {
         guard !rules.isEmpty, result.error == nil, (200..<300).contains(result.status) else { return }
         let headers = result.headers
         let data = (try? await engine.rawBody(runID: runID, limit: 1 << 30)) ?? Data()
-        let out = await Task.detached { Extractor.run(rules, body: String(decoding: data, as: UTF8.self), headers: headers) }.value
+        let out = await Task.detached {
+            Extractor.run(rules, body: String(decoding: data, as: UTF8.self), headers: headers)
+        }.value
         for kv in out.values { vars.setRuntime(tab.projectID, kv.name, kv.value) }
         if !out.warnings.isEmpty {
             toasts.show(t("extract.failed", ["items": out.warnings.joined(separator: "; ")]), isError: true)
@@ -176,7 +185,9 @@ final class RunStore {
 
     func clearHistory() async {
         let history = history
-        do { try await Task.detached { try history.clear() }.value } catch { toasts.show(errorText(error), isError: true) }
+        do { try await Task.detached { try history.clear() }.value } catch {
+            toasts.show(errorText(error), isError: true)
+        }
         await loadHistory()
     }
 
@@ -210,7 +221,9 @@ final class RunStore {
     /// Uloží surové tělo; chyba → toast.
     func saveBody(_ tabID: String, to url: URL) async {
         guard let res = runs[tabID] else { return }
-        do { try await engine.saveBody(runID: res.runID, to: url) } catch { toasts.show(errorText(error), isError: true) }
+        do { try await engine.saveBody(runID: res.runID, to: url) } catch {
+            toasts.show(errorText(error), isError: true)
+        }
     }
 
     // MARK: Uložené verze
@@ -253,12 +266,16 @@ final class RunStore {
     }
 
     func setLabel(_ projectID: String, _ requestID: String, _ val: Int, _ label: String) async {
-        do { try await responses(projectID, requestID).setLabel(val, label) } catch { toasts.show(errorText(error), isError: true) }
+        do { try await responses(projectID, requestID).setLabel(val, label) } catch {
+            toasts.show(errorText(error), isError: true)
+        }
         await loadVersions(projectID, requestID)
     }
 
     func deleteVersion(_ projectID: String, _ requestID: String, _ val: Int) async {
-        do { try await responses(projectID, requestID).delete(val) } catch { toasts.show(errorText(error), isError: true) }
+        do { try await responses(projectID, requestID).delete(val) } catch {
+            toasts.show(errorText(error), isError: true)
+        }
         await loadVersions(projectID, requestID)
     }
 

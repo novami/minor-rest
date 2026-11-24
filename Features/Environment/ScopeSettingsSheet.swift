@@ -72,11 +72,12 @@ struct ScopeSettingsSheet: View {
                     }
                 case .auth:
                     ScrollView {
-                        AuthEditor(auth: $draft.auth, scope: isProject ? .project : .folder, projectID: projectID,
-                                   inherited: inheritedAuth,
-                                   manualAuthorization: draft.headers.contains {
-                                       $0.enabled && $0.name.caseInsensitiveCompare("Authorization") == .orderedSame
-                                   }, oauthRel: oauthRel)
+                        AuthEditor(
+                            auth: $draft.auth, scope: isProject ? .project : .folder, projectID: projectID,
+                            inherited: inheritedAuth,
+                            manualAuthorization: draft.headers.contains {
+                                $0.enabled && $0.name.caseInsensitiveCompare("Authorization") == .orderedSame
+                            }, oauthRel: oauthRel)
                     }
                 case .http:
                     projectHTTP
@@ -137,8 +138,11 @@ struct ScopeSettingsSheet: View {
                     return (Draft(vars: cur.vars, headers: cur.headers, auth: cur.auth), try project.folderChain(rel))
                 case .project:
                     let cur = project.config
-                    return (Draft(name: cur.name, description: cur.description, vars: cur.vars, headers: cur.headers,
-                                  auth: cur.auth, settings: cur.settings, ignoreResponsesInGit: cur.ignoreResponsesInGit), [])
+                    return (
+                        Draft(
+                            name: cur.name, description: cur.description, vars: cur.vars, headers: cur.headers,
+                            auth: cur.auth, settings: cur.settings, ignoreResponsesInGit: cur.ignoreResponsesInGit), []
+                    )
                 }
             }.value
             inheritedAuth = InheritedAuth(folders: parents, project: project.config.auth)
@@ -154,7 +158,10 @@ struct ScopeSettingsSheet: View {
         saving = true
         defer { saving = false }
         let dat = cleaned
-        if isProject && dat.name.isEmpty { error = t("scope.nameEmpty"); return }
+        if isProject && dat.name.isEmpty {
+            error = t("scope.nameEmpty")
+            return
+        }
         do {
             let project = try await model.projects.project(projectID)
             try await Task.detached {

@@ -81,8 +81,10 @@ nonisolated struct HTTPSettings: Hashable, Sendable {
     var verifyTLS: Bool?
     var cookieJar: Bool?
 
-    init(httpVersion: String? = nil, followRedirects: Bool? = nil, maxRedirects: Int? = nil,
-                timeoutMs: Int? = nil, verifyTLS: Bool? = nil, cookieJar: Bool? = nil) {
+    init(
+        httpVersion: String? = nil, followRedirects: Bool? = nil, maxRedirects: Int? = nil,
+        timeoutMs: Int? = nil, verifyTLS: Bool? = nil, cookieJar: Bool? = nil
+    ) {
         self.httpVersion = httpVersion
         self.followRedirects = followRedirects
         self.maxRedirects = maxRedirects
@@ -94,17 +96,19 @@ nonisolated struct HTTPSettings: Hashable, Sendable {
     var isEmpty: Bool { self == HTTPSettings() }
 
     /// Vestavěné výchozí hodnoty (globální nastavení aplikace přibude v F11).
-    static let builtin = HTTPSettings(httpVersion: "auto", followRedirects: true, maxRedirects: 10,
-                                             timeoutMs: 30_000, verifyTLS: true, cookieJar: true)
+    static let builtin = HTTPSettings(
+        httpVersion: "auto", followRedirects: true, maxRedirects: 10,
+        timeoutMs: 30_000, verifyTLS: true, cookieJar: true)
 
     /// Doplní nevyplněné (zděděné) položky z `base`.
     func over(_ base: HTTPSettings) -> HTTPSettings {
-        HTTPSettings(httpVersion: httpVersion ?? base.httpVersion,
-                     followRedirects: followRedirects ?? base.followRedirects,
-                     maxRedirects: maxRedirects ?? base.maxRedirects,
-                     timeoutMs: timeoutMs ?? base.timeoutMs,
-                     verifyTLS: verifyTLS ?? base.verifyTLS,
-                     cookieJar: cookieJar ?? base.cookieJar)
+        HTTPSettings(
+            httpVersion: httpVersion ?? base.httpVersion,
+            followRedirects: followRedirects ?? base.followRedirects,
+            maxRedirects: maxRedirects ?? base.maxRedirects,
+            timeoutMs: timeoutMs ?? base.timeoutMs,
+            verifyTLS: verifyTLS ?? base.verifyTLS,
+            cookieJar: cookieJar ?? base.cookieJar)
     }
 }
 
@@ -115,8 +119,10 @@ nonisolated struct Auth: Hashable, Sendable {
     var apiKey: APIKeyAuth?
     var oauth2: OAuth2Auth?
 
-    init(type: String = "", basic: BasicAuth? = nil, bearer: BearerAuth? = nil,
-                apiKey: APIKeyAuth? = nil, oauth2: OAuth2Auth? = nil) {
+    init(
+        type: String = "", basic: BasicAuth? = nil, bearer: BearerAuth? = nil,
+        apiKey: APIKeyAuth? = nil, oauth2: OAuth2Auth? = nil
+    ) {
         self.type = type
         self.basic = basic
         self.bearer = bearer
@@ -181,8 +187,10 @@ nonisolated struct MultipartPart: Hashable, Sendable {
     var contentType: String
     var enabled: Bool
 
-    init(name: String = "", kind: String = "text", value: String = "", path: String = "",
-                contentType: String = "", enabled: Bool = true) {
+    init(
+        name: String = "", kind: String = "text", value: String = "", path: String = "",
+        contentType: String = "", enabled: Bool = true
+    ) {
         self.name = name
         self.kind = kind
         self.value = value
@@ -240,9 +248,11 @@ nonisolated struct Request: Hashable, Sendable {
     var settings: HTTPSettings
     var docs: String
 
-    init(id: String = "", name: String = "", seq: Int = 0, method: String = "", url: String = "",
-                params: Params = Params(), headers: [KV] = [], auth: Auth = Auth(), body: Body = Body(),
-                vars: [Var] = [], extract: [Extract] = [], settings: HTTPSettings = HTTPSettings(), docs: String = "") {
+    init(
+        id: String = "", name: String = "", seq: Int = 0, method: String = "", url: String = "",
+        params: Params = Params(), headers: [KV] = [], auth: Auth = Auth(), body: Body = Body(),
+        vars: [Var] = [], extract: [Extract] = [], settings: HTTPSettings = HTTPSettings(), docs: String = ""
+    ) {
         self.id = id
         self.name = name
         self.seq = seq
@@ -260,7 +270,9 @@ nonisolated struct Request: Hashable, Sendable {
 
     /// Nový request s výchozími hodnotami (GET, auth inherit, bez těla).
     static func new(id: String, name: String) -> Request {
-        Request(id: id, name: name, method: HTTPMethod.get, auth: Auth(type: AuthType.inherit), body: Body(type: BodyType.none))
+        Request(
+            id: id, name: name, method: HTTPMethod.get, auth: Auth(type: AuthType.inherit),
+            body: Body(type: BodyType.none))
     }
 }
 
@@ -293,9 +305,11 @@ nonisolated struct ProjectConfig: Hashable, Sendable {
     var settings: HTTPSettings
     var ignoreResponsesInGit: Bool
 
-    init(formatVersion: Int = 0, id: String = "", name: String = "", description: String = "",
-                vars: [Var] = [], headers: [KV] = [], auth: Auth = Auth(), settings: HTTPSettings = HTTPSettings(),
-                ignoreResponsesInGit: Bool = false) {
+    init(
+        formatVersion: Int = 0, id: String = "", name: String = "", description: String = "",
+        vars: [Var] = [], headers: [KV] = [], auth: Auth = Auth(), settings: HTTPSettings = HTTPSettings(),
+        ignoreResponsesInGit: Bool = false
+    ) {
         self.formatVersion = formatVersion
         self.id = id
         self.name = name
@@ -336,8 +350,10 @@ nonisolated struct TreeNode: Hashable, Sendable {
     var error: String
     var children: [TreeNode]
 
-    init(kind: Kind, rel: String, name: String, seq: Int = 0, id: String = "", method: String = "",
-                url: String = "", error: String = "", children: [TreeNode] = []) {
+    init(
+        kind: Kind, rel: String, name: String, seq: Int = 0, id: String = "", method: String = "",
+        url: String = "", error: String = "", children: [TreeNode] = []
+    ) {
         self.kind = kind
         self.rel = rel
         self.name = name

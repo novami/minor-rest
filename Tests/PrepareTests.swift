@@ -1,5 +1,6 @@
-@testable import MinorREST
 import XCTest
+
+@testable import MinorREST
 
 final class PrepareTests: XCTestCase {
     func testBuildsRequestWithVariablesQueryHeadersAndBody() async throws {
@@ -8,8 +9,12 @@ final class PrepareTests: XCTestCase {
             params: Params(query: [KV(name: "q", value: "a b")], path: [PathParam(name: "id", value: "42")]),
             headers: [KV(name: "X-Trace", value: "{{trace}}"), KV(name: "X-Off", value: "no", enabled: false)],
             body: Body(type: BodyType.json, raw: "{\"n\":1}"))
-        let input = PrepareInput(request: request, environment: [Var(name: "base", value: "http://localhost:8080"),
-                                                                    Var(name: "trace", value: "t-1")])
+        let input = PrepareInput(
+            request: request,
+            environment: [
+                Var(name: "base", value: "http://localhost:8080"),
+                Var(name: "trace", value: "t-1")
+            ])
         let out = try await Prepare.prepare(input)
 
         XCTAssertEqual(out.request.method, "POST")

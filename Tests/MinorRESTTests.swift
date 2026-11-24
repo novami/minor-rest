@@ -1,6 +1,7 @@
-@testable import MinorREST
 import MinorUpdater
 import XCTest
+
+@testable import MinorREST
 
 @MainActor
 final class MinorRESTTests: XCTestCase {

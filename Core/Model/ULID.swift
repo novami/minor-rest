@@ -12,13 +12,16 @@ nonisolated enum ULID {
     static func make<R: RandomNumberGenerator>(ms: UInt64, using rng: inout R) -> String {
         var out = [Character]()
         out.reserveCapacity(26)
-        for i in stride(from: 45, through: 0, by: -5) { // 10 znaků času
+        for i in stride(from: 45, through: 0, by: -5) {  // 10 znaků času
             out.append(alphabet[Int((ms >> UInt64(i)) & 0x1F)])
         }
         // 80 bitů náhody = 16 znaků po 5 bitech
-        let hi = UInt64(rng.next() as UInt16), lo = rng.next() as UInt64
+        let hi = UInt64(rng.next() as UInt16)
+        let lo = rng.next() as UInt64
         for i in stride(from: 75, through: 0, by: -5) {
-            let val: UInt64 = i >= 64 ? (hi >> UInt64(i - 64)) : (i > 59 ? ((hi << UInt64(64 - i)) | (lo >> UInt64(i))) : (lo >> UInt64(i)))
+            let val: UInt64 =
+                i >= 64
+                ? (hi >> UInt64(i - 64)) : (i > 59 ? ((hi << UInt64(64 - i)) | (lo >> UInt64(i))) : (lo >> UInt64(i)))
             out.append(alphabet[Int(val & 0x1F)])
         }
         return String(out)

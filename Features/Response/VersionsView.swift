@@ -41,7 +41,9 @@ struct VersionsView: View {
             }
         }
         .task(id: requestID) { await model.runs.loadVersions(projectID, requestID) }
-        .sheet(item: $opened) { SavedResponseSheet(title: t("versions.title", ["n": String($0.id)]), entry: $0.entry, data: $0.body) }
+        .sheet(item: $opened) {
+            SavedResponseSheet(title: t("versions.title", ["n": String($0.id)]), entry: $0.entry, data: $0.body)
+        }
         .sheet(item: $diff) { DiffSheet(content: $0) }
     }
 
@@ -51,7 +53,8 @@ struct VersionsView: View {
         guard pair.count == 2 else { return }
         Task {
             guard let arg = await model.runs.version(projectID, requestID, pair[0]),
-                  let buf = await model.runs.version(projectID, requestID, pair[1]) else { return }
+                let buf = await model.runs.version(projectID, requestID, pair[1])
+            else { return }
             let lines = LineDiff.diff(LineDiff.text(arg.0, body: arg.1), LineDiff.text(buf.0, body: buf.1))
             let changed = lines.contains { $0.kind != .same }
             diff = DiffSheet.Content(from: pair[0], to: pair[1], text: changed ? LineDiff.render(lines) : "")
@@ -75,10 +78,14 @@ struct VersionsView: View {
             } else {
                 Text(i.label.isEmpty ? t("versions.nolabel") : i.label)
                     .foregroundStyle(i.label.isEmpty ? .tertiary : .primary)
-                    .onTapGesture(count: 2) { labelText = i.label; editing = i.version }
+                    .onTapGesture(count: 2) {
+                        labelText = i.label
+                        editing = i.version
+                    }
             }
             Spacer()
-            Text(DisplayFormat.bytes(i.bodySize, locale: Locale(identifier: L10n.shared.code))).foregroundStyle(.secondary)
+            Text(DisplayFormat.bytes(i.bodySize, locale: Locale(identifier: L10n.shared.code))).foregroundStyle(
+                .secondary)
             Button(t("versions.open")) {
                 Task {
                     if let (elem, buf) = await model.runs.version(projectID, requestID, i.version) {
@@ -88,8 +95,10 @@ struct VersionsView: View {
             }
             Button(role: .destructive) {
                 Task { await model.runs.deleteVersion(projectID, requestID, i.version) }
-            } label: { Image(systemName: "trash") }
-                .help(t("versions.delete"))
+            } label: {
+                Image(systemName: "trash")
+            }
+            .help(t("versions.delete"))
         }
         .buttonStyle(.borderless)
     }
@@ -120,10 +129,12 @@ struct SavedResponseSheet: View {
                 Text(elem.request.url).lineLimit(1).truncationMode(.middle)
             }
             .font(fonts.code).textSelection(.enabled)
-            Text(elem.error.isEmpty
-                 ? "\(elem.response.status) \(elem.response.statusText) · \(elem.response.proto) · \(VersionsView.time(elem.savedAt))"
-                 : "\(errorText(code: elem.error)) · \(VersionsView.time(elem.savedAt))")
-                .foregroundStyle(.secondary)
+            Text(
+                elem.error.isEmpty
+                    ? "\(elem.response.status) \(elem.response.statusText) · \(elem.response.proto) · \(VersionsView.time(elem.savedAt))"
+                    : "\(errorText(code: elem.error)) · \(VersionsView.time(elem.savedAt))"
+            )
+            .foregroundStyle(.secondary)
             VSplitView {
                 HeaderTable(rows: elem.response.headers, empty: t("response.headers.none")).frame(minHeight: 80)
                 ScrollView {
@@ -135,7 +146,10 @@ struct SavedResponseSheet: View {
             }
             HStack {
                 if let openRequest {
-                    Button(t("history.openRequest")) { dismiss(); openRequest() }
+                    Button(t("history.openRequest")) {
+                        dismiss()
+                        openRequest()
+                    }
                 }
                 Button(t("curl.copy")) {
                     copyText(Export.curl(entry))
@@ -172,7 +186,10 @@ private struct DiffSheet: View {
             } else {
                 CodeTextView(text: .constant(content.text), lang: .diff, editable: false, font: fonts.codeNSFont)
             }
-            HStack { Spacer(); Button(t("common.close")) { dismiss() }.keyboardShortcut(.cancelAction) }
+            HStack {
+                Spacer()
+                Button(t("common.close")) { dismiss() }.keyboardShortcut(.cancelAction)
+            }
         }
         .padding(16)
         .frame(width: 720, height: 560)

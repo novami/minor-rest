@@ -44,16 +44,20 @@ struct AuthEditor: View {
     }
 
     private var type: Binding<String> {
-        Binding(get: {
-            AuthApply.isInherit(auth) ? (scope == .project ? AuthType.none : AuthType.inherit) : auth.type
-        }, set: { val in
-            auth.type = val
-            if val == AuthType.oauth2 && auth.oauth2 == nil {
-                var opt = OAuth2Auth()
-                (opt.grantType, opt.clientAuth, opt.tokenPlacement, opt.autoRefresh) = (OAuthParams.clientCredentials, "header", "header", true)
-                auth.oauth2 = opt
-            }
-        })
+        Binding(
+            get: {
+                AuthApply.isInherit(auth) ? (scope == .project ? AuthType.none : AuthType.inherit) : auth.type
+            },
+            set: { val in
+                auth.type = val
+                if val == AuthType.oauth2 && auth.oauth2 == nil {
+                    var opt = OAuth2Auth()
+                    (opt.grantType, opt.clientAuth, opt.tokenPlacement, opt.autoRefresh) = (
+                        OAuthParams.clientCredentials, "header", "header", true
+                    )
+                    auth.oauth2 = opt
+                }
+            })
     }
 
     var body: some View {
@@ -79,14 +83,19 @@ struct AuthEditor: View {
     private var fields: some View {
         switch type.wrappedValue {
         case AuthType.inherit:
-            Text(inherited.map { t("auth.inheritFrom", ["type": Self.typeLabel($0.auth.type), "source": $0.source]) } ?? " ")
-                .foregroundStyle(.secondary)
+            Text(
+                inherited.map { t("auth.inheritFrom", ["type": Self.typeLabel($0.auth.type), "source": $0.source]) }
+                    ?? " "
+            )
+            .foregroundStyle(.secondary)
         case AuthType.none:
             Text(t("auth.noneHint")).foregroundStyle(.secondary)
         case AuthType.basic:
             grid {
                 row("auth.username", field(\.basic, BasicAuth(), \.username))
-                row("auth.password", field(\.basic, BasicAuth(), \.password), literal: auth.basic?.password, name: "password")
+                row(
+                    "auth.password", field(\.basic, BasicAuth(), \.password), literal: auth.basic?.password,
+                    name: "password")
             }
         case AuthType.bearer:
             grid {
@@ -99,8 +108,12 @@ struct AuthEditor: View {
                 row("auth.value", field(\.apiKey, APIKeyAuth(), \.value), literal: auth.apiKey?.value, name: "apiKey")
                 GridRow {
                     Text(t("auth.location")).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
-                    Picker("", selection: Binding(get: { auth.apiKey?.location == "query" ? "query" : "header" },
-                                                  set: { val in update(\.apiKey, APIKeyAuth()) { $0.location = val } })) {
+                    Picker(
+                        "",
+                        selection: Binding(
+                            get: { auth.apiKey?.location == "query" ? "query" : "header" },
+                            set: { val in update(\.apiKey, APIKeyAuth()) { $0.location = val } })
+                    ) {
                         Text(t("auth.location.header")).tag("header")
                         Text(t("auth.location.query")).tag("query")
                     }
@@ -112,7 +125,9 @@ struct AuthEditor: View {
         }
     }
 
-    private var oauthGrant: String { auth.oauth2?.grantType.isEmpty == false ? auth.oauth2!.grantType : OAuthParams.clientCredentials }
+    private var oauthGrant: String {
+        auth.oauth2?.grantType.isEmpty == false ? auth.oauth2!.grantType : OAuthParams.clientCredentials
+    }
 
     @ViewBuilder
     private var oauthFields: some View {
@@ -120,16 +135,24 @@ struct AuthEditor: View {
         grid {
             GridRow {
                 Text(t("auth.oauth.grant")).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
-                Picker("", selection: Binding(get: { oauthGrant }, set: { val in update(\.oauth2, OAuth2Auth()) { $0.grantType = val } })) {
+                Picker(
+                    "",
+                    selection: Binding(
+                        get: { oauthGrant }, set: { val in update(\.oauth2, OAuth2Auth()) { $0.grantType = val } })
+                ) {
                     ForEach([OAuthParams.clientCredentials, OAuthParams.password], id: \.self) {
                         Text(t("auth.oauth.grant." + $0)).tag($0)
                     }
                 }
                 .labelsHidden().fixedSize()
             }
-            row("auth.oauth.tokenURL", field(\.oauth2, OAuth2Auth(), \.tokenURL, placeholder: "{{baseUrl}}/oauth/token"))
+            row(
+                "auth.oauth.tokenURL", field(\.oauth2, OAuth2Auth(), \.tokenURL, placeholder: "{{baseUrl}}/oauth/token")
+            )
             row("auth.oauth.clientID", field(\.oauth2, OAuth2Auth(), \.clientID))
-            row("auth.oauth.clientSecret", field(\.oauth2, OAuth2Auth(), \.clientSecret), literal: opt.clientSecret, name: "clientSecret")
+            row(
+                "auth.oauth.clientSecret", field(\.oauth2, OAuth2Auth(), \.clientSecret), literal: opt.clientSecret,
+                name: "clientSecret")
             row("auth.oauth.scope", field(\.oauth2, OAuth2Auth(), \.scope))
             if oauthGrant == OAuthParams.password {
                 row("auth.username", field(\.oauth2, OAuth2Auth(), \.username))
@@ -137,8 +160,12 @@ struct AuthEditor: View {
             }
             GridRow {
                 Text(t("auth.oauth.clientAuth")).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
-                Picker("", selection: Binding(get: { opt.clientAuth == "body" ? "body" : "header" },
-                                              set: { val in update(\.oauth2, OAuth2Auth()) { $0.clientAuth = val } })) {
+                Picker(
+                    "",
+                    selection: Binding(
+                        get: { opt.clientAuth == "body" ? "body" : "header" },
+                        set: { val in update(\.oauth2, OAuth2Auth()) { $0.clientAuth = val } })
+                ) {
                     Text(t("auth.oauth.clientAuth.header")).tag("header")
                     Text(t("auth.oauth.clientAuth.body")).tag("body")
                 }
@@ -146,8 +173,12 @@ struct AuthEditor: View {
             }
             GridRow {
                 Text(t("auth.oauth.placement")).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
-                Picker("", selection: Binding(get: { opt.tokenPlacement == "query" ? "query" : "header" },
-                                              set: { val in update(\.oauth2, OAuth2Auth()) { $0.tokenPlacement = val } })) {
+                Picker(
+                    "",
+                    selection: Binding(
+                        get: { opt.tokenPlacement == "query" ? "query" : "header" },
+                        set: { val in update(\.oauth2, OAuth2Auth()) { $0.tokenPlacement = val } })
+                ) {
                     Text(t("auth.location.header")).tag("header")
                     Text(t("auth.location.query")).tag("query")
                 }
@@ -158,8 +189,11 @@ struct AuthEditor: View {
             }
             GridRow {
                 Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
-                Toggle(t("auth.oauth.autoRefresh"), isOn: Binding(get: { opt.autoRefresh },
-                                                                  set: { val in update(\.oauth2, OAuth2Auth()) { $0.autoRefresh = val } }))
+                Toggle(
+                    t("auth.oauth.autoRefresh"),
+                    isOn: Binding(
+                        get: { opt.autoRefresh },
+                        set: { val in update(\.oauth2, OAuth2Auth()) { $0.autoRefresh = val } }))
             }
         }
         OAuthPanel(auth: opt, projectID: projectID, rel: oauthRel)
@@ -185,11 +219,15 @@ struct AuthEditor: View {
         }
     }
 
-    private func field<A: Equatable>(_ part: WritableKeyPath<Auth, A?>, _ empty: A, _ key: WritableKeyPath<A, String>,
-                                     placeholder: String = "") -> some View {
-        VarField(text: Binding(get: { auth[keyPath: part]?[keyPath: key] ?? "" },
-                               set: { val in update(part, empty) { $0[keyPath: key] = val } }),
-                 placeholder: placeholder, font: fonts.codeNSFont)
+    private func field<A: Equatable>(
+        _ part: WritableKeyPath<Auth, A?>, _ empty: A, _ key: WritableKeyPath<A, String>,
+        placeholder: String = ""
+    ) -> some View {
+        VarField(
+            text: Binding(
+                get: { auth[keyPath: part]?[keyPath: key] ?? "" },
+                set: { val in update(part, empty) { $0[keyPath: key] = val } }),
+            placeholder: placeholder, font: fonts.codeNSFont)
     }
 
     private func update<A>(_ part: WritableKeyPath<Auth, A?>, _ empty: A, _ change: (inout A) -> Void) {
@@ -263,15 +301,25 @@ private struct LiteralWarning: View {
 
     private func uniqueName(_ env: EnvironmentConfig?) -> String {
         let taken = Set(env?.vars.map(\.name) ?? [])
-        var num = suggested, i = 2
-        while taken.contains(num) { num = suggested + "\(i)"; i += 1 }
+        var num = suggested
+        var i = 2
+        while taken.contains(num) {
+            num = suggested + "\(i)"
+            i += 1
+        }
         return num
     }
 
     private func convert(_ env: EnvironmentConfig?) async {
         let num = name.trimmingCharacters(in: .whitespaces)
-        guard Resolver.isValidName(num) else { error = t("auth.convertNameInvalid"); return }
-        guard env?.vars.contains(where: { $0.name == num }) != true else { error = t("auth.convertNameTaken"); return }
+        guard Resolver.isValidName(num) else {
+            error = t("auth.convertNameInvalid")
+            return
+        }
+        guard env?.vars.contains(where: { $0.name == num }) != true else {
+            error = t("auth.convertNameTaken")
+            return
+        }
         busy = true
         defer { busy = false }
         do {
@@ -303,8 +351,10 @@ private struct OAuthPanel: View {
                 Spacer().frame(width: 8)
                 Button(t("auth.oauth.get")) { run { par, opt, cur in _ = try await cur.fetchToken(par, options: opt) } }
                     .disabled(busy)
-                Button(t("auth.oauth.refresh")) { run { par, opt, cur in _ = try await cur.refresh(par, options: opt) } }
-                    .disabled(busy || info?.hasRefresh != true)
+                Button(t("auth.oauth.refresh")) {
+                    run { par, opt, cur in _ = try await cur.refresh(par, options: opt) }
+                }
+                .disabled(busy || info?.hasRefresh != true)
                 Button(t("auth.oauth.clear")) { run { par, _, cur in try await cur.clearToken(par) } }
                     .disabled(busy || info == nil)
                 if busy { ProgressView().controlSize(.small) }
@@ -318,11 +368,15 @@ private struct OAuthPanel: View {
         guard let info else { return t("auth.oauth.state.none") }
         guard let elem = info.expiresAt else { return t("auth.oauth.state.noExpiry") }
         let when = elem.formatted(date: .abbreviated, time: .standard)
-        return info.isExpired() ? t("auth.oauth.state.expired", ["when": when]) : t("auth.oauth.state.valid", ["when": when])
+        return info.isExpired()
+            ? t("auth.oauth.state.expired", ["when": when]) : t("auth.oauth.state.valid", ["when": when])
     }
 
     private func reload() async {
-        guard let (par, _) = try? await model.runs.oauthParams(auth, projectID: projectID, rel: rel) else { info = nil; return }
+        guard let (par, _) = try? await model.runs.oauthParams(auth, projectID: projectID, rel: rel) else {
+            info = nil
+            return
+        }
         info = await model.runs.oauth.tokenInfo(par)
     }
 
