@@ -109,70 +109,73 @@ nonisolated enum Syntax {
         var out: [SyntaxToken] = []
         var i = 0
         let num = str.count
-
-        func starts(_ par: String, at key: Int) -> Bool {
-            let url = Array(par.utf16)
-            guard key + url.count <= num else { return false }
-            return Array(str[key..<key + url.count]) == url
+        /// Úsek od `i` po ukončovací `end` (hledá od `after`) jako jeden token.
+        func add(_ kind: SyntaxToken.Kind, until end: String, after: Int) {
+            let stop = endIndex(str, until: end, after: after)
+            out.append(SyntaxToken(i, stop - i, kind))
+            i = stop
         }
-        /// Konec úseku za ukončovacím `end` (nebo konec textu).
-        func until(_ end: String, from key: Int) -> Int {
-            var j = key
-            while j < num, !starts(end, at: j) { j += 1 }
-            return min(j + end.utf16.count, num)
-        }
-
         while i < num {
             guard str[i] == ch("<") else {
                 i += 1
                 continue
             }
-            if starts("<!--", at: i) {
-                let elem = until("-->", from: i + 4)
-                out.append(SyntaxToken(i, elem - i, .comment))
-                i = elem
-            } else if starts("<![CDATA[", at: i) {
-                let elem = until("]]>", from: i + 9)
-                out.append(SyntaxToken(i, elem - i, .string))
-                i = elem
-            } else if starts("<?", at: i) || starts("<!", at: i) {
-                let elem = until(starts("<?", at: i) ? "?>" : ">", from: i + 2)
-                out.append(SyntaxToken(i, elem - i, .comment))
-                i = elem
+            if starts(str, "<!--", at: i) {
+                add(.comment, until: "-->", after: i + 4)
+            } else if starts(str, "<![CDATA[", at: i) {
+                add(.string, until: "]]>", after: i + 9)
+            } else if starts(str, "<?", at: i) || starts(str, "<!", at: i) {
+                add(.comment, until: starts(str, "<?", at: i) ? "?>" : ">", after: i + 2)
             } else {
-                // <tag, </tag; jméno vč. `:`, `-`, `.`
-                var j = i + 1
-                if j < num, str[j] == ch("/") { j += 1 }
-                let nameStart = j
-                while j < num, isWord(str[j]) || str[j] == ch(":") || str[j] == ch("-") || str[j] == ch(".") { j += 1 }
-                guard j > nameStart else {
-                    i += 1
-                    continue
-                }
-                out.append(SyntaxToken(nameStart, j - nameStart, .keyword))
-                // atributy až do `>`
-                while j < num, str[j] != ch(">"), str[j] != ch("<") {
-                    let cur = str[j]
-                    if cur == ch("\"") || cur == ch("'") {
-                        let start = j
-                        j += 1
-                        while j < num, str[j] != cur { j += 1 }
-                        j = min(j + 1, num)
-                        out.append(SyntaxToken(start, j - start, .string))
-                    } else if isWord(cur) {
-                        let start = j
-                        while j < num, isWord(str[j]) || str[j] == ch(":") || str[j] == ch("-") || str[j] == ch(".") {
-                            j += 1
-                        }
-                        out.append(SyntaxToken(start, j - start, .property))
-                    } else {
-                        j += 1
-                    }
-                }
-                i = j
+                i = markupTag(str, at: i, &out)
             }
         }
         return out
+    }
+
+    private static func starts(_ str: [UInt16], _ par: String, at key: Int) -> Bool {
+        let url = Array(par.utf16)
+        guard key + url.count <= str.count else { return false }
+        return Array(str[key..<key + url.count]) == url
+    }
+
+    /// Index za ukončovacím `end` (hledá od `after`) nebo konec textu.
+    private static func endIndex(_ str: [UInt16], until end: String, after: Int) -> Int {
+        var j = after
+        while j < str.count, !starts(str, end, at: j) { j += 1 }
+        return min(j + end.utf16.count, str.count)
+    }
+
+    private static func isNameChar(_ cur: UInt16) -> Bool {
+        isWord(cur) || cur == ch(":") || cur == ch("-") || cur == ch(".")
+    }
+
+    /// `<tag …>` / `</tag>`: jméno (vč. `:`, `-`, `.`) a atributy až do `>`; vrací nový index.
+    private static func markupTag(_ str: [UInt16], at i: Int, _ out: inout [SyntaxToken]) -> Int {
+        let num = str.count
+        var j = i + 1
+        if j < num, str[j] == ch("/") { j += 1 }
+        let nameStart = j
+        while j < num, isNameChar(str[j]) { j += 1 }
+        guard j > nameStart else { return i + 1 }
+        out.append(SyntaxToken(nameStart, j - nameStart, .keyword))
+        while j < num, str[j] != ch(">"), str[j] != ch("<") {
+            let cur = str[j]
+            if cur == ch("\"") || cur == ch("'") {
+                let start = j
+                j += 1
+                while j < num, str[j] != cur { j += 1 }
+                j = min(j + 1, num)
+                out.append(SyntaxToken(start, j - start, .string))
+            } else if isWord(cur) {
+                let start = j
+                while j < num, isNameChar(str[j]) { j += 1 }
+                out.append(SyntaxToken(start, j - start, .property))
+            } else {
+                j += 1
+            }
+        }
+        return j
     }
 
     // MARK: Markdown
@@ -202,25 +205,30 @@ nonisolated enum Syntax {
             } else if key < elem, str[key] == ch(">") {
                 out.append(SyntaxToken(i, elem - i, .comment))
             } else {
-                var j = key
-                if j + 1 < elem, str[j] == ch("-") || str[j] == ch("*") || str[j] == ch("+"), str[j + 1] == 0x20 {
-                    out.append(SyntaxToken(j, 1, .number))
-                    j += 2
-                } else {
-                    while j < elem, str[j] >= 0x30, str[j] <= 0x39 { j += 1 }
-                    if j > key, j + 1 < elem, str[j] == ch("."), str[j + 1] == 0x20 {
-                        out.append(SyntaxToken(key, j + 1 - key, .number))
-                        j += 2
-                    } else {
-                        j = key
-                    }
-                }
+                let j = markdownListMarker(str, key, elem, &out)
                 inlineMarkdown(str, j, elem, &out)
             }
             i = elem + 1
         }
         if let fn = fence { out.append(SyntaxToken(fn, num - fn, .string)) }
         return out
+    }
+
+    /// Značka seznamu (`- `, `* `, `+ `, `1. `) → number; vrací index, odkud se hledá inline kód.
+    private static func markdownListMarker(
+        _ str: [UInt16], _ key: Int, _ elem: Int, _ out: inout [SyntaxToken]
+    ) -> Int {
+        var j = key
+        if j + 1 < elem, str[j] == ch("-") || str[j] == ch("*") || str[j] == ch("+"), str[j + 1] == 0x20 {
+            out.append(SyntaxToken(j, 1, .number))
+            return j + 2
+        }
+        while j < elem, str[j] >= 0x30, str[j] <= 0x39 { j += 1 }
+        if j > key, j + 1 < elem, str[j] == ch("."), str[j + 1] == 0x20 {
+            out.append(SyntaxToken(key, j + 1 - key, .number))
+            return j + 2
+        }
+        return key
     }
 
     private static func inlineMarkdown(_ str: [UInt16], _ from: Int, _ end: Int, _ out: inout [SyntaxToken]) {

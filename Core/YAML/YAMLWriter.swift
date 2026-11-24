@@ -256,7 +256,7 @@ nonisolated enum YAMLWriter {
 }
 
     /// Příznaky nasbírané průchodem řetězce.
-nonisolated fileprivate struct AnalysisFlags {
+nonisolated private struct AnalysisFlags {
     var blockIndicators: Bool
     var leadingSpace = false
     var leadingBreak = false
