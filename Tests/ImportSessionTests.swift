@@ -5,7 +5,7 @@ import XCTest
 @MainActor
 final class ImportSessionTests: XCTestCase {
     private func fixture(_ name: String) -> URL {
-        URL(fileURLWithPath: #filePath).deletingLastPathComponent().appending(path: "Fixtures/openapi/\(name)")
+        URL(fileURLWithPath: #filePath).deletingLastPathComponent().appending(path: "Fixtures/OpenAPI/\(name)")
     }
 
     func testLoadFileShowsPreview() async throws {

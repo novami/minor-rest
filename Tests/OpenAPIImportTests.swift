@@ -5,7 +5,7 @@ import XCTest
 final class OpenAPIImportTests: XCTestCase {
     private func spec(_ name: String) async throws -> APISpec {
         let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-        let url = dir.appending(path: "Fixtures/openapi/\(name)")
+        let url = dir.appending(path: "Fixtures/OpenAPI/\(name)")
         return try await OpenAPIImport.load(source: url)
     }
 
