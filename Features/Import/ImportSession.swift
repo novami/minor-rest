@@ -14,9 +14,11 @@ final class ImportSession: Identifiable {
     var grouping = ImportOptions.Grouping.tag
     var target = Target.newProject
     var name = ""
-    var location = Workspace.defaultProjectsDirectory
+    var location: URL
     var busy = false
     var error: String?
+
+    init(location: URL = Workspace.defaultProjectsDirectory) { self.location = location }
 
     var options: ImportOptions { ImportOptions(grouping: grouping, otherFolder: t("import.other")) }
     var preview: ImportPreview? { spec.map { OpenAPIImport.preview($0, options: options) } }

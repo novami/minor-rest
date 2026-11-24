@@ -7,6 +7,7 @@ final class SettingsStore {
     var value: AppSettings {
         didSet {
             guard value != oldValue else { return }
+            if value.normalized() != value { value = value.normalized() }
             apply()
             scheduleSave()
         }

@@ -79,6 +79,7 @@ struct NewProjectSheet: View {
         }
         .padding(20)
         .frame(width: 460)
+        .onAppear { location = model.settings.value.general.projectsDirectory }
     }
 
     private func pickLocation() {

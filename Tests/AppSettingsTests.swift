@@ -35,4 +35,13 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(set.requests.timeoutMs, 30_000)
         XCTAssertEqual(set.responses.historyLimit, 200)
     }
+
+    func testProjectsDirectoryAndInvalidProxy() {
+        var set = AppSettings()
+        XCTAssertEqual(set.general.projectsDirectory, Workspace.defaultProjectsDirectory)
+        set.general.projectsDir = "/tmp/projects"
+        XCTAssertEqual(set.general.projectsDirectory.path, "/tmp/projects")
+        set.proxy = .init(mode: "manual", host: "", port: 8080)
+        XCTAssertEqual(set.proxy.value, .system)
+    }
 }

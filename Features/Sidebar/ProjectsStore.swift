@@ -27,7 +27,14 @@ final class ProjectsStore {
     var active: ProjectInfo? { list.first { $0.id == activeID } }
 
     /// Znovu otevře projekty z workspace; nečitelné vynechá (zapíše do logu).
-    func restore() async {
+    func restore(openProjects: Bool = true) async {
+        guard openProjects else {
+            workspace.update {
+                ($0.projects, $0.activeProject, $0.tabs, $0.activeTab) = ([], "", [:], [:])
+            }
+            restored = true
+            return
+        }
         for path in workspace.ws.projects {
             do {
                 try await registry.open(URL(fileURLWithPath: path))

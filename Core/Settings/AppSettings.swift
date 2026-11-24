@@ -9,6 +9,14 @@ nonisolated struct AppSettings: Equatable, Sendable {
         var language = "auto"
         /// `system` | `light` | `dark`
         var theme = "system"
+        /// Výchozí adresář nových projektů; prázdný = `~/Documents/MinorREST`.
+        var projectsDir = ""
+        /// Při startu znovu otevřít projekty a taby.
+        var restoreSession = true
+
+        var projectsDirectory: URL {
+            projectsDir.isEmpty ? Workspace.defaultProjectsDirectory : URL(fileURLWithPath: projectsDir)
+        }
     }
 
     struct Requests: Equatable, Sendable {
@@ -97,6 +105,8 @@ nonisolated extension AppSettings: YAMLCodable {
         var gen = YMap()
         gen.add("language", general.language)
         gen.add("theme", general.theme)
+        gen.add("projectsDir", general.projectsDir)
+        gen.add("restoreSession", general.restoreSession)
         var req = YMap()
         req.add("followRedirects", requests.followRedirects)
         req.add("maxRedirects", requests.maxRedirects)
@@ -139,6 +149,8 @@ nonisolated extension AppSettings.General: YAMLDecodable {
         self.init()
         language = try opt.optionalString("language") ?? language
         theme = try opt.optionalString("theme") ?? theme
+        projectsDir = try opt.optionalString("projectsDir") ?? projectsDir
+        restoreSession = try opt.optionalBool("restoreSession") ?? restoreSession
     }
 }
 

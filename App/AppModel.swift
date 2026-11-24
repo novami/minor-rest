@@ -96,7 +96,7 @@ final class AppModel {
 
     /// Průvodce importem OpenAPI / Swagger; `file` (drop do okna) rovnou načte.
     func startImport(file: URL? = nil) {
-        let session = ImportSession()
+        let session = ImportSession(location: settings.value.general.projectsDirectory)
         importSession = session
         if let file { Task { await session.load(file) } }
     }

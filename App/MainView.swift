@@ -51,7 +51,7 @@ struct MainView: View {
         .font(fonts.ui)
         .frame(minWidth: 900, minHeight: 600)
         .task {
-            await model.projects.restore()
+            await model.projects.restore(openProjects: model.settings.value.general.restoreSession)
             #if DEBUG
                 DebugTools.runIfRequested(model)
             #endif
