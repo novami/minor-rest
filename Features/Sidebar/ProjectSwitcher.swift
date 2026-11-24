@@ -32,6 +32,7 @@ struct ProjectSwitcher: View {
             .disabled(projects.active == nil)
         } label: {
             Text(projects.active.map(title) ?? t("project.none"))
+                .padding(.horizontal, 6)
         }
         .help(projects.active?.path ?? "")
         .sheet(isPresented: $showNew) {
