@@ -1,6 +1,6 @@
 # MinorREST – pokyny pro Claude
 
-REST klient pro macOS 15+ (Apple Silicon) ve Swiftu: SwiftUI + AppKit, logika v SwiftPM balíčku `MinorRESTCore`, HTTP přes URLSession, data v YAML (Yams), tajemství v Keychain. Go/Wails verze je jen v tagu `go-wails-f4` (reference).
+REST klient pro macOS 26+ (Apple Silicon) ve Swiftu: SwiftUI + AppKit, kostra z `novami/minor-swift-starter` (Xcode projekt, `Config/*.xcconfig`), logika v `Core/`, UI v `Features/`, HTTP přes URLSession, data v YAML (Yams), tajemství v Keychain (`MinorKeychain`), aktualizace `MinorUpdater` z `novami/minor-swift-core`. Go/Wails verze je jen v tagu `go-wails-f4` (reference).
 
 ## Na začátku každého sezení (zvlášť po „pokračuj“)
 1. Přečti `docs/PROGRESS.md` – kde se skončilo a co je další krok.
@@ -13,15 +13,16 @@ REST klient pro macOS 15+ (Apple Silicon) ve Swiftu: SwiftUI + AppKit, logika v 
 - Odchylku od `docs/PLAN.md` nejdřív navrhnout uživateli; schválenou změnu zapsat do PLAN.md.
 
 ## Po každém kroku fáze (krok = commit)
-1. `make test` (= `swift test` v `Packages/MinorRESTCore`) a `make build` – jen signál (`tail`/`grep` na `error:`, `Test run … passed`). UI ověř v běžící aplikaci (`make run`, snímky obrazovky); testovací projekty jen ve scratch adresáři a po testu zavřít.
+1. `xcodebuild test -scheme MinorREST -destination 'platform=macOS,arch=arm64'` a `swiftlint lint --strict` – jen signál (`grep` na `error:`, `TEST SUCCEEDED`). UI ověř v běžící aplikaci (snímky obrazovky); testovací projekty jen ve scratch adresáři a po testu zavřít.
 2. Commit jen vlastních souborů (`git commit -- <soubory>`), zpráva česky, malými písmeny, bez AI podpisů.
 3. Aktualizuj `docs/PROGRESS.md`: hash commitu, co je hotovo, **přesný další krok**, poznámky/rozhodnutí/známé problémy. Commitni i PROGRESS.md.
 4. Nikdy `git push` bez výslovného pokynu.
 
 ## Konvence kódu
-- Logika v `MinorRESTCore` (bez SwiftUI/AppKit, testovatelná); `App/` jen views a `@Observable @MainActor` stores. Názvy API dle PLAN.md kap. 11; změnu signatury tam zapiš.
+- Logika v `Core/` (bez SwiftUI/AppKit, `nonisolated`, testovatelná); `Features/` a `App/` jen views a `@Observable @MainActor` stores. Názvy API dle PLAN.md kap. 11; změnu signatury tam zapiš.
 - Swift 6 strict concurrency; modely `struct … : Codable, Sendable, Equatable`, stav sdílený mezi vlákny v `actor` nebo za zámkem.
-- `MinorREST.xcodeproj` se generuje (`make gen`, XcodeGen) – nastavení cíle měnit v `project.yml`, xcodeproj necommitovat.
+- Nastavení buildu jen v `Config/*.xcconfig` (cíl v Xcode nechat prázdný); `MinorREST.xcodeproj` je commitnutý. Žádné další externí závislosti kromě `minor-swift-core` a Yams (výslovná výjimka).
+- Do logů nikdy hlavičky `Authorization`/`Cookie` ani těla; citlivé hodnoty requestů jen v Keychainu (`RequestSecrets`).
 - Jednořádková pole s proměnnými = `VarField` (ne `CodeTextView`). Formátování JSON vždy `JSONFormatter` z jádra, nikdy `JSONSerialization`.
 - Chyby z jádra jako `CoreError` s kódem (`NET_TIMEOUT` …), texty jen v `Localizable.xcstrings` přes `t()` – žádné natvrdo psané UI texty.
 - UTF-8 + NFC všude; názvy souborů ASCII slug, diakritika jen v poli `name`. YAML formát beze změny oproti Go verzi.

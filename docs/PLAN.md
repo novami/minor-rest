@@ -687,3 +687,9 @@ Command palette (Cmd+K: requesty napříč projekty + akce), prázdné stavy, uk
 - **Literály v auth polích** končí v YAML (a tedy v gitu) – řeší jen varování a převod na secret proměnnou.
 - **OAuth2 authorization code:** servery vyžadující přesnou redirect URI → pole `redirectPort`.
 - **Mimo rozsah v1:** skripty, testy/asserty, runner, mock server, WebSocket/GraphQL/gRPC, mTLS, Digest, markdown náhled, folding v editoru.
+
+
+## Změny po migraci (2026-11-24)
+- Nová kostra (starter + minor-swift-core), macOS 26+, Bundle ID `cz.novami.minor.rest`; kap. 10 (vlastní updater, Sparkle, ad-hoc podpis) je nahrazena `MinorUpdater` + Developer ID + notarizace.
+- OAuth2 `authorization_code` odstraněn (žádný lokální listener); zůstávají `client_credentials` a `password` (+ refresh).
+- Kap. 2.8: tajemství requestů (auth pole, `Authorization`/`Proxy-Authorization`/`Cookie`) jsou v Keychainu, v YAML `{{keychain}}`.

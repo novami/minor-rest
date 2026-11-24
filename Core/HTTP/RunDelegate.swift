@@ -46,7 +46,7 @@ nonisolated final class RunDelegate: NSObject, URLSessionDataDelegate, @unchecke
     private let jar: CookieJar?
     private let userCookie: String?
 
-    private nonisolated(unsafe) let protocolClasses: [AnyClass]
+    private let protocolClasses: [AnyClass]
 
     init(
         options: HTTPEngine.Options, payload: Payload, jar: CookieJar? = nil, userCookie: String? = nil,

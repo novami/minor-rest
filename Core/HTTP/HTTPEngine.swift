@@ -18,7 +18,7 @@ actor HTTPEngine {
     private var order: [String] = []
 
     /// Vlastní `URLProtocol` třídy (testy bez sítě); v aplikaci prázdné.
-    private nonisolated(unsafe) let protocolClasses: [AnyClass]
+    private let protocolClasses: [AnyClass]
 
     init(protocolClasses: [AnyClass] = []) {
         self.protocolClasses = protocolClasses

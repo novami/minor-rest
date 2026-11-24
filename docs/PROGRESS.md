@@ -227,3 +227,12 @@ Níže je stav Go verze; popisuje chování, které se má ve Swiftu zachovat (k
 - Audit (2026-11-23): CI v GitHubu zatím neběžel (ověřen jen YAML lokálně) – po pushi zkontrolovat joby a cache. Aplikace není sandboxovaná a bez hardened runtime (ad-hoc podpis, ATS povoleno kvůli REST klientu). Auto-update (Sparkle) stále F12.
 
 - F12 (předsunuto, vlastní updater místo Sparkle): hotové jádro `Updates/` (testy), `UpdateStore`, sekce Aktualizace v Nastavení (výchozí zapnuto), menu, `scripts/release.sh`, `scripts/minorupdate.swift` (sdílený klíč MinorUpdate z Keychainu, kopie z MinorIDE), `docs/RELEASE.md`. **Další krok:** uživatel spustí `swift scripts/minorupdate.swift keygen` (veřejný klíč), vložit do `project.yml` (`MRUpdatePublicKey`), první release a ověřit celý cyklus; UI Nastavení/menu zatím vizuálně neověřeno. `watcherIgnoresSelf` byl jednou flaky (při souběžném buildu).
+
+## Migrace na minor-swift-core (2026-11-24, větev `migrate-to-minor-swift-core`)
+- Kostra ze `novami/minor-swift-starter` (`Config/*.xcconfig`, CI/release na core `@0.1.1`), Bundle ID `cz.novami.minor.rest`, macOS 26+, hardened runtime. Smazáno: XcodeGen/`project.yml`, Makefile, balíček `MinorRESTCore`, vlastní updater a `scripts/`, `docs/RELEASE.md`.
+- Kód: `Core/` (dříve balíček, `nonisolated`), `Features/`, `App/`. Logování `MinorLog`, Keychain `MinorKeychain` (služba `MinorREST` – stávající položky zůstávají), updater `MinorUpdater`.
+- Rozhodnutí uživatele: Yams zůstává (výslovná výjimka); OAuth `authorization_code` (NWListener) vypuštěn; ATS `NSAllowsArbitraryLoads` v `Config/Info.plist`; citlivé hodnoty requestů do Keychainu automaticky.
+- Tajemství: `RequestSecrets` – literály z auth polí (basic heslo, bearer token, API key, client secret, OAuth heslo) a z hlaviček `Authorization`/`Proxy-Authorization`/`Cookie` se při uložení requestu a konfigurace projektu přesunou do Keychainu (`req/<id>/<pole>`, `proj/<id>/<pole>`), v YAML zůstane `{{keychain}}`. Při otevření projektu jednorázová migrace (`Project.migrateSecrets`).
+- Lint: SwiftLint `--strict` se šablonovou konfigurací bez výjimek (přejmenování jednopísmenných identifikátorů, rozdělení složitých funkcí a souborů).
+- Testy: XCTest (`Tests/`): sestavení requestu, HTTP přes `URLProtocol` stub, tajemství mimo YAML. Původní sada (Swift Testing) odstraněna.
+- **Zbývá:** `DEVELOPMENT_TEAM`, repozitářové secrets, první release (podpis, notarizace), ruční ověření UI. Auth/hlavičky v `_folder.yaml` zatím zůstávají v YAML (složky nemají ID); smazání requestu nemaže jeho položky v Keychainu.
