@@ -1,4 +1,4 @@
-// App identity – the only file to edit per app (scripts/rename.sh fills it in).
+// App identity – the only file to edit per app.
 APP_NAME = MinorREST
 APP_BUNDLE_IDENTIFIER = cz.novami.minor.rest
 UPDATE_REPOSITORY = novami/minor-rest

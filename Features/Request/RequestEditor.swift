@@ -4,10 +4,12 @@ import SwiftUI
 /// Auth | Nastavení | Dokumentace; banner, když se request změnil na disku a tab má neuložené změny.
 struct RequestEditor: View {
     @Environment(AppModel.self) private var model
+
+    private var curlMask: Binding<Bool> {
+        Binding(get: { model.settings.value.copy.maskSecrets }, set: { model.settings.value.copy.maskSecrets = $0 })
+    }
     @Environment(\.appFonts) private var fonts
     let tab: RequestTab
-    @AppStorage("curlMultiline") private var curlMultiline = true
-    @AppStorage("curlMask") private var curlMask = false
     @State private var inherited: HTTPSettings?
     @State private var inheritedAuth: InheritedAuth?
     /// Vložený příkaz cURL čekající na volbu (import / ponechat jako URL).
@@ -54,18 +56,13 @@ struct RequestEditor: View {
                     text: urlText, placeholder: t("request.urlPlaceholder"), font: fonts.codeNSFont,
                     focusRequest: tabs.focusURLRequest, onSubmit: send)
                 Menu {
-                    Picker("", selection: $curlMultiline) {
-                        Text(t("curl.multiline")).tag(true)
-                        Text(t("curl.oneline")).tag(false)
-                    }
-                    .pickerStyle(.inline)
-                    Toggle(t("curl.mask"), isOn: $curlMask)
+                    Toggle(t("curl.mask"), isOn: curlMask)
                 } label: {
                     Image(systemName: "doc.on.doc")
                 } primaryAction: {
                     Task {
                         await model.runs.copyCurl(
-                            tab.projectID, tab.rel, tab.draft, multiline: curlMultiline, mask: curlMask)
+                            tab.projectID, tab.rel, tab.draft, mask: model.settings.value.copy.maskSecrets)
                     }
                 }
                 .menuStyle(.button).fixedSize()

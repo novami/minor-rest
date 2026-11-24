@@ -22,6 +22,7 @@ struct ProjectSwitcher: View {
             if !projects.list.isEmpty { Divider() }
             Button(t("project.new")) { showNew = true }
             Button(t("project.open")) { Task { await projects.openDirectory() } }
+            Button(t("menu.importOpenAPI")) { model.startImport() }
             Divider()
             Button(t("project.settings")) { model.openScopeSettings(.project) }
                 .disabled(projects.active == nil)
@@ -31,6 +32,7 @@ struct ProjectSwitcher: View {
             .disabled(projects.active == nil)
         } label: {
             Text(projects.active.map(title) ?? t("project.none"))
+                .padding(.horizontal, 6)
         }
         .help(projects.active?.path ?? "")
         .sheet(isPresented: $showNew) {
@@ -78,6 +80,7 @@ struct NewProjectSheet: View {
         }
         .padding(20)
         .frame(width: 460)
+        .onAppear { location = model.settings.value.general.projectsDirectory }
     }
 
     private func pickLocation() {

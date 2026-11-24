@@ -7,4 +7,4 @@ Formát dle [Keep a Changelog](https://keepachangelog.com/cs/1.1.0/), verze `MAJ
 - macOS 26+, hardened runtime, Bundle ID `cz.novami.minor.rest`.
 - Hesla, tokeny a hodnoty `Authorization`/`Cookie` v requestech jsou v Keychainu; stávající projekty se zmigrují.
 - OAuth2 `authorization_code` odstraněn (žádný lokální listener).
-- Projekt je ve vývoji (viz `docs/PROGRESS.md`); žádné vydání zatím neexistuje.
+- Projekt je ve vývoji; žádné vydání zatím neexistuje.

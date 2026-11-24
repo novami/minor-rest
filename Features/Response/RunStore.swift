@@ -47,19 +47,24 @@ final class RunStore {
     @ObservationIgnored private let toasts: ToastCenter
     @ObservationIgnored private let appDir: URL
     @ObservationIgnored private var jars: [String: CookieJar] = [:]
-    @ObservationIgnored let history: History
+    @ObservationIgnored let settings: SettingsStore
 
-    static let userAgent =
-        "MinorREST/" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0")
+    /// Historie s aktuálním limitem z nastavení.
+    @ObservationIgnored private var history: History {
+        History(dir: appDir.appending(path: "history"), limit: settings.value.responses.historyLimit)
+    }
 
-    init(projects: ProjectsStore, environments: EnvironmentsStore, vars: VarsStore, toasts: ToastCenter, appDir: URL) {
+    init(
+        projects: ProjectsStore, environments: EnvironmentsStore, vars: VarsStore, toasts: ToastCenter,
+        settings: SettingsStore, appDir: URL
+    ) {
         self.projects = projects
         self.environments = environments
         self.vars = vars
         self.toasts = toasts
+        self.settings = settings
         self.appDir = appDir
         oauth = OAuthClient(engine: engine, secrets: Secrets())
-        history = History(dir: appDir.appending(path: "history"))
     }
 
     func jar(_ projectID: String) -> CookieJar {
@@ -80,7 +85,7 @@ final class RunStore {
             runtime: self.vars.runtimeVars(projectID), environment: vars.environment, globals: vars.globals)
         return (
             try Prepare.oauthParams(arg, input),
-            HTTPEngine.Options(project.config.settings.over(.builtin), userAgent: Self.userAgent)
+            settings.options(project: project.config.settings)
         )
     }
 
@@ -121,20 +126,23 @@ final class RunStore {
     private func prepare(_ projectID: String, _ rel: String, _ draft: Request) async throws -> Prepared {
         let project = try await projects.project(projectID)
         let vars = try await environments.varsForSend(projectID)
-        return try await Prepare.prepare(
+        var prepared = try await Prepare.prepare(
             PrepareInput(
                 request: draft, project: project.config, folders: try project.folderChain(rel),
                 runtime: self.vars.runtimeVars(projectID), environment: vars.environment, globals: vars.globals,
-                baseDir: project.root.path, userAgent: Self.userAgent, oauth: oauth))
+                defaults: settings.value.requests.http, baseDir: project.root.path, userAgent: settings.userAgent,
+                oauth: oauth))
+        prepared.options.maxBodyBytes = settings.value.responses.maxBodyBytes
+        return prepared
     }
 
     /// cURL requestu do schránky; chyba přípravy = toast.
-    func copyCurl(_ projectID: String, _ rel: String, _ draft: Request, multiline: Bool, mask: Bool) async {
+    func copyCurl(_ projectID: String, _ rel: String, _ draft: Request, mask: Bool) async {
         do {
             let par = try await prepare(projectID, rel, draft)
             copyText(
-                Export.curl(par.request, options: par.options, multiline: multiline, mask: mask, secrets: par.secrets))
-            toasts.show(t("curl.copied"))
+                Export.curl(par.request, options: par.options, multiline: true, mask: mask, secrets: par.secrets))
+            toasts.show(t(mask ? "curl.copiedMasked" : "curl.copied"))
         } catch {
             toasts.show(errorText(error), isError: true)
         }

@@ -19,8 +19,9 @@ Jednoduchý a přehledný REST klient pro macOS (Apple Silicon), napsaný ve Swi
 ```bash
 xcodebuild test -scheme MinorREST -destination 'platform=macOS,arch=arm64'
 swiftlint lint --strict
+python3 Scripts/check-i18n.py
 ```
-Debug build je podepsaný „to run locally“ (bez certifikátu), updater je v něm vypnutý. Struktura projektu: [CONTRIBUTING.md](CONTRIBUTING.md).
+Debug build je podepsaný „to run locally“ (bez certifikátu), updater je v něm vypnutý. Struktura a pravidla: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Citlivá data
 Tajné proměnné, hesla, tokeny, API klíče a hodnoty `Authorization` / `Cookie` v requestech se ukládají do macOS Keychain (služba `MinorREST`); v YAML souborech zůstává jen značka `{{keychain}}`. Stávající projekty se při otevření automaticky zmigrují. Do logů se hlavičky ani těla nezapisují.
@@ -30,7 +31,7 @@ Developer ID + notarizace, aktualizace z GitHub Releases (`MinorUpdater`; ověř
 
 **Release workflow bez repozitářových secrets selže:** `DEVELOPER_ID_P12`, `DEVELOPER_ID_P12_PASSWORD`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (lint a testy fungují i bez nich). Do `Config/App.xcconfig` je třeba doplnit `DEVELOPMENT_TEAM`.
 
-Stav: ve vývoji – viz [docs/PLAN.md](docs/PLAN.md) a [docs/PROGRESS.md](docs/PROGRESS.md).
+Stav: ve vývoji, první vydání zatím neexistuje (viz [CHANGELOG](CHANGELOG.md)).
 
 ## Licence
 

@@ -27,7 +27,14 @@ final class ProjectsStore {
     var active: ProjectInfo? { list.first { $0.id == activeID } }
 
     /// Znovu otevře projekty z workspace; nečitelné vynechá (zapíše do logu).
-    func restore() async {
+    func restore(openProjects: Bool = true) async {
+        guard openProjects else {
+            workspace.update {
+                ($0.projects, $0.activeProject, $0.tabs, $0.activeTab) = ([], "", [:], [:])
+            }
+            restored = true
+            return
+        }
         for path in workspace.ws.projects {
             do {
                 try await registry.open(URL(fileURLWithPath: path))
@@ -49,6 +56,18 @@ final class ProjectsStore {
         do {
             let project = try Project.create(name: name, in: parentDir)
             await registry.add(project)
+            await sync(activate: project.info.id)
+            return true
+        } catch {
+            toasts.show(errorText(error), isError: true, seconds: 5)
+            return false
+        }
+    }
+
+    /// Přidá existující adresář projektu (např. právě naimportovaný) a aktivuje ho.
+    func adopt(_ dir: URL) async -> Bool {
+        do {
+            let project = try await registry.open(dir)
             await sync(activate: project.info.id)
             return true
         } catch {

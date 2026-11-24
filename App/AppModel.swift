@@ -7,6 +7,7 @@ import SwiftUI
 final class AppModel {
     let toasts = ToastCenter()
     let workspace = WorkspaceStore()
+    let settings: SettingsStore
     let projects: ProjectsStore
     let tree: TreeStore
     let tabs: TabsStore
@@ -16,15 +17,17 @@ final class AppModel {
     let updater = Updater()
     var showEnvironments = false
     var scopeSettings: ScopeTarget?
+    var importSession: ImportSession?
 
     init() {
+        settings = SettingsStore(directory: workspace.directory)
         projects = ProjectsStore(workspace: workspace, toasts: toasts)
         tree = TreeStore(workspace: workspace, projects: projects, toasts: toasts)
         tabs = TabsStore(workspace: workspace, projects: projects, toasts: toasts)
         environments = EnvironmentsStore(workspace: workspace, projects: projects, toasts: toasts)
         vars = VarsStore(projects: projects, tabs: tabs, environments: environments)
         runs = RunStore(
-            projects: projects, environments: environments, vars: vars, toasts: toasts,
+            projects: projects, environments: environments, vars: vars, toasts: toasts, settings: settings,
             appDir: workspace.directory)
         projects.onDiskChange = { [tree, tabs, environments, vars] id, rels in
             tree.diskChanged(id)
@@ -40,10 +43,8 @@ final class AppModel {
                 guard let project = try? await projects.project(pid), let req = try? project.loadRequest(rel) else {
                     return
                 }
-                let dat = UserDefaults.standard
-                await runs.copyCurl(
-                    pid, rel, req, multiline: dat.object(forKey: "curlMultiline") as? Bool ?? true,
-                    mask: dat.bool(forKey: "curlMask"))
+                let copy = settings.value.copy
+                await runs.copyCurl(pid, rel, req, mask: copy.maskSecrets)
             }
         }
         tree.onOpen = { [tabs] rel in await tabs.open(rel) }
@@ -91,6 +92,13 @@ final class AppModel {
     /// Nastavení složky / projektu; bez aktivního projektu nic.
     func openScopeSettings(_ target: ScopeTarget) {
         if projects.active != nil { scopeSettings = target }
+    }
+
+    /// Průvodce importem OpenAPI / Swagger; `file` (drop do okna) rovnou načte.
+    func startImport(file: URL? = nil) {
+        let session = ImportSession(location: settings.value.general.projectsDirectory)
+        importSession = session
+        if let file { Task { await session.load(file) } }
     }
 
     /// Dočasně pro akce menu, které ještě nejsou implementované.

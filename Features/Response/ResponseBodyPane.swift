@@ -124,7 +124,7 @@ struct ResponseBodyPane<Bar: View>: View {
     }
 
     /// Pretty se spouští automaticky jen do `BodyView.autoPretty`.
-    private var autoPretty: Bool { (run.body?.size ?? 0) <= BodyView.autoPretty }
+    private var autoPretty: Bool { (run.body?.size ?? 0) <= model.settings.value.responses.autoPrettyBytes }
 
     @ViewBuilder private func notice(_ mode: BodyMode) -> some View {
         if let buf = run.body, buf.partial {
