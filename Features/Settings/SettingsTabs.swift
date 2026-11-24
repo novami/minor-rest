@@ -56,7 +56,6 @@ struct RequestsSettingsTab: View {
                 NumberField(t("settings.maxRedirects"), value: $store.value.requests.maxRedirects)
                     .disabled(!store.value.requests.followRedirects)
                 NumberField(t("settings.timeout"), value: timeoutSeconds)
-                Toggle(t("settings.verifyTLS"), isOn: $store.value.requests.verifyTLS)
                 Toggle(t("settings.cookieJar"), isOn: $store.value.requests.cookieJar)
                 TextField(t("settings.userAgent"), text: $store.value.requests.userAgent, prompt: Text(store.userAgent))
             } header: {
@@ -64,10 +63,38 @@ struct RequestsSettingsTab: View {
             } footer: {
                 Text(t("settings.requestsHint"))
             }
-            Section(t("settings.section.responses")) {
+            Section {
+                Toggle(t("settings.verifyTLS"), isOn: $store.value.requests.verifyTLS)
+            } header: {
+                Text(t("settings.section.advanced"))
+            } footer: {
+                Text(t("settings.verifyTLS.hint"))
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+struct ResponsesSettingsTab: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var store = model.settings
+        Form {
+            Section {
                 NumberField(t("settings.maxBody"), value: $store.value.responses.maxBodyMB)
+            } footer: {
+                Text(t("settings.maxBody.hint"))
+            }
+            Section {
                 NumberField(t("settings.historyLimit"), value: $store.value.responses.historyLimit)
+            } footer: {
+                Text(t("settings.historyLimit.hint"))
+            }
+            Section {
                 NumberField(t("settings.autoPretty"), value: $store.value.responses.autoPrettyMB)
+            } footer: {
+                Text(t("settings.autoPretty.hint"))
             }
         }
         .formStyle(.grouped)

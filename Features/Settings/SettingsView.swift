@@ -1,7 +1,7 @@
 import MinorUpdater
 import SwiftUI
 
-/// Okno Nastavení (Cmd+,): záložky Obecné, Requesty (vč. odpovědí), Aktualizace.
+/// Okno Nastavení (Cmd+,): záložky Obecné, Requesty, Odpovědi, Aktualizace.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
 
@@ -9,6 +9,7 @@ struct SettingsView: View {
         TabView {
             GeneralSettingsTab().tabItem { Label(t("settings.tab.general"), systemImage: "gearshape") }
             RequestsSettingsTab().tabItem { Label(t("settings.tab.requests"), systemImage: "arrow.up.arrow.down") }
+            ResponsesSettingsTab().tabItem { Label(t("settings.tab.responses"), systemImage: "doc.text") }
             updatesTab.tabItem { Label(t("updates.section"), systemImage: "arrow.triangle.2.circlepath") }
         }
         .frame(width: 560, height: 480)

@@ -3452,6 +3452,74 @@
         }
       }
     },
+    "settings.autoPretty.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Odpověď do této velikosti se zformátuje sama, větší až na vyžádání. 0 = vždy ručně."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A response up to this size is formatted automatically, a larger one only on request. 0 = always manual."
+          }
+        }
+      }
+    },
+    "settings.historyLimit.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Počet uložených odeslání na projekt; nejstarší se po překročení smažou."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Number of stored sends per project; the oldest are deleted once exceeded."
+          }
+        }
+      }
+    },
+    "settings.maxBody.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Větší odpověď se při stahování ořízne na tuto velikost."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A larger response is truncated to this size when downloaded."
+          }
+        }
+      }
+    },
+    "settings.section.advanced": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pokročilé"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Advanced"
+          }
+        }
+      }
+    },
     "settings.section.requests": {
       "extractionState": "manual",
       "localizations": {
@@ -3469,7 +3537,7 @@
         }
       }
     },
-    "settings.section.responses": {
+    "settings.tab.responses": {
       "extractionState": "manual",
       "localizations": {
         "cs": {
@@ -3482,6 +3550,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Responses"
+          }
+        }
+      }
+    },
+    "settings.verifyTLS.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vypnutím přestane aplikace ověřovat certifikát serveru – hodí se jen pro vlastní testovací servery, jinak je spojení nezabezpečené."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turning this off stops the app from verifying the server certificate – use it only for your own test servers, otherwise the connection is insecure."
           }
         }
       }
