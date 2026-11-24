@@ -885,6 +885,40 @@
         }
       }
     },
+    "curl.copiedMasked": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cURL zkopírován – před spuštěním nahraďte *** skutečnými hodnotami"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cURL copied – replace *** with the real values before running it"
+          }
+        }
+      }
+    },
+    "curl.maskHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tajné hodnoty se v cURL nahradí „***“. Před spuštěním příkazu je nahraďte skutečnými hodnotami."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secret values are replaced with “***” in the cURL command. Replace them with the real values before running it."
+          }
+        }
+      }
+    },
     "env.manage": {
       "extractionState": "manual",
       "localizations": {
@@ -3418,6 +3452,40 @@
         }
       }
     },
+    "settings.section.requests": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requesty"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requests"
+          }
+        }
+      }
+    },
+    "settings.section.responses": {
+      "extractionState": "manual",
+      "localizations": {
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Odpovědi"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Responses"
+          }
+        }
+      }
+    },
     "versions.save": {
       "extractionState": "manual",
       "localizations": {
@@ -3724,53 +3792,19 @@
         }
       }
     },
-    "curl.multiline": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cURL – víceřádkový"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cURL – multi-line"
-          }
-        }
-      }
-    },
-    "curl.oneline": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cURL – jeden řádek"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cURL – single line"
-          }
-        }
-      }
-    },
     "curl.mask": {
       "extractionState": "manual",
       "localizations": {
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Maskovat tajné hodnoty"
+            "value": "Při kopírování maskovat tajné hodnoty"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mask secret values"
+            "value": "Mask secret values when copying"
           }
         }
       }
@@ -4291,13 +4325,13 @@
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Max. přesměrování"
+            "value": "Maximální počet přesměrování"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Max redirects"
+            "value": "Maximum number of redirects"
           }
         }
       }
@@ -7294,57 +7328,6 @@
         }
       }
     },
-    "settings.tab.proxy": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Proxy"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Proxy"
-          }
-        }
-      }
-    },
-    "settings.tab.responses": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Odpovědi"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Responses"
-          }
-        }
-      }
-    },
-    "settings.tab.copy": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kopírování"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Copy"
-          }
-        }
-      }
-    },
     "settings.language": {
       "extractionState": "manual",
       "localizations": {
@@ -7375,74 +7358,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Automatic (system)"
-          }
-        }
-      }
-    },
-    "settings.theme": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Téma"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Theme"
-          }
-        }
-      }
-    },
-    "settings.theme.system": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Systém"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "System"
-          }
-        }
-      }
-    },
-    "settings.theme.light": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Světlé"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Light"
-          }
-        }
-      }
-    },
-    "settings.theme.dark": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tmavé"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dark"
           }
         }
       }
@@ -7504,13 +7419,13 @@
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Timeout (ms, 0 = bez limitu)"
+            "value": "Timeout (s, 0 = bez limitu)"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Timeout (ms, 0 = no limit)"
+            "value": "Timeout (s, 0 = no limit)"
           }
         }
       }
@@ -7583,108 +7498,6 @@
         }
       }
     },
-    "settings.proxy.mode": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Režim"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mode"
-          }
-        }
-      }
-    },
-    "settings.proxy.system": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Systémová"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "System"
-          }
-        }
-      }
-    },
-    "settings.proxy.none": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Žádná"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "None"
-          }
-        }
-      }
-    },
-    "settings.proxy.manual": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ruční"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Manual"
-          }
-        }
-      }
-    },
-    "settings.proxy.host": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Server"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Host"
-          }
-        }
-      }
-    },
-    "settings.proxy.port": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Port"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Port"
-          }
-        }
-      }
-    },
     "settings.maxBody": {
       "extractionState": "manual",
       "localizations": {
@@ -7725,30 +7538,13 @@
         "cs": {
           "stringUnit": {
             "state": "translated",
-            "value": "Automatický Pretty do (MB)"
+            "value": "Automatické formátování do velikosti (MB) – lepší čitelnost"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Auto Pretty up to (MB)"
-          }
-        }
-      }
-    },
-    "settings.copyFormat": {
-      "extractionState": "manual",
-      "localizations": {
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Formát cURL"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "cURL format"
+            "value": "Auto-format up to size (MB) – better readability"
           }
         }
       }

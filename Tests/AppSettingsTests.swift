@@ -15,12 +15,10 @@ final class AppSettingsTests: XCTestCase {
         var set = AppSettings()
         set.general.language = "en"
         set.requests.timeoutMs = 5_000
-        set.proxy = .init(mode: "manual", host: "proxy.local", port: 3128)
         set.responses.historyLimit = 50
         set.copy.maskSecrets = true
         try set.save(to: dir)
         XCTAssertEqual(try AppSettings.load(from: dir), set)
-        XCTAssertEqual(set.proxy.value, .manual(host: "proxy.local", port: 3128))
         XCTAssertEqual(set.requests.http.timeoutMs, 5_000)
     }
 
@@ -36,12 +34,10 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(set.responses.historyLimit, 200)
     }
 
-    func testProjectsDirectoryAndInvalidProxy() {
+    func testProjectsDirectory() {
         var set = AppSettings()
         XCTAssertEqual(set.general.projectsDirectory, Workspace.defaultProjectsDirectory)
         set.general.projectsDir = "/tmp/projects"
         XCTAssertEqual(set.general.projectsDirectory.path, "/tmp/projects")
-        set.proxy = .init(mode: "manual", host: "", port: 8080)
-        XCTAssertEqual(set.proxy.value, .system)
     }
 }

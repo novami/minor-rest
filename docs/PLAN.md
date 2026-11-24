@@ -328,7 +328,7 @@ Pravidla cURL:
 - `-H 'Name: value'` pro uživatelské/zděděné/auth hlavičky a automatický `Content-Type`; nevypisovat automatické `User-Agent`, `Accept`, `Host`, `Content-Length`. Vždy `--compressed` (URLSession dekomprimuje vždy).
 - Tělo: raw → `--data-raw '…'`; form → `--data-urlencode 'name=value'` za každé pole; multipart → `-F 'name=value'` / `-F 'name=@/abs/cesta;type=…'`; binary → `--data-binary '@/abs/cesta'`.
 - Volby: `-L --max-redirs N` pokud follow; `-k` pokud verifyTls=false; `--max-time <s>`.
-- Přepínač „Maskovat tajné hodnoty“ (výchozí vypnuto) – pravidla 2.8.
+- cURL se kopíruje vždy víceřádkový. Přepínač „Při kopírování maskovat tajné hodnoty“ (výchozí vypnuto, pravidla 2.8); při zapnutí hláška/poznámka, že `***` je před spuštěním nutné nahradit skutečnou hodnotou.
 
 Testy: parametrizované („golden“) – diakritika (`Příliš žluťoučký kůň úpěl ďábelské ódy`), apostrof, `$HOME`, `!`, zpětné lomítko, víceřádkový JSON, multipart se souborem, HEAD, všechny volby.
 
@@ -427,12 +427,9 @@ Jen lokálně: Escape zavřít popover/sheet, F2 přejmenovat ve stromu, Enter v
 - Menu i `Info.plist` texty lokalizované stejným mechanismem; přepnutí jazyka za běhu překreslí UI i menu.
 
 ## 9. Nastavení aplikace (`settings.yaml`, okno Cmd+,)
-- **Obecné:** jazyk, téma, výchozí adresář projektů, obnovit projekty a taby při startu.
+- **Obecné:** jazyk, výchozí adresář projektů, obnovit projekty a taby při startu, při kopírování maskovat tajné hodnoty. Téma vždy dle systému (bez volby).
 - **Vzhled:** font UI a kódu (Automaticky dle displeje / vlastní), velikost, poloha panelu odpovědi.
-- **Requesty (výchozí):** redirecty + max, timeout, ověřování TLS, User-Agent, cookie jar.
-- **Proxy:** systémová (výchozí) / žádná / ruční.
-- **Odpovědi:** max velikost těla, délka historie, práh automatického Pretty.
-- **Kopírování:** výchozí formát, maskovat tajné hodnoty.
+- **Requesty (výchozí):** redirecty + max, timeout (v sekundách, uložený jako `timeoutMs`), ověřování TLS, User-Agent, cookie jar; sekce Odpovědi: max velikost těla, délka historie, práh automatického formátování. Proxy je vždy systémová (bez nastavení).
 - **Aktualizace:** automaticky kontrolovat a stahovat (výchozí **zapnuto**), „Zkontrolovat nyní“, aktuální verze.
 Změny se projeví ihned bez restartu. Priorita HTTP nastavení: request → projekt → globální.
 

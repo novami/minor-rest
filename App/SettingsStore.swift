@@ -42,19 +42,13 @@ final class SettingsStore {
     /// Nastavení odeslání z globálních výchozích a nastavení projektu (request → projekt → globální).
     func options(project: HTTPSettings) -> HTTPEngine.Options {
         var opts = HTTPEngine.Options(project.over(value.requests.http), userAgent: userAgent)
-        opts.proxy = value.proxy.value
         opts.maxBodyBytes = value.responses.maxBodyBytes
         return opts
     }
 
-    /// Jazyk a téma se projeví okamžitě.
+    /// Jazyk se projeví okamžitě.
     private func apply() {
         L10n.shared.language = AppLanguage(rawValue: value.general.language) ?? .auto
-        switch value.general.theme {
-        case "light": NSApplication.shared.appearance = NSAppearance(named: .aqua)
-        case "dark": NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
-        default: NSApplication.shared.appearance = nil
-        }
     }
 
     private func scheduleSave() {

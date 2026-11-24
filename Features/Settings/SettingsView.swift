@@ -1,7 +1,7 @@
 import MinorUpdater
 import SwiftUI
 
-/// Okno Nastavení (Cmd+,): záložky Obecné, Requesty, Proxy, Odpovědi, Kopírování, Aktualizace.
+/// Okno Nastavení (Cmd+,): záložky Obecné, Requesty (vč. odpovědí), Aktualizace.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
 
@@ -9,12 +9,9 @@ struct SettingsView: View {
         TabView {
             GeneralSettingsTab().tabItem { Label(t("settings.tab.general"), systemImage: "gearshape") }
             RequestsSettingsTab().tabItem { Label(t("settings.tab.requests"), systemImage: "arrow.up.arrow.down") }
-            ProxySettingsTab().tabItem { Label(t("settings.tab.proxy"), systemImage: "network") }
-            ResponsesSettingsTab().tabItem { Label(t("settings.tab.responses"), systemImage: "doc.text") }
-            CopySettingsTab().tabItem { Label(t("settings.tab.copy"), systemImage: "doc.on.doc") }
             updatesTab.tabItem { Label(t("updates.section"), systemImage: "arrow.triangle.2.circlepath") }
         }
-        .frame(width: 560, height: 340)
+        .frame(width: 560, height: 480)
         .navigationTitle(t("settings.title"))
     }
 

@@ -132,18 +132,17 @@ final class RunStore {
                 runtime: self.vars.runtimeVars(projectID), environment: vars.environment, globals: vars.globals,
                 defaults: settings.value.requests.http, baseDir: project.root.path, userAgent: settings.userAgent,
                 oauth: oauth))
-        prepared.options.proxy = settings.value.proxy.value
         prepared.options.maxBodyBytes = settings.value.responses.maxBodyBytes
         return prepared
     }
 
     /// cURL requestu do schránky; chyba přípravy = toast.
-    func copyCurl(_ projectID: String, _ rel: String, _ draft: Request, multiline: Bool, mask: Bool) async {
+    func copyCurl(_ projectID: String, _ rel: String, _ draft: Request, mask: Bool) async {
         do {
             let par = try await prepare(projectID, rel, draft)
             copyText(
-                Export.curl(par.request, options: par.options, multiline: multiline, mask: mask, secrets: par.secrets))
-            toasts.show(t("curl.copied"))
+                Export.curl(par.request, options: par.options, multiline: true, mask: mask, secrets: par.secrets))
+            toasts.show(t(mask ? "curl.copiedMasked" : "curl.copied"))
         } catch {
             toasts.show(errorText(error), isError: true)
         }

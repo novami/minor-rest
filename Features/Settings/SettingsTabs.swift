@@ -13,11 +13,6 @@ struct GeneralSettingsTab: View {
                 Text("Čeština").tag("cs")
                 Text("English").tag("en")
             }
-            Picker(t("settings.theme"), selection: $store.value.general.theme) {
-                Text(t("settings.theme.system")).tag("system")
-                Text(t("settings.theme.light")).tag("light")
-                Text(t("settings.theme.dark")).tag("dark")
-            }
             LabeledContent(t("settings.projectsDir")) {
                 HStack {
                     Text(store.value.general.projectsDirectory.path(percentEncoded: false))
@@ -28,6 +23,11 @@ struct GeneralSettingsTab: View {
                 }
             }
             Toggle(t("settings.restore"), isOn: $store.value.general.restoreSession)
+            Section {
+                Toggle(t("curl.mask"), isOn: $store.value.copy.maskSecrets)
+            } footer: {
+                Text(t("curl.maskHint"))
+            }
         }
         .formStyle(.grouped)
     }
@@ -47,65 +47,28 @@ struct RequestsSettingsTab: View {
 
     var body: some View {
         @Bindable var store = model.settings
+        let timeoutSeconds = Binding(
+            get: { store.value.requests.timeoutMs / 1000 },
+            set: { store.value.requests.timeoutMs = max(0, $0) * 1000 })
         Form {
-            Toggle(t("settings.followRedirects"), isOn: $store.value.requests.followRedirects)
-            NumberField(t("settings.maxRedirects"), value: $store.value.requests.maxRedirects)
-                .disabled(!store.value.requests.followRedirects)
-            NumberField(t("settings.timeout"), value: $store.value.requests.timeoutMs)
-            Toggle(t("settings.verifyTLS"), isOn: $store.value.requests.verifyTLS)
-            Toggle(t("settings.cookieJar"), isOn: $store.value.requests.cookieJar)
-            TextField(t("settings.userAgent"), text: $store.value.requests.userAgent, prompt: Text(store.userAgent))
-            Text(t("settings.requestsHint")).font(.callout).foregroundStyle(.secondary)
-        }
-        .formStyle(.grouped)
-    }
-}
-
-struct ProxySettingsTab: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        @Bindable var store = model.settings
-        Form {
-            Picker(t("settings.proxy.mode"), selection: $store.value.proxy.mode) {
-                Text(t("settings.proxy.system")).tag("system")
-                Text(t("settings.proxy.none")).tag("none")
-                Text(t("settings.proxy.manual")).tag("manual")
+            Section {
+                Toggle(t("settings.followRedirects"), isOn: $store.value.requests.followRedirects)
+                NumberField(t("settings.maxRedirects"), value: $store.value.requests.maxRedirects)
+                    .disabled(!store.value.requests.followRedirects)
+                NumberField(t("settings.timeout"), value: timeoutSeconds)
+                Toggle(t("settings.verifyTLS"), isOn: $store.value.requests.verifyTLS)
+                Toggle(t("settings.cookieJar"), isOn: $store.value.requests.cookieJar)
+                TextField(t("settings.userAgent"), text: $store.value.requests.userAgent, prompt: Text(store.userAgent))
+            } header: {
+                Text(t("settings.section.requests"))
+            } footer: {
+                Text(t("settings.requestsHint"))
             }
-            if store.value.proxy.mode == "manual" {
-                TextField(t("settings.proxy.host"), text: $store.value.proxy.host)
-                NumberField(t("settings.proxy.port"), value: $store.value.proxy.port)
+            Section(t("settings.section.responses")) {
+                NumberField(t("settings.maxBody"), value: $store.value.responses.maxBodyMB)
+                NumberField(t("settings.historyLimit"), value: $store.value.responses.historyLimit)
+                NumberField(t("settings.autoPretty"), value: $store.value.responses.autoPrettyMB)
             }
-        }
-        .formStyle(.grouped)
-    }
-}
-
-struct ResponsesSettingsTab: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        @Bindable var store = model.settings
-        Form {
-            NumberField(t("settings.maxBody"), value: $store.value.responses.maxBodyMB)
-            NumberField(t("settings.historyLimit"), value: $store.value.responses.historyLimit)
-            NumberField(t("settings.autoPretty"), value: $store.value.responses.autoPrettyMB)
-        }
-        .formStyle(.grouped)
-    }
-}
-
-struct CopySettingsTab: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        @Bindable var store = model.settings
-        Form {
-            Picker(t("settings.copyFormat"), selection: $store.value.copy.multiline) {
-                Text(t("curl.multiline")).tag(true)
-                Text(t("curl.oneline")).tag(false)
-            }
-            Toggle(t("curl.mask"), isOn: $store.value.copy.maskSecrets)
         }
         .formStyle(.grouped)
     }

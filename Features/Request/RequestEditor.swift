@@ -5,10 +5,6 @@ import SwiftUI
 struct RequestEditor: View {
     @Environment(AppModel.self) private var model
 
-    private var curlMultiline: Binding<Bool> {
-        Binding(get: { model.settings.value.copy.multiline }, set: { model.settings.value.copy.multiline = $0 })
-    }
-
     private var curlMask: Binding<Bool> {
         Binding(get: { model.settings.value.copy.maskSecrets }, set: { model.settings.value.copy.maskSecrets = $0 })
     }
@@ -60,19 +56,13 @@ struct RequestEditor: View {
                     text: urlText, placeholder: t("request.urlPlaceholder"), font: fonts.codeNSFont,
                     focusRequest: tabs.focusURLRequest, onSubmit: send)
                 Menu {
-                    Picker("", selection: curlMultiline) {
-                        Text(t("curl.multiline")).tag(true)
-                        Text(t("curl.oneline")).tag(false)
-                    }
-                    .pickerStyle(.inline)
                     Toggle(t("curl.mask"), isOn: curlMask)
                 } label: {
                     Image(systemName: "doc.on.doc")
                 } primaryAction: {
                     Task {
                         await model.runs.copyCurl(
-                            tab.projectID, tab.rel, tab.draft, multiline: model.settings.value.copy.multiline,
-                            mask: model.settings.value.copy.maskSecrets)
+                            tab.projectID, tab.rel, tab.draft, mask: model.settings.value.copy.maskSecrets)
                     }
                 }
                 .menuStyle(.button).fixedSize()

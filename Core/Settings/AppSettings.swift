@@ -7,8 +7,6 @@ nonisolated struct AppSettings: Equatable, Sendable {
     struct General: Equatable, Sendable {
         /// `auto` | `cs` | `en`
         var language = "auto"
-        /// `system` | `light` | `dark`
-        var theme = "system"
         /// Výchozí adresář nových projektů; prázdný = `~/Documents/MinorREST`.
         var projectsDir = ""
         /// Při startu znovu otevřít projekty a taby.
@@ -36,21 +34,6 @@ nonisolated struct AppSettings: Equatable, Sendable {
         }
     }
 
-    struct Proxy: Equatable, Sendable {
-        /// `system` | `none` | `manual`
-        var mode = "system"
-        var host = ""
-        var port = 8080
-
-        var value: HTTPEngine.Proxy {
-            switch mode {
-            case "none": .none
-            case "manual" where !host.isEmpty && (1...65535).contains(port): .manual(host: host, port: port)
-            default: .system
-            }
-        }
-    }
-
     struct Responses: Equatable, Sendable {
         /// Největší stažené tělo (MB); větší se ořízne.
         var maxBodyMB = 100
@@ -63,13 +46,12 @@ nonisolated struct AppSettings: Equatable, Sendable {
     }
 
     struct Copy: Equatable, Sendable {
-        var multiline = true
+        /// Při kopírování cURL nahradit tajné hodnoty `***`.
         var maskSecrets = false
     }
 
     var general = General()
     var requests = Requests()
-    var proxy = Proxy()
     var responses = Responses()
     var copy = Copy()
 
@@ -89,10 +71,8 @@ nonisolated struct AppSettings: Equatable, Sendable {
         var par = self
         let def = AppSettings()
         if !["auto", "cs", "en"].contains(par.general.language) { par.general.language = def.general.language }
-        if !["system", "light", "dark"].contains(par.general.theme) { par.general.theme = def.general.theme }
         if par.requests.maxRedirects < 0 { par.requests.maxRedirects = def.requests.maxRedirects }
         if par.requests.timeoutMs < 0 { par.requests.timeoutMs = def.requests.timeoutMs }
-        if !["system", "none", "manual"].contains(par.proxy.mode) { par.proxy.mode = def.proxy.mode }
         if par.responses.maxBodyMB < 1 { par.responses.maxBodyMB = def.responses.maxBodyMB }
         if par.responses.historyLimit < 1 { par.responses.historyLimit = def.responses.historyLimit }
         if par.responses.autoPrettyMB < 0 { par.responses.autoPrettyMB = def.responses.autoPrettyMB }
@@ -104,7 +84,6 @@ nonisolated extension AppSettings: YAMLCodable {
     var yaml: YNode {
         var gen = YMap()
         gen.add("language", general.language)
-        gen.add("theme", general.theme)
         gen.add("projectsDir", general.projectsDir)
         gen.add("restoreSession", general.restoreSession)
         var req = YMap()
@@ -114,21 +93,15 @@ nonisolated extension AppSettings: YAMLCodable {
         req.add("verifyTLS", requests.verifyTLS)
         req.add("cookieJar", requests.cookieJar)
         req.add("userAgent", requests.userAgent)
-        var prx = YMap()
-        prx.add("mode", proxy.mode)
-        prx.add("host", proxy.host)
-        prx.add("port", proxy.port)
         var res = YMap()
         res.add("maxBodyMB", responses.maxBodyMB)
         res.add("historyLimit", responses.historyLimit)
         res.add("autoPrettyMB", responses.autoPrettyMB)
         var cpy = YMap()
-        cpy.add("multiline", copy.multiline)
         cpy.add("maskSecrets", copy.maskSecrets)
         var map = YMap()
         map.add("general", gen.node)
         map.add("requests", req.node)
-        map.add("proxy", prx.node)
         map.add("responses", res.node)
         map.add("copy", cpy.node)
         return map.node
@@ -138,7 +111,6 @@ nonisolated extension AppSettings: YAMLCodable {
         self.init()
         if let sec: General = try opt.object("general") { general = sec }
         if let sec: Requests = try opt.object("requests") { requests = sec }
-        if let sec: Proxy = try opt.object("proxy") { proxy = sec }
         if let sec: Responses = try opt.object("responses") { responses = sec }
         if let sec: Copy = try opt.object("copy") { copy = sec }
     }
@@ -148,7 +120,6 @@ nonisolated extension AppSettings.General: YAMLDecodable {
     init(yaml opt: YAMLObject) throws {
         self.init()
         language = try opt.optionalString("language") ?? language
-        theme = try opt.optionalString("theme") ?? theme
         projectsDir = try opt.optionalString("projectsDir") ?? projectsDir
         restoreSession = try opt.optionalBool("restoreSession") ?? restoreSession
     }
@@ -166,15 +137,6 @@ nonisolated extension AppSettings.Requests: YAMLDecodable {
     }
 }
 
-nonisolated extension AppSettings.Proxy: YAMLDecodable {
-    init(yaml opt: YAMLObject) throws {
-        self.init()
-        mode = try opt.optionalString("mode") ?? mode
-        host = try opt.optionalString("host") ?? host
-        port = try opt.optionalInt("port") ?? port
-    }
-}
-
 nonisolated extension AppSettings.Responses: YAMLDecodable {
     init(yaml opt: YAMLObject) throws {
         self.init()
@@ -187,7 +149,6 @@ nonisolated extension AppSettings.Responses: YAMLDecodable {
 nonisolated extension AppSettings.Copy: YAMLDecodable {
     init(yaml opt: YAMLObject) throws {
         self.init()
-        multiline = try opt.optionalBool("multiline") ?? multiline
         maskSecrets = try opt.optionalBool("maskSecrets") ?? maskSecrets
     }
 }

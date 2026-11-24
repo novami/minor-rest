@@ -44,7 +44,7 @@ final class AppModel {
                     return
                 }
                 let copy = settings.value.copy
-                await runs.copyCurl(pid, rel, req, multiline: copy.multiline, mask: copy.maskSecrets)
+                await runs.copyCurl(pid, rel, req, mask: copy.maskSecrets)
             }
         }
         tree.onOpen = { [tabs] rel in await tabs.open(rel) }
