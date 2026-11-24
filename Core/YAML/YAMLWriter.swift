@@ -255,7 +255,7 @@ nonisolated enum YAMLWriter {
     }
 }
 
-    /// Příznaky nasbírané průchodem řetězce.
+/// Příznaky nasbírané průchodem řetězce.
 nonisolated private struct AnalysisFlags {
     var blockIndicators: Bool
     var leadingSpace = false

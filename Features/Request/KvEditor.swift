@@ -83,58 +83,14 @@ struct KvEditor<Row: KvRow>: View {
         let ghost = i >= rows.count
         let res = binding(i)
         HStack(spacing: 6) {
-            if !fixed {
-                Image(systemName: "line.3.horizontal")
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 12)
-                    .opacity(ghost ? 0 : 1)
-                    .help(t("kv.drag"))
-                    .onDrag {
-                        dragging = i
-                        return NSItemProvider(object: "minorrest-kv-\(i)" as NSString)
-                    }
-                Toggle("", isOn: res.enabled).labelsHidden().toggleStyle(.checkbox)
-                    .frame(width: 16).opacity(ghost ? 0 : 1).disabled(ghost)
-            }
-            if fixed {
-                Text(res.wrappedValue.name).font(fonts.code)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                VarField(
-                    text: res.name, placeholder: ghost ? t("kv.name") : "", font: fonts.codeNSFont,
-                    completions: names.isEmpty ? nil : { HeaderHints.complete($0, in: names) }
-                )
-                .frame(maxWidth: .infinity)
-            }
-            Group {
-                if let valueCell {
-                    valueCell(res, ghost)
-                } else {
-                    VarField(
-                        text: res.value, placeholder: ghost ? t("kv.value") : "", font: fonts.codeNSFont,
-                        completions: valuesFor.map { fn in
-                            { [name = res.wrappedValue.name] in HeaderHints.complete($0, in: fn(name)) }
-                        })
-                }
-            }
-            .frame(maxWidth: .infinity)
+            if !fixed { rowControls(i, res, ghost: ghost) }
+            nameCell(res, ghost: ghost)
+            valueField(res, ghost: ghost).frame(maxWidth: .infinity)
             TextField("", text: res.note, prompt: ghost ? Text(noteTitle) : nil)
                 .textFieldStyle(.roundedBorder)
                 .font(fonts.ui)
                 .frame(maxWidth: .infinity)
-            if !fixed {
-                Button {
-                    rows.remove(at: i)
-                } label: {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(.borderless)
-                .frame(width: 16)
-                .foregroundStyle(.secondary)
-                .help(t("kv.delete"))
-                .opacity(ghost ? 0 : 1)
-                .disabled(ghost)
-            }
+            if !fixed { deleteButton(i, ghost: ghost) }
         }
         .frame(height: kvRowHeight)
         .opacity(res.wrappedValue.enabled || ghost ? 1 : 0.55)
@@ -145,6 +101,63 @@ struct KvEditor<Row: KvRow>: View {
             delegate: RowDrop(
                 index: i, count: rows.count, height: kvRowHeight,
                 dragging: $dragging, line: $dropLine, move: move))
+    }
+
+    /// Úchyt pro přetažení a přepínač zapnutí.
+    @ViewBuilder
+    private func rowControls(_ i: Int, _ res: Binding<Row>, ghost: Bool) -> some View {
+        Image(systemName: "line.3.horizontal")
+            .foregroundStyle(.tertiary)
+            .frame(width: 12)
+            .opacity(ghost ? 0 : 1)
+            .help(t("kv.drag"))
+            .onDrag {
+                dragging = i
+                return NSItemProvider(object: "minorrest-kv-\(i)" as NSString)
+            }
+        Toggle("", isOn: res.enabled).labelsHidden().toggleStyle(.checkbox)
+            .frame(width: 16).opacity(ghost ? 0 : 1).disabled(ghost)
+    }
+
+    @ViewBuilder
+    private func nameCell(_ res: Binding<Row>, ghost: Bool) -> some View {
+        if fixed {
+            Text(res.wrappedValue.name).font(fonts.code)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            VarField(
+                text: res.name, placeholder: ghost ? t("kv.name") : "", font: fonts.codeNSFont,
+                completions: names.isEmpty ? nil : { HeaderHints.complete($0, in: names) }
+            )
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private func valueField(_ res: Binding<Row>, ghost: Bool) -> some View {
+        if let valueCell {
+            valueCell(res, ghost)
+        } else {
+            VarField(
+                text: res.value, placeholder: ghost ? t("kv.value") : "", font: fonts.codeNSFont,
+                completions: valuesFor.map { fn in
+                    { [name = res.wrappedValue.name] in HeaderHints.complete($0, in: fn(name)) }
+                })
+        }
+    }
+
+    private func deleteButton(_ i: Int, ghost: Bool) -> some View {
+        Button {
+            rows.remove(at: i)
+        } label: {
+            Image(systemName: "xmark")
+        }
+        .buttonStyle(.borderless)
+        .frame(width: 16)
+        .foregroundStyle(.secondary)
+        .help(t("kv.delete"))
+        .opacity(ghost ? 0 : 1)
+        .disabled(ghost)
     }
 
     @ViewBuilder

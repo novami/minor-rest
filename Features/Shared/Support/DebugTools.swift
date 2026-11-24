@@ -62,41 +62,51 @@ enum DebugTools {
                     await selectEnvironment(model, env, secret: value("--debug-secret"))
                 }
             }
-            if args.contains("--debug-send") {
-                Task {
+            if args.contains("--debug-send") { scheduleSend(model) }
+            if args.contains("--debug-sequence") { scheduleSequence(model) }
+            scheduleSnapshot(quit: args.contains("--quit-after-debug"))
+        }
+
+        private static func scheduleSend(_ model: AppModel) {
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                model.send()
+                if let mode = value("--response-mode").flatMap(BodyMode.init), let tab = model.tabs.active {
                     try? await Task.sleep(for: .seconds(1))
+                    model.runs.setMode(tab.id, mode)
+                }
+                if let expr = value("--response-filter"), let tab = model.tabs.active {
+                    model.runs.filters[tab.id] = expr
+                }
+                applyResponseSection(model)
+            }
+        }
+
+        /// Odešle všechny otevřené taby popořadě; `--debug-save N` pak uloží N verzí odpovědi posledního tabu.
+        private static func scheduleSequence(_ model: AppModel) {
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                for tab in model.tabs.list {
+                    model.tabs.activate(tab.id)
                     model.send()
-                    if let mode = value("--response-mode").flatMap(BodyMode.init), let tab = model.tabs.active {
-                        try? await Task.sleep(for: .seconds(1))
-                        model.runs.setMode(tab.id, mode)
-                    }
-                    if let expr = value("--response-filter"), let tab = model.tabs.active {
-                        model.runs.filters[tab.id] = expr
-                    }
-                    if let section = value("--response-section").flatMap(ResponseSection.init) {
-                        model.tabs.edit { $0.responseSection = section }
+                    try? await Task.sleep(for: .seconds(1.5))
+                }
+                if let num = value("--debug-save").flatMap(Int.init), let tab = model.tabs.active {
+                    for _ in 0..<num {
+                        await model.runs.saveResponse(tab.id, projectID: tab.projectID, requestID: tab.draft.id)
                     }
                 }
+                applyResponseSection(model)
             }
-            if args.contains("--debug-sequence") {
-                // Odešle všechny otevřené taby popořadě; `--debug-save N` pak uloží N verzí odpovědi posledního tabu.
-                Task {
-                    try? await Task.sleep(for: .seconds(1))
-                    for tab in model.tabs.list {
-                        model.tabs.activate(tab.id)
-                        model.send()
-                        try? await Task.sleep(for: .seconds(1.5))
-                    }
-                    if let num = value("--debug-save").flatMap(Int.init), let tab = model.tabs.active {
-                        for _ in 0..<num {
-                            await model.runs.saveResponse(tab.id, projectID: tab.projectID, requestID: tab.draft.id)
-                        }
-                    }
-                    if let section = value("--response-section").flatMap(ResponseSection.init) {
-                        model.tabs.edit { $0.responseSection = section }
-                    }
-                }
+        }
+
+        private static func applyResponseSection(_ model: AppModel) {
+            if let section = value("--response-section").flatMap(ResponseSection.init) {
+                model.tabs.edit { $0.responseSection = section }
             }
+        }
+
+        private static func scheduleSnapshot(quit: Bool) {
             let snapshot = value("--snapshot")
             let menu = value("--dump-menu")
             guard snapshot != nil || menu != nil else { return }
@@ -104,7 +114,7 @@ enum DebugTools {
                 try? await Task.sleep(for: .seconds(value("--snapshot-delay").flatMap(Double.init) ?? 1.5))
                 if let snapshot { writeSnapshot(to: snapshot) }
                 if let menu { try? dumpMenu().write(toFile: menu, atomically: true, encoding: .utf8) }
-                if args.contains("--quit-after-debug") { NSApp.terminate(nil) }
+                if quit { NSApp.terminate(nil) }
             }
         }
 
