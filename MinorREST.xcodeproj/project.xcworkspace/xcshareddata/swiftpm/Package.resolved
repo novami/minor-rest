@@ -1,0 +1,24 @@
+{
+  "originHash" : "9679a7cfb577c948760d79a65d2d59242ac3a7c2c7023597ad09209d73f2bcbb",
+  "pins" : [
+    {
+      "identity" : "minor-swift-core",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/novami/minor-swift-core.git",
+      "state" : {
+        "revision" : "7ccc18fbb17080c53551459b5af1c473f6c4b848",
+        "version" : "0.1.1"
+      }
+    },
+    {
+      "identity" : "yams",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpsim/Yams.git",
+      "state" : {
+        "revision" : "a27b21e0c81c5bf42049b897a62aaf387e80f279",
+        "version" : "6.2.2"
+      }
+    }
+  ],
+  "version" : 3
+}

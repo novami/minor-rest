@@ -1,8 +1,10 @@
 .DS_Store
-*.log
 .build/
-.swiftpm/
+DerivedData/
+build/
 xcuserdata/
 *.xcuserstate
-MinorREST.xcodeproj/
-App/Info.plist
+*.p12
+*.p8
+.swiftpm/
+*.log

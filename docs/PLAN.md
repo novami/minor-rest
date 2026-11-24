@@ -23,7 +23,7 @@
 | Jazyk UI | čeština + angličtina (String Catalog `Localizable.xcstrings`, výchozí dle systému, přepnutelné za běhu) |
 | Podpis | ad-hoc (`codesign -s -`), bez notarizace a bez App Sandboxu; auto-update z GitHub Releases ověřený EdDSA |
 | Licence / repo | MIT, https://github.com/novami/minor-rest.git |
-| Bundle ID | `com.github.novami.minorrest` |
+| Bundle ID | `cz.novami.minor.rest` |
 | Kopírování requestu | jen cURL (víceřádkový + jednořádkový) |
 | Fonty | ne-retina Menlo 13 (UI i kód), retina SF Pro (UI) + SF Mono (kód) |
 
@@ -687,3 +687,9 @@ Command palette (Cmd+K: requesty napříč projekty + akce), prázdné stavy, uk
 - **Literály v auth polích** končí v YAML (a tedy v gitu) – řeší jen varování a převod na secret proměnnou.
 - **OAuth2 authorization code:** servery vyžadující přesnou redirect URI → pole `redirectPort`.
 - **Mimo rozsah v1:** skripty, testy/asserty, runner, mock server, WebSocket/GraphQL/gRPC, mTLS, Digest, markdown náhled, folding v editoru.
+
+
+## Změny po migraci (2026-11-24)
+- Nová kostra (starter + minor-swift-core), macOS 26+, Bundle ID `cz.novami.minor.rest`; kap. 10 (vlastní updater, Sparkle, ad-hoc podpis) je nahrazena `MinorUpdater` + Developer ID + notarizace.
+- OAuth2 `authorization_code` odstraněn (žádný lokální listener); zůstávají `client_credentials` a `password` (+ refresh).
+- Kap. 2.8: tajemství requestů (auth pole, `Authorization`/`Proxy-Authorization`/`Cookie`) jsou v Keychainu, v YAML `{{keychain}}`.
